@@ -89,13 +89,13 @@ test('published finance has its own view while import controls remain role-gated
 
 test('Report Absence opens the Build 052 screen and linked staging form',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const nav=html.indexOf("side.querySelector('[data-connected-nav=\\"absence\\"]')");
+  const nav=html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')");
   const navEnd=html.indexOf("side.querySelector('#vh26-sidebar-signout')",nav);
   assert.ok(nav>0&&navEnd>nav);
   const handler=html.slice(nav,navEnd);
   assert.match(handler,/vh26-absence-view-active/);
   assert.doesNotMatch(handler,/unavailable for this connected account/);
   assert.match(html,/id='vh26-absence-workspace'/);
-  assert.match(html,/window\\.vhOpenAttendance\\(\\)/);
+  assert.match(html,/window\.vhOpenAttendance\(\)/);
   assert.match(html,/vh26-absence-view-active #vh26-absence-workspace/);
 });
