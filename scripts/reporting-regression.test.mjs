@@ -149,6 +149,8 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
   assert.match(html,/id="vh26-presenter-mode"/);
   for(const id of ['vh26-host-week','vh26-host-submitted','vh26-host-awaiting','vh26-host-open-actions'])assert.equal([...html.matchAll(new RegExp('id="'+id+'"','g'))].length,1,`${id} is unique from the hidden legacy interface`);
   assert.match(html,/getElementById\('vh26-host-submitted'\)\.textContent=String\(submitted\.size\)/);
+  assert.match(html,/if\(!week\)\{status\.textContent='No open reporting week is available to calculate readiness\.';for\(const id of \['vh26-host-submitted','vh26-host-awaiting'\]\)/);
+  assert.doesNotMatch(html,/for\(const id of \['hubSubmittedCount','hubAttentionCount'\]\)document\.getElementById\(id\)\.textContent/);
   assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>r\.role==='meeting_host'\)\}/);
 });
 
