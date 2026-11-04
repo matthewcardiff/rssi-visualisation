@@ -65,3 +65,24 @@ test('native submit control enables reopened manager reports and locks submitted
     assert.equal(nodes.get('vh26-submit-report').disabled,disabled,`${status}, manager=${manager}`);
   }
 });
+test('connected Action Log uses a dedicated view and the Build 052 table layout',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const nav=html.indexOf("side.querySelector('[data-connected-nav=\"actions\"]')");
+  const navEnd=html.indexOf("side.querySelector('[data-connected-nav=\"finance\"]')",nav);
+  assert.ok(nav>0&&navEnd>nav);
+  const handler=html.slice(nav,navEnd);
+  assert.match(handler,/vh26-action-view-active/);
+  assert.doesNotMatch(handler,/scrollIntoView/);
+  const renderer=html.slice(html.indexOf('function renderActions(){'),html.indexOf('\nasync function loadActions'));
+  for(const heading of ['Department','Action','Owner','Due date','Status','Created in','Completed'])assert.ok(renderer.includes(heading));
+  assert.match(html,/vh26-visual-restoration-routes/);
+  assert.match(html,/vh26-workspace-active:not\(\.vh26-action-view-active\):not\(\.vh26-finance-view-active\).*#vh26-finance-preview/);
+});
+test('published finance has its own view while import controls remain role-gated',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/const financeRole=roles\.some\(r=>\['finance','finance_admin','administrator'\]\.includes\(r\.role\)\)/);
+  assert.ok(html.includes('<button type="button" data-connected-nav="finance">£ Finance</button>'));
+  assert.match(html,/vh26-finance-preview'\)\.hidden=!roles\.some/);
+  assert.match(html,/vh26-finance-review'\)\.hidden=!financeRole/);
+  assert.ok(html.includes("[data-connected-nav=\"finance\"]')?.addEventListener"));
+});
