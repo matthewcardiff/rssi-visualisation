@@ -99,3 +99,9 @@ test('Report Absence opens the Build 052 screen and linked staging form',()=>{
   assert.match(html,/window\.vhOpenAttendance\(\)/);
   assert.match(html,/vh26-absence-view-active #vh26-absence-workspace/);
 });
+
+test('absence reasons are not stored in browser local storage',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.doesNotMatch(html,/vh-absence-draft/);
+  assert.match(html,/No absence details are stored in this browser/);
+});
