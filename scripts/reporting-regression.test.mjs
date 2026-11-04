@@ -188,6 +188,7 @@ test('Build 052 host dashboard restores responsive chrome, week selection and co
   assert.match(html,/function setHostDashboardView\(view\)/);
   assert.match(html,/Session expired\. Select Sign out, then sign in again to load live readiness\./);
   assert.match(html,/vh26-host-session-error/);
+  assert.match(html,/\.choose-head\{display:flex!important;position:relative!important;inset:auto!important;width:100%;height:46px!important;min-height:46px!important;box-sizing:border-box!important/);
   assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-welcome\{height:362px/);
   assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-nav\{display:flex/);
   assert.match(html,/renderHostWeeksList\(\)/);
