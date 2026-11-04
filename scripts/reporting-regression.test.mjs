@@ -154,6 +154,16 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
   assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>r\.role==='meeting_host'\)\}/);
 });
 
+test('host dashboard and action register are hidden while navigating to other workspaces',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.ok(html.includes("function setHostHomeVisible(visible){const allowed=hostDashboardAllowed();document.getElementById('vh26-meeting-host').hidden=!(visible&&allowed);presenterRoot.hidden=!(visible&&allowed);if(!visible)document.getElementById('vh26-presenter-mode').hidden=true}"));
+  assert.ok(html.includes('function openDepartment(department){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
+  const home=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')"),html.indexOf("side.querySelector('[data-connected-nav=\"report\"]')"));
+  assert.ok(home.includes('setHostHomeVisible(true)'));
+  const absence=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')"),html.indexOf("side.querySelector('#vh26-sidebar-signout')"));
+  assert.ok(absence.includes('setHostHomeVisible(false)'));
+});
+
 test('Home / Departments restores its heading and subtitle',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const start=html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')");
