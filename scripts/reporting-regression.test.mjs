@@ -164,6 +164,18 @@ test('host dashboard and action register are hidden while navigating to other wo
   assert.ok(absence.includes('setHostHomeVisible(false)'));
 });
 
+test('department reporting is outside the host-only visibility container',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const host=html.indexOf('<section id="vh26-meeting-host"');
+  const actions=html.indexOf('<section id="vh26-presenter-actions"');
+  const departments=html.indexOf('id="vh26-department-grid"');
+  const report=html.indexOf('<section id="vh26-report-workspace"');
+  assert.ok(host>0&&actions>host&&departments>actions&&report>departments);
+  assert.match(html.slice(host,actions),/id="vh26-presenter-mode"/);
+  assert.doesNotMatch(html.slice(host,actions),/id="vh26-report-workspace"/);
+  assert.doesNotMatch(html.slice(host,actions),/id="vh26-department-grid"/);
+});
+
 test('Home / Departments restores its heading and subtitle',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const start=html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')");
