@@ -138,6 +138,19 @@ test('Bids/RFQs bypasses the generic report and links from the Build 052 workspa
   assert.match(html,/vh26-connected-dashboard\.vh26-bids-active #vh26-native-report\{display:none!important\}/);
 });
 
+test('Bids/RFQs workspace state clears before switching to other connected routes',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/dash\.classList\.remove\('vh26-action-view-active','vh26-finance-view-active','vh26-absence-view-active','vh26-bids-active'\)/);
+  assert.match(html,/function closeBidsView=|const closeBidsView=\(\)=>\{dash\.classList\.remove\('vh26-bids-active'\)/);
+  for(const route of ['departments','report','actions','finance','absence']){
+    const start=html.indexOf("side.querySelector('[data-connected-nav=\""+route+"\"]')");
+    assert.ok(start>0,route+' route exists');
+    const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+    assert.ok(html.slice(start,end>start?end:start+1200).includes('closeBidsView()'),route+' clears Bid Hub content');
+  }
+  assert.match(html,/classList\.remove\('vh26-workspace-active','vh26-bids-active'\)/);
+});
+
 test('meeting host view is role-gated and supplies live readiness plus read-only Presenter Mode',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
