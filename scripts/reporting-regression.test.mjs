@@ -186,6 +186,8 @@ test('Build 052 host dashboard restores responsive chrome, week selection and co
   for(const view of ['overview','actions','weeks','settings'])assert.match(html,new RegExp('data-host-view="'+view+'"'));
   assert.match(html,/function orderedHostWeeks\(\)\{return \[\.\.\.\(hostData\?\.weeks\|\|\[\]\)\]/);
   assert.match(html,/function setHostDashboardView\(view\)/);
+  assert.match(html,/Session expired\. Select Sign out, then sign in again to load live readiness\./);
+  assert.match(html,/vh26-host-session-error/);
   assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-welcome\{height:362px/);
   assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-nav\{display:flex/);
   assert.match(html,/renderHostWeeksList\(\)/);
