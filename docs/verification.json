@@ -1,0 +1,200 @@
+{
+  "type": "static syntax and isolated access-gate checks; not browser or full feature regression",
+  "checks": [
+    {
+      "name": "All 38 executable scripts compile",
+      "passed": true
+    },
+    {
+      "name": "Removed vh-demo",
+      "passed": true
+    },
+    {
+      "name": "Removed Demo123",
+      "passed": true
+    },
+    {
+      "name": "Removed vhQuickLogin",
+      "passed": true
+    },
+    {
+      "name": "Removed vhChooseTestAccount",
+      "passed": true
+    },
+    {
+      "name": "Removed vhSetDemoRole",
+      "passed": true
+    },
+    {
+      "name": "Removed vhDeleteAllTestData",
+      "passed": true
+    },
+    {
+      "name": "Removed vhRequestDeleteReport",
+      "passed": true
+    },
+    {
+      "name": "Removed local-demo.invalid",
+      "passed": true
+    },
+    {
+      "name": "Removed ryan.spence",
+      "passed": true
+    },
+    {
+      "name": "Removed host@",
+      "passed": true
+    },
+    {
+      "name": "Removed Local preview",
+      "passed": true
+    },
+    {
+      "name": "Removed Test account access",
+      "passed": true
+    },
+    {
+      "name": "Removed Stage 3F",
+      "passed": true
+    },
+    {
+      "name": "No embedded portable snapshot",
+      "passed": true
+    },
+    {
+      "name": "No nested portable template",
+      "passed": true
+    },
+    {
+      "name": "Build badge retained",
+      "passed": true
+    },
+    {
+      "name": "enter denied",
+      "passed": true
+    },
+    {
+      "name": "enter cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "showChooser denied",
+      "passed": true
+    },
+    {
+      "name": "showChooser cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "chooseDept denied",
+      "passed": true
+    },
+    {
+      "name": "chooseDept cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "navigate denied",
+      "passed": true
+    },
+    {
+      "name": "navigate cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "openMeeting denied",
+      "passed": true
+    },
+    {
+      "name": "openMeeting cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "launchPresenter denied",
+      "passed": true
+    },
+    {
+      "name": "launchPresenter cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "renderPresentation denied",
+      "passed": true
+    },
+    {
+      "name": "renderPresentation cannot be replaced",
+      "passed": true
+    },
+    {
+      "name": "Credentials disabled and cleared",
+      "passed": true
+    },
+    {
+      "name": "Sign in disabled",
+      "passed": true
+    },
+    {
+      "name": "Explanation displayed",
+      "passed": true
+    },
+    {
+      "name": "Form submission blocked",
+      "passed": true
+    },
+    {
+      "name": "Identity empty",
+      "passed": true
+    },
+    {
+      "name": "Roles denied",
+      "passed": true
+    },
+    {
+      "name": "Entry matches reviewed build hash",
+      "passed": false
+    },
+    {
+      "name": "Public files exactly match allowlist",
+      "passed": false
+    },
+    {
+      "name": "Static credential fields disabled",
+      "passed": true
+    },
+    {
+      "name": "Static sign-in disabled",
+      "passed": true
+    },
+    {
+      "name": "Netlify publishes only public",
+      "passed": true
+    },
+    {
+      "name": "Netlify runs checks",
+      "passed": true
+    },
+    {
+      "name": "Headers prevent framing and indexing",
+      "passed": true
+    },
+    {
+      "name": "Unconnected services blocked by policy",
+      "passed": false
+    },
+    {
+      "name": "No embedded credential patterns",
+      "passed": true
+    },
+    {
+      "name": "Status matches disabled build",
+      "passed": false
+    }
+  ],
+  "passed": false,
+  "browser": "Playwright could not launch: Chromium executable unavailable",
+  "limitations": [
+    "No connected Supabase authentication or shared storage",
+    "No full browser/Edge visual or feature regression",
+    "No deployment, mail or live AI requests"
+  ]
+}

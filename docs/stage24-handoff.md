@@ -1,0 +1,1 @@
+Stage 24: authenticated create draft, save section notes, submit draft; RLS enforced by caller JWT. No finance dependency. Editing only in Department reporting view with selected department and open week. Pending live write acceptance and original Build052 migration. No deployment performed.

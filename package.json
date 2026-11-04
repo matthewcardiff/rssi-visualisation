@@ -1,0 +1,12 @@
+{
+  "name": "rssi-visualisation-hub-staging",
+  "version": "0.52.0",
+  "private": true,
+  "scripts": {
+    "build": "node scripts/verify-stage26.cjs",
+    "test": "node scripts/verify-stage26.cjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

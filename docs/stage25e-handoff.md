@@ -1,0 +1,1 @@
+Stage 25E: HSQE audit/NCR, close call and headcount entry. Sign-off uses JWT caller and database trigger. Deployment and authenticated acceptance outstanding. Historical week close-call totals remain current-date-based; this is not yet a complete historical reporting implementation.

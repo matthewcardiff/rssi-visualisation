@@ -1,0 +1,1 @@
+Stage 25D: read-only HSQE persistent register dashboard. Open audits and NCRs carry forward by remaining in the register until signed off; close calls use a rolling 12-month window from individual event dates; operative counts use latest dated headcount. No automatic case creation or sign-off UI yet. HSQE access is controlled by Supabase RLS. No historical data modified.

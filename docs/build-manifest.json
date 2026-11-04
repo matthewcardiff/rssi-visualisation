@@ -1,0 +1,13 @@
+{
+  "build": "052",
+  "baseline": "051 cleaned source",
+  "entry_sha256": "3c6cf44ca8a1a710309219e715cb0322f747bdcd7213ec27723f6779951c0572",
+  "deploymentPerformed": false,
+  "publicFiles": [
+    "404.html",
+    "_headers",
+    "deployment-status.json",
+    "index.html",
+    "robots.txt"
+  ]
+}

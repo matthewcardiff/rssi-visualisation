@@ -1,0 +1,1 @@
+Stage 26C6: Native Supabase pipeline list/create/update added to authenticated dashboard. Uses existing caller-JWT API and RLS. Pipeline is independent of weekly report and submitted report locking. No delete operation or database changes. Browser acceptance pending. Original Build 052 visual parity not verified.

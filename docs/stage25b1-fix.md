@@ -1,0 +1,1 @@
+Stage 25B.1: Pipeline editor visibility corrected for single-department users; edit existing opportunity via caller-JWT RLS; meeting host remains read-only. Does not alter submitted reports or finance. Live user acceptance pending.

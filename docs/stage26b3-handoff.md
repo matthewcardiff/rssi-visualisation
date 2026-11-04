@@ -1,0 +1,1 @@
+Stage 26B3: connected reporting section navigation for Pipeline, Delivery, Programme, Risks and Resources. Retains existing authenticated Supabase editor and submission lock. This is NOT a complete Build 052 visual/functional reproduction. No database changes. Finance and actions editing remain pending.

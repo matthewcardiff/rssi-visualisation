@@ -1,0 +1,1 @@
+Stage 26C5: Native reporting usability and data-loss protection. Unsaved-change confirmation for department, week, section, refresh, back, sign-out, browser exit; prevent submit while dirty; show explicit integration scope. No database modifications. Original Build 052 visual parity and browser acceptance are NOT verified.

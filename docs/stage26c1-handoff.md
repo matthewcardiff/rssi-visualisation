@@ -1,0 +1,1 @@
+Stage 26C1: department chooser deep-links into the connected reporting editor with a department code; the editor resolves that code only against server-authorised departments. No local legacy editor was unlocked. This is a navigation improvement, not full Build 052 form migration. No database changes. Browser acceptance outstanding.

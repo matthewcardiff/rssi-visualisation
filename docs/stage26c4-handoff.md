@@ -1,0 +1,1 @@
+Stage 26C4: Replaced embedded acceptance iframe with native reporting form in the approved application document. Connected week/report/section read, create draft, save, and submit to existing authenticated Netlify API. Uses caller JWT and RLS. Limited to standard five sections; not a full Build 052 parity claim. No database changes. Browser acceptance pending.

@@ -1,0 +1,1 @@
+Stage 26B4: Structured entries per weekly section with title, detail, owner, support and required-by. Uses report_sections.content.entries and preserves notes/other content. Local build checks only; authenticated browser and RLS regression pending. Entries are staged in UI until Save section. Original Build 052 full visual parity not yet achieved. No database migrations.
