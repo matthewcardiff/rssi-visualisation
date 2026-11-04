@@ -105,3 +105,18 @@ test('absence reasons are not stored in browser local storage',()=>{
   assert.doesNotMatch(html,/vh-absence-draft/);
   assert.match(html,/No absence details are stored in this browser/);
 });
+
+test('leaving Report Absence hides its card and restores the target page heading',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/const closeAbsenceView=\(\)=>\{const absencePanel=document\.getElementById\('vh26-absence-workspace'\);if\(absencePanel\)absencePanel\.hidden=true/);
+  for(const route of ['departments','report','actions','finance']){
+    const start=html.indexOf("side.querySelector('[data-connected-nav=\""+route+"\"]')");
+    assert.ok(start>0,route+' route exists');
+    const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+    const handler=html.slice(start,end>start?end:start+1200);
+    assert.match(handler,/closeAbsenceView\(\)/,route+' clears absence view');
+  }
+  const render=html.slice(html.indexOf('function renderSection(){'),html.indexOf('async function loadPublishedFinance'));
+  assert.match(render,/absenceView\?'Report absence':'Department report'/);
+  assert.match(html,/title\.textContent='Department report'/);
+});
