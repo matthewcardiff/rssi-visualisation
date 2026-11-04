@@ -132,3 +132,11 @@ test('Home / Departments restores its heading and subtitle',()=>{
   assert.match(handler,/sub\.textContent='Select a department to view its weekly report'/);
   assert.match(handler,/vh26-back-departments/);
 });
+
+test('absence reporting includes the complete departmental list',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('const depts=');
+  const end=html.indexOf(';',start);
+  const declaration=html.slice(start,end);
+  for(const department of ['Managed Environments','Civils','Rail Operations','S&T','TWS','Welding','MMA','HS2','Montel','HSQE','Bids/RFQs'])assert.ok(declaration.includes(`'${department}'`),department+' is available');
+});
