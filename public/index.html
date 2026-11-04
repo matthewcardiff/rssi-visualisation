@@ -550,7 +550,6 @@ window.vhOpenAttendance=function(){
  const week=document.getElementById('week')?.value||'Current reporting week';
  const subject='Visualisation Hub - Monday meeting absence - '+name+' ('+dept+')';
  const body='To: Managing Director; Operations Director; Finance / Commercial Director\n\nI am unable to attend the Monday 10:00 management meeting.\n\nManager: '+name+'\nDepartment: '+dept+'\nReporting week: '+week+'\nReason: '+reason+'\n\nPlease review my departmental report in Visualisation Hub.\n\nThis email has been prepared in the staging portal and requires manual sending.';
- 
  const href='mailto:?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
  const link=document.createElement('a');link.href=href;link.style.display='none';document.body.appendChild(link);link.click();link.remove();
  const msg=overlay.querySelector('.vh-attendance-message');msg.textContent='Email draft requested. Please add the three directors as recipients and send it from your email application. No automatic email has been sent.';
