@@ -169,12 +169,26 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
 
 test('host dashboard and action register are hidden while navigating to other workspaces',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.ok(html.includes("function setHostHomeVisible(visible){const allowed=hostDashboardAllowed();document.getElementById('vh26-meeting-host').hidden=!(visible&&allowed);presenterRoot.hidden=!(visible&&allowed);if(!visible)document.getElementById('vh26-presenter-mode').hidden=true}"));
+  assert.match(html,/function setHostHomeVisible\(visible\)\{const active=!!\(visible&&hostDashboardAllowed\(\)\)/);
+  assert.match(html,/dash\.classList\.toggle\('vh26-host-layout-active',active\)/);
+  assert.match(html,/presenterRoot\.hidden=true/);
   assert.ok(html.includes('function openDepartment(department){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
   const home=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')"),html.indexOf("side.querySelector('[data-connected-nav=\"report\"]')"));
   assert.ok(home.includes('setHostHomeVisible(true)'));
   const absence=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')"),html.indexOf("side.querySelector('#vh26-sidebar-signout')"));
   assert.ok(absence.includes('setHostHomeVisible(false)'));
+});
+
+test('Build 052 host dashboard restores responsive chrome, week selection and connected navigation',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/<h1>Visualisation <span class="hub-orange-word">Hub<\/span><\/h1>/);
+  assert.match(html,/id="vh26-host-week-select" aria-label="Reporting Rail Week"/);
+  for(const view of ['overview','actions','weeks','settings'])assert.match(html,new RegExp('data-host-view="'+view+'"'));
+  assert.match(html,/function orderedHostWeeks\(\)\{return \[\.\.\.\(hostData\?\.weeks\|\|\[\]\)\]/);
+  assert.match(html,/function setHostDashboardView\(view\)/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-welcome\{height:362px/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-nav\{display:flex/);
+  assert.match(html,/renderHostWeeksList\(\)/);
 });
 
 test('department reporting is outside the host-only visibility container',()=>{
