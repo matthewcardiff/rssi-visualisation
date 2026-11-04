@@ -54,14 +54,14 @@ test('legacy observers preserve locked authentication globals without throwing',
 test('native submit control enables reopened manager reports and locks submitted reports',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const fn=html.indexOf('function renderSection(){');
-  const start=html.indexOf('const pipeline=selectedSection',fn);
-  const end=html.indexOf('\nasync function loadPublishedFinance',start);
-  assert.ok(fn>0&&start>fn&&end>start);
+  const end=html.indexOf('\nasync function loadPublishedFinance',fn);
+  assert.ok(fn>0&&end>fn);
   for(const [status,editable,manager,disabled] of [['reopened',true,true,false],['draft',true,true,false],['submitted',false,true,true],['reopened',true,false,true]]){
     const nodes=new Map();
-    const make=()=>({replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
-    const document={getElementById(id){if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},createElement:make};
-    vm.runInNewContext('function renderSection(){'+html.slice(start,end)+';renderSection();',{document,selectedSection:'delivery',nativeData:{sections:[]},context:()=>({report:{id,status},editable}),canManage:()=>manager,reportKeys:['delivery'],reportLabels:['Delivery'],reportMessage(){}});
+    const make=()=>({hidden:false,disabled:false,value:'',textContent:'',style:{},classList:{contains(){return false},toggle(){}},replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
+    const document={getElementById(id){if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},querySelector(){return make()},querySelectorAll(){return []},createElement:make};
+    const source=html.slice(fn,end).replace(/function renderHsqeFields\([\s\S]*?\n(?=function renderSection)/,'');
+    vm.runInNewContext(source+';renderSection();',{document,selectedDepartment:{id:'dept',code:'department',display_name:'Department'},selectedSection:'delivery',selectedWeek:'week',nativeData:{sections:[],weeks:[],reports:[]},context:()=>({report:{id:'report',status},editable}),canManage:()=>manager,currentReportKeys:()=>['pipeline','delivery','programme','risks','resources','review'],currentReportLabels:()=>['Pipeline','Delivery','Programme','Risks','Resources','Review & submit'],renderPipeline(){},renderReview(){},reportMessage(){},addEntry(){},confirmReportingLeave:()=>true});
     assert.equal(nodes.get('vh26-submit-report').disabled,disabled,`${status}, manager=${manager}`);
   }
 });
@@ -117,8 +117,36 @@ test('leaving Report Absence hides its card and restores the target page heading
     assert.match(handler,/closeAbsenceView\(\)/,route+' clears absence view');
   }
   const render=html.slice(html.indexOf('function renderSection(){'),html.indexOf('async function loadPublishedFinance'));
-  assert.match(render,/absenceView\?'Report absence':'Department report'/);
+  assert.match(render,/absenceView\?'Report absence':isBids\?'Bids \/ RFQs':'Department report'/);
   assert.match(html,/title\.textContent='Department report'/);
+});
+
+test('HSQE uses its five specialist sections plus review and saves fields in the supported schema',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  for(const key of ['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents'])assert.ok(html.includes("key:'"+key+"'"));
+  assert.match(html,/function currentReportKeys\(\)\{return selectedDepartment\?\.code==='hsqe'\?\[\.\.\.hsqeReportSections\.map\(x=>x\.key\),'review'\]/);
+  assert.match(html,/selectedDepartment\.code==='hsqe'\)\{const fields=Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\('#vh26-hsqe-fields \[data-hsqe-field\]'\)/);
+  assert.match(html,/section_key:selectedSection,content\}/);
+  assert.match(html,/open the HSQE rolling registers/);
+});
+
+test('Bids/RFQs bypasses the generic report and links from the Build 052 workspace to Bid Hub',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/department\.code==='bids-rfqs'\)renderSection\(\);else loadNative\(\)/);
+  assert.match(html,/id="vh26-bids-workspace"/);
+  assert.match(html,/https:\/\/rssi-bid-hub-staging2\.netlify\.app\/#\/tracker/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-bids-active #vh26-native-report\{display:none!important\}/);
+});
+
+test('meeting host view is role-gated and supplies live readiness plus read-only Presenter Mode',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
+  assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'/);
+  assert.match(html,/id="hubSubmittedCount"/);
+  assert.match(html,/id="hubAttentionCount"/);
+  assert.match(html,/id="vh26-presenter-launch"/);
+  assert.match(html,/id="vh26-presenter-mode"/);
+  assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>r\.role==='meeting_host'\)\}/);
 });
 
 test('Home / Departments restores its heading and subtitle',()=>{
