@@ -45,7 +45,8 @@ test('finance publication stays server-gated',async()=>{
 });
 test('connected API requests time out with an actionable status',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.ok(html.includes('signal:AbortSignal.timeout(20000)'));
+  assert.ok(html.includes('Promise.race([request,deadline])'));
+  assert.ok(html.includes('controller.abort()'));
   assert.ok(html.includes('Staging service timed out. Try again.'));
 });
 test('legacy observers preserve locked authentication globals without throwing',()=>{
