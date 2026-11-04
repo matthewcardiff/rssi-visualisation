@@ -142,10 +142,13 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
   assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'/);
-  assert.match(html,/id="hubSubmittedCount"/);
-  assert.match(html,/id="hubAttentionCount"/);
+  assert.match(html,/id="vh26-host-submitted"/);
+  assert.match(html,/id="vh26-host-awaiting"/);
+  assert.match(html,/id="vh26-host-open-actions"/);
   assert.match(html,/id="vh26-presenter-launch"/);
   assert.match(html,/id="vh26-presenter-mode"/);
+  for(const id of ['vh26-host-week','vh26-host-submitted','vh26-host-awaiting','vh26-host-open-actions'])assert.equal([...html.matchAll(new RegExp('id="'+id+'"','g'))].length,1,`${id} is unique from the hidden legacy interface`);
+  assert.match(html,/getElementById\('vh26-host-submitted'\)\.textContent=String\(submitted\.size\)/);
   assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>r\.role==='meeting_host'\)\}/);
 });
 
