@@ -120,3 +120,15 @@ test('leaving Report Absence hides its card and restores the target page heading
   assert.match(render,/absenceView\?'Report absence':'Department report'/);
   assert.match(html,/title\.textContent='Department report'/);
 });
+
+test('Home / Departments restores its heading and subtitle',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')");
+  const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+  assert.ok(start>0&&end>start);
+  const handler=html.slice(start,end);
+  assert.match(handler,/closeAbsenceView\(\)/);
+  assert.match(handler,/title\.textContent='Choose a department'/);
+  assert.match(handler,/sub\.textContent='Select a department to view its weekly report'/);
+  assert.match(handler,/vh26-back-departments/);
+});
