@@ -167,7 +167,7 @@ $('save-draft').addEventListener('click',async()=>{
   $('editor-status').textContent='Section saved to Supabase. Refresh the page to verify persistence.';
  }catch(e){$('editor-status').textContent='Save failed: '+e.message;$('section-notes').value=notes;$('save-draft').disabled=false;}
 });
-$('submit-report').addEventListener('click',()=>{const c=editorContext();if(c?.member?.membership_role==='manager'&&c.report?.status==='draft'&&c.w?.status==='open'&&confirm('Submit this departmental report? Editing will be locked.'))mutate('submit_report',{report_id:c.report.id})});
+$('submit-report').addEventListener('click',()=>{const c=editorContext();if(c?.member?.membership_role==='manager'&&['draft','reopened'].includes(c.report?.status)&&c.w?.status==='open'&&confirm('Submit this departmental report? Editing will be locked.'))mutate('submit_report',{report_id:c.report.id})});
 
 function renderPipelineEditor(){
  const el=$('pipeline-editor');if(!snapshot){el.hidden=true;return}

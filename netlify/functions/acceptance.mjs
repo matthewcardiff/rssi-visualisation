@@ -59,13 +59,15 @@ export default async (request)=>{
         if(!existing.ok)return json(502,{error:'Section lookup failed'});
         const rows=await existing.json();
         const out=rows.length?await send('report_sections?id=eq.'+rows[0].id,'PATCH',{content,updated_by:user.id}):await send('report_sections','POST',{report_id:data.report_id,section_key:data.section_key,content,updated_by:user.id});
-        return out.error?json(out.status===403?403:409,{error:'Draft save denied; verify department membership and open reporting week'}):json(200,out);
+        if(out.error)return json(out.status===403?403:409,{error:'Draft save denied; verify department membership and open reporting week'});
+        if(!Array.isArray(out.items)||out.items.length!==1)return json(409,{error:'Section was not saved. Refresh to check report status and permissions before retrying.'});
+        return json(200,out);
       }
       if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
       // Submission is independent of finance uploads. Existing RLS + trigger govern transitions.
-      const out=await send('department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=eq.draft','PATCH',{status:'submitted',submitted_by:user.id,submitted_at:new Date().toISOString()});
+      const out=await send('department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=in.(draft,reopened)','PATCH',{status:'submitted',submitted_by:user.id,submitted_at:new Date().toISOString()});
       if(out.error)return json(out.status===403?403:409,{error:'Submission denied; check role and reporting week'});
-      if(!out.items.length)return json(409,{error:'Report is not an editable draft or is outside your permissions'});
+      if(!out.items.length)return json(409,{error:'Report is not an editable draft or reopened report, or is outside your permissions'});
       return json(200,out);
     }
     if(['create_action','update_action'].includes(data.op)){
