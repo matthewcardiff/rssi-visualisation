@@ -43,6 +43,11 @@ test('finance publication stays server-gated',async()=>{
   const out=await request('finance_publish',{import_id:id,confirm:true,comment:'Test only'},[{body:{id}}]);
   assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_SECURITY_GATE');assert.equal(out.calls.length,1);
 });
+test('connected API requests time out with an actionable status',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.ok(html.includes('signal:AbortSignal.timeout(20000)'));
+  assert.ok(html.includes('Staging service timed out. Try again.'));
+});
 test('legacy observers preserve locked authentication globals without throwing',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const start=html.indexOf("  // The connected authentication gate deliberately locks these globals.");
