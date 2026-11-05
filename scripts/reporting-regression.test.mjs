@@ -43,6 +43,18 @@ test('reporting week creation is denied before calendar lookup for non-host role
   assert.equal(out.status,403);
   assert.equal(out.calls.length,2);
 });
+test('weeks lookup returns all rail periods for lagged finance source validation',async()=>{
+  const out=await request('weeks',{},[
+    {body:{id}},
+    {body:[{id,rail_period_id:id,status:'open'}]},
+    {body:[{id,start_date:'2026-10-17',end_date:'2026-10-23'},{id:'33333333-3333-4333-8333-333333333333',start_date:'2026-10-31',end_date:'2026-11-06'}]}
+  ]);
+  assert.equal(out.status,200);
+  assert.equal(out.body.items.length,1);
+  assert.equal(out.body.periods.length,2);
+  assert.equal(out.calls.length,3);
+  assert.equal(out.calls[2].options.headers.authorization,'Bearer '+token);
+});
 test('a zero-row RLS-filtered section PATCH is reported as failure',async()=>{
   const out=await request('save_section',{report_id:id,section_key:'delivery',content:{notes:'Update'}},[{body:{id}},{body:[{id}]},{body:[]}]);
   assert.equal(out.status,409);assert.match(out.body.error,/not saved/);
@@ -153,9 +165,16 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/Excel financial workbook/);
   assert.match(html,/accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
   assert.match(html,/await vhFinanceExtract\(file,sourceWeek\.id\)/);
+  assert.match(html,/nativeData=\{weeks,periods:response\.periods\|\|\[\],reports:\[\],sections:\[\],departments:verifiedIdentity\?\.departments\|\|\[\]\}/);
+  assert.match(html,/nativeData\?\.periods\|\|\[\]/);
   assert.match(html,/input_state,source_period_id/);
   assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
   assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
+  assert.match(html,/vh26-finance-review-table/);
+  assert.match(html,/workbookWarnings\.length>0/);
+  assert.match(html,/if\(!v\.acknowledged\)/);
+  assert.match(html,/amount=blank\?null:Number\(value\),input_state=blank\?'missing'/);
+  assert.match(html,/hasValue\?total:null/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/Approval &amp; publication/);
   assert.match(html,/Departments with finance figures/);
@@ -222,6 +241,10 @@ test('finance import endpoint accepts the approved xlsx workbook extension',()=>
   const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
   assert.ok(api.includes('\\.(?:csv|xlsx)$/i.test(data.file_name)'));
   assert.match(api,/Valid Excel workbook or CSV file name required/);
+  for(const migration of ['../database/finance_atomic_import.sql','../database/finance_rpc_only_review.sql']){
+    const sql=readFileSync(new URL(migration,import.meta.url),'utf8');
+    assert.ok(sql.includes('\\.(csv|xlsx)$'));
+  }
 });
 
 test('Report Absence opens the Build 052 screen and linked staging form',()=>{
@@ -320,7 +343,8 @@ test('Build 050 Reporting Weeks restores department filtering, report counts, vi
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/vh26-host-weeks-department/);
   assert.match(html,/Department reports started/);
-  assert.match(html,/count\.textContent=started\.size\+' \/ '\+presenterDepartments\.length/);
+  assert.match(html,/hostData\.loading\?\.reports\?'Loading…':hostData\.errors\?\.reports\?'Unavailable'/);
+  assert.match(html,/started\.size\+' \/ '\+presenterDepartments\.length/);
   assert.match(html,/function addNextHostWeek\(status\)/);
   assert.match(html,/dataApi\('create_week'\)/);
   assert.match(html,/openDepartment\(d,week\.id\)/);
