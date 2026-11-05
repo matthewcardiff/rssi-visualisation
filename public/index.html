@@ -51633,7 +51633,7 @@ Wordlist Command: mk-list --accents=strip en_GB-ise 60
 <section id="vh26-finance-panel" aria-label="Department financial allocation" class="vh26-finance-allocation"><h2>Department financial allocation</h2><p>Weekly budget and revenue figures appear here after the workbook has passed finance review and been published. A workbook marked pending reconciliation is staged only and will not appear in department reports or Presenter Mode. Figures use the intentional two-week reporting lag; missing data is never treated as zero, and departments can submit independently.</p><div id="vh26-finance-summary"></div><div id="vh26-finance-status" role="status">No published finance figures loaded yet.</div><div id="vh26-finance-content"></div></section>
 <section id="vh26-actions-workspace" style="padding:18px 24px;border-bottom:1px solid #d5e1e8"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><h2>Action log · <span id="vh26-action-department">Department</span></h2><button id="vh26-actions-refresh" type="button">Refresh actions</button></div><p>Outstanding actions carry forward between reporting weeks. Completed actions remain visible in history.</p><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label>Show <select id="vh26-action-filter"><option value="outstanding">Outstanding</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="all">All actions</option></select></label><button type="button" id="vh26-actions-export">Export CSV / Excel</button><button type="button" id="vh26-actions-print">Print / Save PDF</button></div><div id="vh26-actions-summary" role="status"></div><div id="vh26-actions-list"></div><div id="vh26-action-create" hidden><h3>New meeting action</h3><div id="vh26-action-new-fields"></div><button id="vh26-action-add" type="button">Create action</button></div></section>
 <div class="vh26-stage-progress" aria-hidden="true"><span id="vh26-stage-progress-fill"></span></div><div id="vh26-section-tabs" style="display:flex;flex-wrap:wrap;gap:8px;margin:20px 0"></div><section id="vh26-pipeline-workspace" hidden aria-label="Pipeline opportunities"><div class="vh26-section-counter">SECTION 1 OF 6</div><h2>Pipeline</h2><p>Opportunities carry forward independently of weekly report submission. All required fields must be completed.</p><div id="vh26-pipeline-list"></div><button type="button" id="vh26-pipeline-add">Add opportunity</button><p id="vh26-pipeline-message" role="status"></p></section>
-<div id="vh26-section-editor"><div class="vh26-section-counter">SECTION 2 OF 6</div><h2 id="vh26-section-title">Delivery</h2><div id="vh26-generic-section-editor"><label>Section notes<textarea id="vh26-section-notes" rows="5" style="width:100%;display:block;padding:12px;margin-top:8px"></textarea></label><div id="vh26-entries"></div><button type="button" id="vh26-add-entry">Add entry</button></div><div id="vh26-hsqe-fields" hidden></div><p id="vh26-hsqe-register-link" hidden>For rolling audits, NCRs, close calls and operative headcount, <a href="/acceptance.html?department=hsqe">open the HSQE rolling registers</a>.</p><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px"><button type="button" id="vh26-save-section">Save draft</button><button type="button" id="vh26-submit-report">Submit report</button></div></div>
+<div id="vh26-section-editor"><div class="vh26-section-counter">SECTION 2 OF 6</div><h2 id="vh26-section-title">Delivery</h2><div id="vh26-generic-section-editor"><label>Section notes<textarea spellcheck="true" lang="en-GB" id="vh26-section-notes" rows="5" style="width:100%;display:block;padding:12px;margin-top:8px"></textarea></label><div id="vh26-entries"></div><button type="button" id="vh26-add-entry">Add entry</button></div><div id="vh26-hsqe-fields" hidden></div><p id="vh26-hsqe-register-link" hidden>For rolling audits, NCRs, close calls and operative headcount, <a href="/acceptance.html?department=hsqe">open the HSQE rolling registers</a>.</p><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px"><button type="button" id="vh26-save-section">Save draft</button><button type="button" id="vh26-ai-review" class="outline">AI Review — improve response</button><button type="button" id="vh26-submit-report" hidden>Submit report</button></div><p id="vh26-ai-feedback" role="status" style="white-space:pre-wrap"></p></div>
 </div><section id="vh26-review-workspace" hidden><div class="vh26-section-counter">SECTION 6 OF 6</div><h2>Review &amp; submit</h2><div id="vh26-review-summary"></div><button type="button" id="vh26-submit-review">Submit weekly report</button><p>Submitting a departmental report does not require a finance upload.</p></section></section><div class="notice">This connected report is saved to Supabase.</div></main>
 </section>
 <style>.vh26-integration-notice{padding:12px 20px;margin:0;background:#f3f7fa;color:#28485c;font-size:13px;border-bottom:1px solid #d5e1e8}#vh26-report-workspace{margin-top:24px;background:#fff;border:1px solid #d5e1e8;border-radius:12px;overflow:hidden;box-shadow:0 6px 20px #16364c12}#vh26-report-workspace[hidden]{display:none!important}.vh26-workspace-bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;background:#eaf1f5;padding:12px 16px;color:#163448}.vh26-workspace-bar button{background:#004d71;color:#fff;border:0;border-radius:6px;padding:10px 14px;cursor:pointer}.vh26-workspace-bar a{margin-left:auto;color:#004d71}#vh26-section-tabs button{padding:10px 15px;border:1px solid #c4d6e0;border-radius:6px;background:#f5f8fa;cursor:pointer}#vh26-section-tabs button[aria-selected=true]{background:#004d71;color:#fff}#vh26-entries .vh26-entry{padding:16px;margin:12px 0;border:1px solid #d5e1e8;border-radius:8px;display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(210px,1fr))}#vh26-entries label{display:grid;gap:4px}#vh26-entries input,#vh26-entries textarea{width:100%;padding:8px}#vh26-native-report button{cursor:pointer;padding:10px 14px;border-radius:6px;border:1px solid #abc2ce}#vh26-save-section{background:#004d71;color:white}#vh26-connected-dashboard.vh26-workspace-active #vh26-department-grid{display:none}#vh26-connected-dashboard.vh26-workspace-active .choose-kicker{display:none}</style>
@@ -52486,4 +52486,41 @@ enable();restore();
 #vh26-action-department-filter{min-height:38px;padding:7px 12px;border:1px solid #cbd8df;border-radius:8px;background:#fff;color:#173448}
 @media(max-width:760px){#vh26-connected-dashboard .vh26-brand{grid-template-columns:1fr!important}#vh26-report-intro,#vh26-section-editor,#vh26-pipeline-workspace,#vh26-review-workspace{padding:18px!important}}
 </style>
-</body></html>
+<style id="vh-visual-fixes">
+html:has(#presentationMode.on),body:has(#presentationMode.on){overflow:hidden!important}
+#presentationMode.on{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;overflow-y:auto!important;overflow-x:hidden!important;scrollbar-gutter:stable}
+#presentationMode .pres-header{width:100%!important;max-width:none!important;margin:0!important;box-sizing:border-box!important}
+#presentationMode .pres-body{padding-bottom:112px!important}
+#presentationMode .pres-foot{position:fixed!important;bottom:0!important;left:0!important;right:0!important;width:100%!important;margin:0!important;z-index:1001!important;box-sizing:border-box!important;padding:14px clamp(18px,3vw,48px)!important;background:#f4f6f8!important;border-top:1px solid #d7e2e9!important;box-shadow:0 -2px 12px #15354a10!important}
+#presentationMode .pres-card:empty:after{content:"Not reported for this week";display:block;font-style:italic;color:#526b7d}
+#vh26-section-editor #vh26-submit-report[hidden]{display:none!important}
+#vh26-ai-review{background:#fff;color:#004d71;border:1px solid #b8cad7}
+#vh26-ai-feedback{margin-top:12px;color:#173448;line-height:1.5}
+</style>
+<script id="vh-ai-review-restoration">
+(function(){
+function install(){
+ const btn=document.getElementById('vh26-ai-review');if(!btn||btn.dataset.ready)return;btn.dataset.ready='1';
+ document.querySelectorAll('#vh26-report-workspace textarea').forEach(t=>{t.spellcheck=true;t.lang='en-GB'});
+ btn.addEventListener('click',async function(){
+ const field=document.getElementById('vh26-section-notes'),feedback=document.getElementById('vh26-ai-feedback');
+ const original=field?.value?.trim();if(!original){feedback.textContent='Enter an update before requesting AI suggestions.';return}
+ const token=typeof window.vhGetAIReviewToken==='function'?await window.vhGetAIReviewToken():null;
+ if(!token){feedback.textContent='AI review requires an authenticated session.';return}
+ btn.disabled=true;feedback.textContent='Reviewing response…';
+ try{
+ const departmentSelect=document.getElementById('vh26-department-select');
+ const weekSelect=document.getElementById('vh26-week-select');
+ const department=departmentSelect?.selectedOptions?.[0]?.textContent?.trim()||document.querySelector('#vh26-report-intro h1')?.textContent?.trim()||'';
+ const week=weekSelect?.selectedOptions?.[0]?.textContent?.trim()||'';
+ const section=document.querySelector('#vh26-section-title')?.textContent?.trim()?.toLowerCase();
+ const valid=['delivery','programme','risks','resources','pipeline'];
+ const response=await fetch('/.netlify/functions/review-report',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({section:valid.includes(section)?section:'delivery',text:original,department,week})});
+ const data=await response.json();if(!response.ok)throw Error(data.error||'AI review failed');
+ feedback.textContent=[data.assessment,...(data.suggestions||[]).map(x=>'Suggestion: '+x),...(data.questions||[]).map(x=>'Consider: '+x),'Suggested wording (not applied): '+(data.draft||'')].filter(Boolean).join('\n\n');
+ }catch(e){feedback.textContent='AI review unavailable: '+e.message}finally{btn.disabled=false}
+ });
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);else install();
+})();
+</script></body></html>
