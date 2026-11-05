@@ -306,6 +306,9 @@ test('Presenter reads separate pipeline opportunities and omits false status and
   assert.match(html,/\['weeks','reports','sections','pipeline'\]/);
   const renderer=html.slice(html.indexOf('function renderPresenterSlide(){'),html.indexOf('function openPresenterMode()'));
   assert.match(renderer,/hostData\?\.pipeline/);assert.match(renderer,/item\.customer/);assert.doesNotMatch(renderer,/Report status:/);
+  assert.match(renderer,/const labels=\[\['pipeline','Pipeline'\],\['delivery','Delivery'\],\['programme','Programme'\],\['risks','Risks'\],\['resources','Resources'\]\]/);
+  assert.match(renderer,/Not reported for this week/);assert.match(renderer,/vh26-presenter-card/);
+  assert.match(html,/vh26-presenter-pager\{position:fixed!important/);assert.match(html,/vh26-presenter-slide\{display:grid!important/);
   assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
 });
 test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
