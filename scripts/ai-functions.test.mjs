@@ -44,6 +44,14 @@ test('AI endpoints require POST, valid request bodies and configured server cred
   });
 });
 
+test('Safety Moment reports missing Ollama API key without calling the provider',async()=>withEnv(async()=>{
+  delete process.env.OLLAMA_API_KEY;
+  globalThis.fetch=supabaseMock({roles:[{role:'meeting_host',organisation_id:organisationId}]});
+  const response=await safetyMoment(request('safety-moment',{category:'Rail operations'}));
+  assert.equal(response.status,503);
+  assert.match((await response.json()).error,/OLLAMA_API_KEY/);
+}));
+
 test('AI report review rejects missing, inactive and out-of-scope sessions before calling Ollama',async()=>withEnv(async()=>{
   globalThis.fetch=async url=>String(url).endsWith('/auth/v1/user')?Response.json({}):Response.json([],{status:403});
   assert.equal((await reviewReport(request('review-report',{section:'delivery',text:'update',department:'Managed Environments',week:'2026-W45'},null))).status,401);
