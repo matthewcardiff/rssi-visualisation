@@ -38,7 +38,7 @@ test('AI endpoints require POST, valid request bodies and configured server cred
   assert.equal(invalid.status,400);
   await withEnv(async()=>{
     delete process.env.OLLAMA_API_KEY;
-    globalThis.fetch=async()=>{throw new Error('No network call expected')};
+    globalThis.fetch=supabaseMock();
     const unavailable=await reviewReport(request('review-report',{section:'delivery',text:'Update',department:'Managed Environments',week:'2026-W45'}));
     assert.equal(unavailable.status,503);
   });
