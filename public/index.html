@@ -52076,6 +52076,42 @@ form.addEventListener('submit',async e=>{e.preventDefault();e.stopImmediatePropa
 async function restore(){const raw=sessionStorage.getItem(key);if(!raw)return;let session;try{session=JSON.parse(raw);await enterConnected(session)}catch{if(sessionStorage.getItem(key)!==raw)return;try{const refreshed=await api('refresh',{refresh_token:session?.refresh_token});await enterConnected(refreshed)}catch{if(sessionStorage.getItem(key)===raw)sessionStorage.removeItem(key);message('Session expired. Sign in again.')}}}
 document.getElementById('vh26-signout').addEventListener('click',()=>{if(!confirmReportingLeave())return;sessionStorage.removeItem(key);location.reload()});
 document.getElementById('vh26-dashboard-signout').addEventListener('click',()=>{if(!confirmReportingLeave())return;sessionStorage.removeItem(key);location.reload()});
+// Reporting weeks remain available even if a separate reports or sections query fails.
+renderHostReadiness=function(){
+ const status=document.getElementById('vh26-host-readiness-status'),week=hostWeek(),select=document.getElementById('vh26-host-week-select');
+ status.classList.remove('vh26-sr-only');status.classList.add('vh26-host-readiness-status');
+ const weeks=orderedHostWeeks(),errors=hostData?.errors||{};
+ if(select){select.replaceChildren();for(const item of weeks){const option=document.createElement('option');option.value=item.id;option.textContent=hostWeekLabel(item);select.append(option)}selectedHostWeekId=weeks.some(item=>item.id===selectedHostWeekId)?selectedHostWeekId:(week?.id||null);select.value=selectedHostWeekId||'';select.disabled=!!errors.weeks||!weeks.length}
+ document.getElementById('vh26-host-week').textContent=week?hostWeekLabel(week):errors.weeks?'Reporting weeks unavailable':'No open reporting week is currently available';
+ document.getElementById('vh26-presenter-week').textContent=week?hostWeekLabel(week):errors.weeks?'Reporting weeks unavailable':'Reporting week not available';
+ renderHostWeeksList();
+ if(!hostData){status.hidden=false;status.textContent='Loading live reporting weeks…';return}
+ const unavailable=[];if(errors.weeks)unavailable.push('reporting weeks');if(errors.reports)unavailable.push('report submission figures');if(errors.sections)unavailable.push('saved report sections');
+ status.hidden=!unavailable.length;
+ if(unavailable.length)status.textContent='Some meeting data could not be loaded: '+unavailable.join(', ')+'. Reopen the meeting overview or sign in again if this continues.';
+ const submittedNode=document.getElementById('vh26-host-submitted'),awaitingNode=document.getElementById('vh26-host-awaiting');
+ if(!week||errors.weeks||errors.reports){submittedNode.textContent='—';awaitingNode.textContent='—'}
+ else{const departments=presenterDepartments.map(d=>d.id),submitted=new Set((hostData.reports||[]).filter(r=>r.reporting_week_id===week.id&&r.status==='submitted'&&departments.includes(r.department_id)).map(r=>r.department_id));submittedNode.textContent=String(submitted.size);awaitingNode.textContent=String(Math.max(0,departments.length-submitted.size))}
+ document.getElementById('vh26-host-open-actions').textContent=String(presenterActions.filter(a=>!['completed','cancelled'].includes(a.status)&&presenterDepartments.some(d=>d.id===a.department_id)).length);
+};
+loadHostReadiness=async function(){
+ const status=document.getElementById('vh26-host-readiness-status');hostData=null;status.hidden=false;status.textContent='Loading live reporting weeks…';renderHostReadiness();
+ const [weeksResult,reportsResult,sectionsResult]=await Promise.allSettled(['weeks','reports','sections'].map(op=>dataApi(op)));
+ hostData={weeks:weeksResult.status==='fulfilled'?(weeksResult.value.items||[]):[],reports:reportsResult.status==='fulfilled'?(reportsResult.value.items||[]):[],sections:sectionsResult.status==='fulfilled'?(sectionsResult.value.items||[]):[],errors:{weeks:weeksResult.status==='rejected'?weeksResult.reason.message:null,reports:reportsResult.status==='rejected'?reportsResult.reason.message:null,sections:sectionsResult.status==='rejected'?sectionsResult.reason.message:null}};
+ renderHostReadiness();
+};
+presenterRows=function(){
+ const data=presenterFiltered(),body=document.querySelector('#vh26-presenter-table tbody');body.replaceChildren();
+ const lookup=new Map(presenterDepartments.map(d=>[d.id,d.display_name||d.name||d.code||'Department']));
+ for(const a of data){const tr=document.createElement('tr');for(const value of [lookup.get(a.department_id)||'Department',a.description,a.owner_text,a.support_text,a.required_by,a.status,a.completed_at]){const td=document.createElement('td');td.textContent=value||'';td.style.cssText='border-bottom:1px solid #d5e1e8;padding:8px;vertical-align:top';tr.append(td)}body.append(tr)}
+ if(!data.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=7;cell.textContent=presenterActions.length?'No actions match these filters.':'No actions have been recorded yet.';row.append(cell);body.append(row)}
+ document.getElementById('vh26-presenter-summary').textContent=data.length+' matching actions | '+presenterActions.filter(a=>presenterDepartments.some(d=>d.id===a.department_id)&&!['completed','cancelled'].includes(a.status)).length+' outstanding across authorised departments';
+};
+presenterDept.addEventListener('change',presenterRows);presenterStatus.addEventListener('change',presenterRows);
+const renderPresenterSlideWithData=renderPresenterSlide;
+renderPresenterSlide=function(){renderPresenterSlideWithData();const errors=hostData?.errors||{},root=document.getElementById('vh26-presenter-slide');if(errors.reports){root.querySelectorAll('p').forEach(p=>{if(p.textContent.startsWith('No report submitted'))p.remove()});const message=document.createElement('p');message.className='vh26-presenter-status';message.textContent='Report status is temporarily unavailable.';root.prepend(message)}if(errors.sections){root.querySelectorAll('p').forEach(p=>{if(p.textContent.startsWith('No saved report sections'))p.remove()});const message=document.createElement('p');message.textContent='Saved report sections could not be loaded.';root.append(message)}};
+openPresenterMode=async function(){if(!hostDashboardAllowed())return;const mode=document.getElementById('vh26-presenter-mode');mode.hidden=false;presenterDepartmentIndex=0;const slide=document.getElementById('vh26-presenter-slide');slide.textContent='Loading live report…';await loadHostReadiness();renderPresenterSlide()};
+
 enable();restore();
 })();
 </script>
@@ -52232,5 +52268,18 @@ enable();restore();
 #vh26-presenter-mode:fullscreen article{max-width:1400px;margin:0 auto}
 @media(max-width:650px){.vh26-presenter-controls{align-items:stretch;flex-direction:column}.vh26-presenter-controls button{width:100%}}
 @media(prefers-reduced-motion:reduce){.vh26-loading-spinner{animation:none}}
+</style>
+<style id="vh26-build052-connected-screen-alignment">
+/* Keep connected department and action views on the approved Build 052 canvas. */
+#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report{box-sizing:border-box;max-width:826px!important;width:100%;margin:0 auto!important;padding:20px!important}
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{box-sizing:border-box;max-width:826px;margin:0 auto;padding:18px 20px 10px}
+#vh26-connected-dashboard.vh26-host-layout-active #vh26-presenter-actions{box-sizing:border-box;width:100%;max-width:826px;margin:14px auto!important;padding:18px!important;background:#fff!important;border:1px solid #dce4ea!important;border-radius:12px!important;box-shadow:0 3px 14px #00274109!important}
+#vh26-connected-dashboard.vh26-host-layout-active #vh26-presenter-actions label{display:inline-flex;align-items:center;gap:6px}
+#vh26-connected-dashboard.vh26-host-layout-active #vh26-presenter-actions select{min-width:150px;min-height:32px;padding:5px 8px;border:1px solid #cbd8df;border-radius:5px;background:#fff;color:#173448;font:inherit}
+#vh26-connected-dashboard.vh26-host-layout-active #vh26-presenter-status{min-width:128px}
+#vh26-connected-dashboard.vh26-host-layout-active #vh26-presenter-table td[colspan]{padding:18px 10px;text-align:center;color:#607183}
+.vh26-host-readiness-status[hidden]{display:none!important}
+#vh26-connected-dashboard.vh26-host-layout-active .vh26-host-readiness-status:not([hidden]){display:block;margin:6px 0;padding:7px 8px;border-left:3px solid #ffb36d;background:#ffffff14;color:#ffe8d7;font-size:10px;line-height:1.4}
+@media(max-width:760px){#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report{padding:14px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{padding:14px 14px 8px}}
 </style>
 </body></html>
