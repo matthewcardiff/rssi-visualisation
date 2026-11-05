@@ -59,7 +59,7 @@ BEGIN
   SELECT 1 FROM public.user_roles r JOIN public.profiles p ON p.id=r.user_id
   WHERE r.user_id=v_user AND p.active=true AND r.role IN ('finance','administrator')
  ) THEN RAISE EXCEPTION 'Finance import not authorised' USING ERRCODE='42501'; END IF;
- IF p_file_name IS NULL OR length(p_file_name)>120 OR p_file_name !~* '^[a-z0-9_.() -]+\.csv$'
+ IF p_file_name IS NULL OR length(p_file_name)>120 OR p_file_name !~* '^[a-z0-9_.() -]+\.(csv|xlsx)$'
     OR p_file_sha256 !~ '^[a-f0-9]{64}$' THEN RAISE EXCEPTION 'Invalid file metadata'; END IF;
  IF jsonb_typeof(p_metrics) IS DISTINCT FROM 'array' OR jsonb_array_length(p_metrics) NOT BETWEEN 4 AND 300
  THEN RAISE EXCEPTION 'Invalid metric payload'; END IF;
