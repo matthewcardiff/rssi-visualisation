@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -24,6 +24,28 @@ export default async (request)=>{
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
     const user=await userResponse.json();
+    if(data.op==='create_week'){
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may create a reporting week'});
+      const [weeksResponse,periodsResponse]=await Promise.all([
+        fetch(url+'/rest/v1/reporting_weeks?select=id,rail_period_id&limit=500',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/rail_calendar_periods?select=id,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
+      ]);
+      if(!weeksResponse.ok||!periodsResponse.ok)return json(502,{error:'Calendar references could not be loaded'});
+      const [weeks,periods]=await Promise.all([weeksResponse.json(),periodsResponse.json()]);
+      const ordered=[...periods].sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date)));
+      const created=new Set(weeks.map(w=>w.rail_period_id));
+      const latest=ordered.filter(p=>created.has(p.id)).at(-1);
+      const nextIndex=latest?ordered.findIndex(p=>p.id===latest.id)+1:-1;
+      const next=ordered[nextIndex];
+      if(!next)return json(409,{error:'The supplied rail calendar has no later period. Load the next official calendar before creating a reporting week.'});
+      if(created.has(next.id))return json(409,{error:'A reporting week already exists for this rail period'});
+      const insert=await fetch(url+'/rest/v1/reporting_weeks',{method:'POST',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({rail_period_id:next.id,status:'open',creation_method:'manual'}),signal:AbortSignal.timeout(12000)});
+      const result=await insert.json().catch(()=>[]);
+      if(!insert.ok)return json(insert.status===403?403:409,{error:'Reporting week creation was rejected. Refresh to check whether it was created by another host.'});
+      if(!Array.isArray(result)||result.length!==1)return json(409,{error:'Reporting week creation returned no record. Refresh before retrying.'});
+      return json(200,{items:result});
+    }
     // All mutations use the caller's JWT; Supabase RLS remains the authority.
     if(['create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
