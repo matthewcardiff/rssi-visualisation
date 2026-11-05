@@ -132,7 +132,7 @@ test('published finance has its own view while import controls remain role-gated
 test('Build 052 finance workbook layout stages XLSX through the authenticated finance API',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/Excel financial workbook/);
-  assert.match(html,/accept="\.xlsx,\.csv,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet,text\/csv"/);
+  assert.match(html,/accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
   assert.match(html,/await vhFinanceExtract\(file,sourceWeek\.id\)/);
   assert.match(html,/input_state,source_period_id/);
   assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
@@ -164,6 +164,25 @@ test('Presenter Mode uses the embedded Build 050 logo and renders authorised dep
   assert.match(html,/syncPresenterDepartments\(\);const tabs=document\.getElementById\('vh26-presenter-tabs'\)/);
   assert.match(html,/presenterDepartments\.forEach\(\(d,i\)=>add/);
   assert.match(html,/No authorised departments were returned for this account/);
+});
+test('Presenter Mode opens directly on Safety Moment while readiness loads, and clears stale department tabs',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
+  assert.match(html,/presenterDepartments=resolved/);
+  assert.match(html,/function presenterDepartmentLabel\(department\)/);
+  for(const [source,label] of [['Civils & Construction','Civils'],['Signalling','S&T'],['Track Warning Systems','TWS'],['Midland Metro','MMA']])assert.ok(html.includes(`['${source}','${label}']`));
+});
+test('Finance navigation opens its own week and workbook view without first opening a department report',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf("side.addEventListener('click',event=>{const button=event.target.closest('[data-connected-nav=\"finance\"]')");
+  const end=html.indexOf("side.querySelector('#vh26-sidebar-signout')",start);
+  assert.ok(start>0&&end>start);
+  const route=html.slice(start,end);
+  assert.match(route,/true\);async function openFinanceDirect\(\)/);
+  assert.match(route,/await dataApi\('weeks'\)/);
+  assert.match(route,/loadPublishedFinance\(\),financeReviewRefresh\(\)/);
+  assert.doesNotMatch(route,/openDepartment\(/);
+  assert.match(route,/visible\[0\]\|\|departments\.find\(x=>x\.active!==false\)/);
 });
 test('Reporting Weeks resolves independently, times out visibly and can be retried',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
