@@ -307,9 +307,13 @@ export default async (request)=>{
       return json(200,{user:{id:user.id,email:user.email},profiles,roles,memberships,departments});
     }
     if(data.op==='weeks'){
-      const r=await fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)});
-      if(!r.ok)return json(502,{error:'Reporting week lookup failed',status:r.status});
-      return json(200,{items:await r.json()});
+      const [weeksResponse,periodsResponse]=await Promise.all([
+        fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/rail_calendar_periods?select=id,rail_year,rail_week,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
+      ]);
+      if(!weeksResponse.ok||!periodsResponse.ok)return json(502,{error:'Reporting week and calendar lookup failed',status:!weeksResponse.ok?weeksResponse.status:periodsResponse.status});
+      const [items,periods]=await Promise.all([weeksResponse.json(),periodsResponse.json()]);
+      return json(200,{items,periods});
     }
     if(['sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
       const paths={sections:'report_sections?select=id,report_id,section_key,content,revision&limit=200',items:'report_items?select=id,report_id,section_key,item_type,payload,owner_text,support_text,required_by,status,position&limit=200',pipeline:'pipeline_opportunities?select=*&limit=200'};
