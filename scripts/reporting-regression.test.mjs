@@ -117,11 +117,16 @@ test('submitted, inaccessible or concurrently changed report is not falsely subm
 test('finance import and reconciliation are disabled unless the deploy-scoped staging gate is set',async()=>{
   for(const op of ['finance_import','finance_reconcile']){
     const out=await request(op,{},[{body:{id}}]);
-    assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
+    assert.equal(out.status,503);assert.equal(out.body.code,op==='finance_reconcile'?'FINANCE_RECONCILIATION_DISABLED':'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
   }
 });
+test('finance staging permission alone does not enable reconciliation before findings are persisted',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;
+  try{const out=await request('finance_reconcile',{import_id:id,confirm:true,comment:'Acceptance test reconciliation'},[{body:{id}}]);assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_RECONCILIATION_DISABLED');assert.equal(out.calls.length,1)}
+  finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+});
 test('enabled finance reconciliation authorises the administrator and preserves the caller JWT',async()=>{
-  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  const prior=process.env.VH_FINANCE_STAGING_WRITES,priorRecon=process.env.VH_FINANCE_RECONCILIATION_ENABLED;process.env.VH_FINANCE_STAGING_WRITES='enabled';process.env.VH_FINANCE_RECONCILIATION_ENABLED='enabled';
   try{
     const out=await request('finance_reconcile',{import_id:id,confirm:true,comment:'Acceptance test reconciliation'},[
       {body:{id}},
@@ -131,17 +136,17 @@ test('enabled finance reconciliation authorises the administrator and preserves 
     assert.equal(out.status,200);assert.equal(out.body.reconciled,true);
     assert.match(out.calls[2].url,/\/rpc\/vh_finance_reconcile$/);
     assert.equal(out.calls[2].options.headers.authorization,'Bearer '+token);
-  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior;if(priorRecon===undefined)delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;else process.env.VH_FINANCE_RECONCILIATION_ENABLED=priorRecon}
 });
 test('finance staging gate does not grant the department manager finance RPC access',async()=>{
-  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  const prior=process.env.VH_FINANCE_STAGING_WRITES,priorRecon=process.env.VH_FINANCE_RECONCILIATION_ENABLED;process.env.VH_FINANCE_STAGING_WRITES='enabled';process.env.VH_FINANCE_RECONCILIATION_ENABLED='enabled';
   try{
     const out=await request('finance_reconcile',{import_id:id,confirm:true,comment:'Manager denial acceptance test'},[
       {body:{id}},
       {body:[{role:'department_manager'}]}
     ]);
     assert.equal(out.status,403);assert.equal(out.calls.length,2);
-  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior;if(priorRecon===undefined)delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;else process.env.VH_FINANCE_RECONCILIATION_ENABLED=priorRecon}
 });
 test('finance publication stays server-gated even when staging imports are enabled',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
@@ -153,7 +158,7 @@ test('finance publication stays server-gated even when staging imports are enabl
 });
 test('finance register exposes only per-import reconciled and publish actions when enabled',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/item\.can_reconcile&&data\.approval_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
+  assert.match(html,/item\.can_reconcile&&data\.reconciliation_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
   assert.match(html,/item\.can_publish&&data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
   assert.match(html,/Enter the review rationale \(at least 8 characters\)/);
   assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
