@@ -2,6 +2,7 @@
   const brandFix = document.createElement('style');
   brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-report-intro{max-width:750px!important}';
   document.head.append(brandFix);
+  document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
   const delay = 650;
   let sectionTimer = 0;
   let sectionSaving = false;
