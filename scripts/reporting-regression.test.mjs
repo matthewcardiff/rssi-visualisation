@@ -155,6 +155,30 @@ test('Build 050 Presenter Mode restores Safety Moment, finance and department ta
   assert.match(html,/id="vh26-session-loading"[\s\S]{0,500}Loading current workspace/);
   assert.match(html,/async function enterConnected\(session\)\{const loader=document\.getElementById\('vh26-session-loading'\)/);
 });
+test('Presenter Mode uses the embedded Build 050 logo and renders authorised departments before opening',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const logo=readFileSync(new URL('../public/rssi-logo.png',import.meta.url));
+  assert.equal(logo.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
+  assert.match(html,/id="vh26-presenter-logo" src="\/rssi-logo\.png"/);
+  assert.match(html,/function syncPresenterDepartments\(\)/);
+  assert.match(html,/syncPresenterDepartments\(\);const tabs=document\.getElementById\('vh26-presenter-tabs'\)/);
+  assert.match(html,/presenterDepartments\.forEach\(\(d,i\)=>add/);
+  assert.match(html,/No authorised departments were returned for this account/);
+});
+test('Reporting Weeks resolves independently, times out visibly and can be retried',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const load=html.indexOf('let hostReadinessGeneration=0;loadHostReadiness=async function()');
+  const weeks=html.indexOf("const result=await request('weeks')",load);
+  const reports=html.indexOf("Promise.allSettled(['reports','sections'].map(request))",load);
+  assert.ok(load>0&&weeks>load&&reports>weeks);
+  assert.match(html,/request timed out after 8 seconds/);
+  assert.match(html,/Retry loading weeks/);
+  assert.match(html,/Reporting weeks unavailable:/);
+});
+test('host Action Log buttons use the shared compact control size',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/#vh26-connected-dashboard\.vh26-host-layout-active #vh26-presenter-actions button\{box-sizing:border-box;min-height:36px;padding:8px 12px!important/);
+});
 test('finance import endpoint accepts the approved xlsx workbook extension',()=>{
   const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
   assert.ok(api.includes('\\.(?:csv|xlsx)$/i.test(data.file_name)'));
