@@ -52545,8 +52545,8 @@ function install(){
  if(!token){feedback.textContent='AI review requires an authenticated session.';return}
  btn.disabled=true;feedback.textContent='Reviewing response…';
  try{
- const department=typeof selectedDepartment!=='undefined'?(selectedDepartment?.display_name||''):'';
- const week=typeof selectedWeek!=='undefined'?(String(nativeData?.weeks?.find(w=>w.id===selectedWeek)?.rail_week||selectedWeek).slice(0,40)):'';
+ const department=document.getElementById('vh26-report-intro-department')?.textContent?.trim()||'';
+ const week=document.querySelector('#vh26-week option:checked')?.textContent?.trim()?.slice(0,40)||'Current reporting week';
  const section=document.querySelector('#vh26-section-title')?.textContent?.trim()?.toLowerCase();
  const valid=['delivery','programme','risks','resources','pipeline'];
  const response=await fetch('/.netlify/functions/review-report',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({section:valid.includes(section)?section:'delivery',text:original,department,week})});

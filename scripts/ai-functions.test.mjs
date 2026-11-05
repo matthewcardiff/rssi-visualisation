@@ -34,6 +34,9 @@ function supabaseMock({roles=[{role:'department_manager',organisation_id:organis
 test('AI endpoints require POST, valid request bodies and configured server credentials',async()=>{
   const method=await reviewReport(request('review-report',{},null,'GET'));
   assert.equal(method.status,405);
+  const missingDepartment=await reviewReport(request('review-report',{section:'delivery',text:'Update',department:'',week:'2026-W45'}));
+  assert.equal(missingDepartment.status,400);
+  assert.match((await missingDepartment.json()).error,/department/);
   const invalid=await safetyMoment(request('safety-moment',{category:'unapproved'}));
   assert.equal(invalid.status,400);
   await withEnv(async()=>{
