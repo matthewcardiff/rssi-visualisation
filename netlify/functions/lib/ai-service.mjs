@@ -87,11 +87,11 @@ export async function safetyMoment(request){
   if(request.method!=='POST')return json(405,{error:'POST required'});
   let body;try{body=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
   if(!body||typeof body.category!=='string'||!safetyCategories.has(body.category))return json(400,{error:'Valid Safety Moment category required'});
-  const base=supabaseConfig();if(!base)return json(503,{error:'Authenticated AI service is not configured'});
+  const base=supabaseConfig();if(!base)return json(503,{error:'AI configuration incomplete: check SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY) in Netlify environment variables'});
   let auth;try{auth=await authorize(request,base,null)}catch{return json(502,{error:'Permission service unavailable'})}
   if(auth.response)return auth.response;
   if(!(auth.isAdmin||auth.isHost))return json(403,{error:'Presenter permission required'});
-  const config=ollamaConfig(base);if(!config)return json(503,{error:'Authenticated AI service is not configured'});
+  const config=ollamaConfig(base);if(!config)return json(503,{error:'Ollama configuration incomplete: set OLLAMA_API_KEY in Netlify environment variables and redeploy; model defaults to gpt-oss:120b (OLLAMA_MODEL is optional)'});
   let result;try{result=await generate(config,{system:'Create a concise safety discussion aid for an infrastructure rail meeting. It is illustrative, not approved procedure or task-specific advice. Avoid making up incident statistics or referring to real people or sites. Use practical, non-prescriptive UK English. Return only the required JSON object.',prompt:JSON.stringify({category:body.category,requirements:'Give a topic, why it matters, a clearly illustrative scenario, exactly three practical discussion points, exactly two discussion questions, and one takeaway or agreed action.'}),schema:ollamaSchema({topic:{type:'string'},why:{type:'string'},scenario:{type:'string'},points:{type:'array',items:{type:'string'},minItems:3,maxItems:3},questions:{type:'array',items:{type:'string'},minItems:2,maxItems:2},takeaway:{type:'string'}},['topic','why','scenario','points','questions','takeaway'])})}catch{return json(502,{error:'AI service unavailable'})}
   if(result.response)return result.response;
   const data=result.data;
