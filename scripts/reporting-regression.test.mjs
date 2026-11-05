@@ -84,10 +84,32 @@ test('a persisted section PATCH succeeds and uses the caller JWT',async()=>{
   assert.equal(out.status,200);assert.equal(out.body.items[0].content.notes,'Update');
   assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
 });
-test('submission includes reopened reports and does not query finance',async()=>{
-  const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[{id,status:'submitted'}]}]);
+test('a department manager can create an action only for their own department',async()=>{
+  const out=await request('create_action',{department_id:id,reporting_week_id:id,description:'Pipeline follow-up',owner_text:'RS',required_by:'2026-11-13',support_text:''},[
+    {body:{id}},{body:[]},{body:[{department_id:id}]},{body:[{id,description:'Pipeline follow-up'}]}
+  ]);
+  assert.equal(out.status,200);assert.match(out.calls[1].url,/role=in\.\(meeting_host,administrator,executive\)/);assert.match(out.calls[2].url,/department_memberships/);assert.equal(out.calls[3].options.method,'POST');
+});
+test('a department manager cannot create an action for another department',async()=>{
+  const out=await request('create_action',{department_id:id,reporting_week_id:id,description:'Out of scope',owner_text:'RS',required_by:'2026-11-13',support_text:''},[
+    {body:{id}},{body:[]},{body:[]}
+  ]);
+  assert.equal(out.status,403);assert.equal(out.calls.length,3);
+});
+test('incomplete reports can only be reopened through an authenticated status update',async()=>{
+  const out=await request('reopen_report',{report_id:id},[{body:{id}},{body:[{id,status:'reopened'}]}]);
+  assert.equal(out.status,200);assert.match(out.calls[1].url,/department_reports.*status=eq.submitted/);assert.equal(out.calls[1].options.method,'PATCH');assert.equal(out.calls[1].options.headers.authorization,'Bearer '+token);assert.equal(JSON.parse(out.calls[1].options.body).status,'reopened');
+});
+test('submission checks every saved report section before locking and does not query finance',async()=>{
+  const sections=['pipeline','delivery','programme','risks','resources'].map(section_key=>({section_key,content:{notes:'Completed '+section_key}}));
+  const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[{id,department_id:id,status:'reopened',departments:{code:'managed-environments'}}]},{body:sections},{body:[]},{body:[{id,status:'submitted'}]}]);
   assert.equal(out.status,200);assert.match(out.calls[1].url,/status=in\.\(draft,reopened\)/);
-  assert.equal(out.calls.length,2);assert.ok(out.calls.every(x=>!x.url.includes('finance')));
+  assert.equal(out.calls.length,5);assert.ok(out.calls.every(x=>!x.url.includes('finance')));assert.match(out.calls[3].url,/pipeline_opportunities/);
+  assert.match(out.calls[2].url,/report_sections/);assert.match(out.calls[4].url,/status=in\.\(draft,reopened\)/);
+});
+test('submission rejects an incomplete report before changing its status',async()=>{
+  const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'managed-environments'}}]},{body:[{section_key:'pipeline',content:{notes:'Only one section'}}]},{body:[]}]);
+  assert.equal(out.status,422);assert.match(out.body.error,/every required report section/);assert.equal(out.calls.length,4);
 });
 test('submitted, inaccessible or concurrently changed report is not falsely submitted',async()=>{
   const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[]}]);assert.equal(out.status,409);
@@ -151,10 +173,10 @@ test('native submit control enables reopened manager reports and locks submitted
   assert.ok(fn>0&&end>fn);
   for(const [status,editable,manager,disabled] of [['reopened',true,true,false],['draft',true,true,false],['submitted',false,true,true],['reopened',true,false,true]]){
     const nodes=new Map();
-    const make=()=>({hidden:false,disabled:false,value:'',textContent:'',style:{},classList:{contains(){return false},toggle(){}},replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
+    const make=()=>({hidden:false,disabled:false,value:'',textContent:'',style:{},classList:{contains(){return false},toggle(){}},querySelector(){return null},replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
     const document={getElementById(id){if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},querySelector(){return make()},querySelectorAll(){return []},createElement:make};
     const source=html.slice(fn,end).replace(/function renderHsqeFields\([\s\S]*?\n(?=function renderSection)/,'');
-    vm.runInNewContext(source+';renderSection();',{document,selectedDepartment:{id:'dept',code:'department',display_name:'Department'},selectedSection:'delivery',selectedWeek:'week',nativeData:{sections:[],weeks:[],reports:[]},context:()=>({report:{id:'report',status},editable}),canManage:()=>manager,currentReportKeys:()=>['pipeline','delivery','programme','risks','resources','review'],currentReportLabels:()=>['Pipeline','Delivery','Programme','Risks','Resources','Review & submit'],renderPipeline(){},renderReview(){},reportMessage(){},addEntry(){},confirmReportingLeave:()=>true});
+    vm.runInNewContext(source+';renderSection();',{document,selectedDepartment:{id:'dept',code:'department',display_name:'Department'},selectedSection:'delivery',selectedWeek:'week',nativeData:{sections:[],weeks:[],reports:[]},context:()=>({report:{id:'report',status},editable}),canManage:()=>manager,currentReportKeys:()=>['pipeline','delivery','programme','risks','resources','review'],currentReportLabels:()=>['Pipeline','Delivery','Programme','Risks','Resources','Review & submit'],renderPipeline(){},renderReview(){},reportSectionComplete:()=>true,reportComplete:()=>true,reportMessage(){},addEntry(){},confirmReportingLeave:()=>true});
     assert.equal(nodes.get('vh26-submit-report').disabled,disabled,`${status}, manager=${manager}`);
   }
 });
@@ -248,6 +270,20 @@ test('Build 050 Presenter Mode restores Safety Moment, finance and department ta
   assert.match(html,/vh26-presenter-mode:fullscreen/);
   assert.match(html,/id="vh26-session-loading"[\s\S]{0,500}Loading current workspace/);
   assert.match(html,/async function enterConnected\(session\)\{const loader=document\.getElementById\('vh26-session-loading'\)/);
+});
+test('Presenter reads separate pipeline opportunities and omits false status and duplicate department headings',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/\['weeks','reports','sections','pipeline'\]/);
+  const renderer=html.slice(html.indexOf('function renderPresenterSlide(){'),html.indexOf('function openPresenterMode()'));
+  assert.match(renderer,/hostData\?\.pipeline/);assert.match(renderer,/item\.customer/);assert.doesNotMatch(renderer,/Report status:/);
+  assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
+});
+test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/function reportComplete\(\)\{return currentReportKeys\(\)\.slice\(0,-1\)\.every\(reportSectionComplete\)\}/);
+  assert.match(html,/Complete and save every required section before submission/);
+  assert.match(html,/textContent='Create action'/);assert.match(html,/textContent='Support \('\+supportCount\+' outstanding\)'/);
+  assert.match(html,/vh26-reopen-report/);assert.match(html,/function enable\(\).*message\(''\)/);
 });
 test('Presenter Mode uses the embedded Build 050 logo and renders authorised departments before opening',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
@@ -370,7 +406,7 @@ test('Bids/RFQs workspace state clears before switching to other connected route
 test('meeting host view is role-gated and supplies live readiness plus read-only Presenter Mode',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
-  assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'/);
+  assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'&&departments\.includes\(r\.department_id\)&&hostReportComplete\(r\)/);
   assert.match(html,/id="vh26-host-submitted"/);
   assert.match(html,/id="vh26-host-awaiting"/);
   assert.match(html,/id="vh26-host-open-actions"/);
@@ -380,7 +416,8 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
   assert.match(html,/getElementById\('vh26-host-submitted'\)\.textContent=String\(submitted\.size\)/);
   assert.match(html,/if\(!week\)\{status\.textContent='No open reporting week is available to calculate readiness\.';for\(const id of \['vh26-host-submitted','vh26-host-awaiting'\]\)/);
   assert.doesNotMatch(html,/for\(const id of \['hubSubmittedCount','hubAttentionCount'\]\)document\.getElementById\(id\)\.textContent/);
-  assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>r\.role==='meeting_host'\)\}/);
+  assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>\['meeting_host','administrator','executive'\]\.includes\(r\.role\)\)\}/);
+  assert.match(html,/function canManageDepartmentActions\(\)\{return canHostActions\(\)\|\|canManage\(\)\}/);
 });
 
 test('host dashboard and action register are hidden while navigating to other workspaces',()=>{

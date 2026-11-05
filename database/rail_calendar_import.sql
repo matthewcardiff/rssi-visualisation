@@ -5,7 +5,7 @@ CREATE OR REPLACE FUNCTION public.vh_import_rail_calendar(p_periods jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public, pg_temp
+SET search_path = ''
 AS $$
 DECLARE
   v_item jsonb;

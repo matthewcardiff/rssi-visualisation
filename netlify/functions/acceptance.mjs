@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -24,6 +24,15 @@ export default async (request)=>{
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
     const user=await userResponse.json();
+    if(data.op==='reopen_report'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
+      const r=await fetch(url+'/rest/v1/department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=eq.submitted',{method:'PATCH',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({status:'reopened',submitted_by:null,submitted_at:null}),signal:AbortSignal.timeout(15000)});
+      const result=await r.json().catch(()=>[]);
+      if(!r.ok)return json(r.status===403?403:409,{error:'Report could not be reopened. Check that it is incomplete and that you have an active meeting host, administrator or executive role'});
+      if(!result.length)return json(409,{error:'Report is no longer submitted or is not available to your role'});
+      return json(200,{items:result});
+    }
     if(data.op==='create_week'){
       const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
       if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may create a reporting week'});
@@ -101,7 +110,20 @@ export default async (request)=>{
         return json(200,out);
       }
       if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
-      // Submission is independent of finance uploads. Existing RLS + trigger govern transitions.
+      // Submission is independent of finance uploads, but every reporting section must contain saved information.
+      const reportResponse=await fetch(url+'/rest/v1/department_reports?select=id,department_id,status,departments(code)&id=eq.'+encodeURIComponent(data.report_id)+'&status=in.(draft,reopened)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!reportResponse.ok)return json(reportResponse.status===403?403:502,{error:'Report permissions could not be checked'});
+      const reports=await reportResponse.json();if(!reports.length)return json(409,{error:'Report is not an editable draft or reopened report, or is outside your permissions'});
+      const sectionResponse=await fetch(url+'/rest/v1/report_sections?select=section_key,content&report_id=eq.'+encodeURIComponent(data.report_id)+'&limit=20',{headers,signal:AbortSignal.timeout(12000)});
+      if(!sectionResponse.ok)return json(sectionResponse.status===403?403:502,{error:'Saved report sections could not be checked'});
+      const sections=await sectionResponse.json(),departmentCode=reports[0].departments?.code;
+      const required=departmentCode==='hsqe'?['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents']:['pipeline','delivery','programme','risks','resources'];
+      let hasPipelineOpportunity=false;
+      if(required.includes('pipeline')){const pipelineResponse=await fetch(url+'/rest/v1/pipeline_opportunities?select=id&department_id=eq.'+encodeURIComponent(reports[0].department_id)+'&status=neq.removed&limit=1',{headers,signal:AbortSignal.timeout(12000)});if(!pipelineResponse.ok)return json(pipelineResponse.status===403?403:502,{error:'Pipeline details could not be checked'});hasPipelineOpportunity=(await pipelineResponse.json()).length>0}
+      const complete=(key,content)=>{if(!content||typeof content!=='object')return false;if(key==='pipeline')return hasPipelineOpportunity||!!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>Object.values(e||{}).some(v=>String(v||'').trim())));if(departmentCode==='hsqe')return Object.values(content.fields||{}).some(v=>String(v??'').trim().length>0);return !!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>['title','update','owner','support','required_by'].some(k=>String(e?.[k]||'').trim())))};
+      const saved=new Map(sections.map(section=>[section.section_key,section.content]));
+      const missing=required.filter(key=>!complete(key,saved.get(key)));
+      if(missing.length)return json(422,{error:'Complete and save every required report section before submission',missing_sections:missing});
       const out=await send('department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=in.(draft,reopened)','PATCH',{status:'submitted',submitted_by:user.id,submitted_at:new Date().toISOString()});
       if(out.error)return json(out.status===403?403:409,{error:'Submission denied; check role and reporting week'});
       if(!out.items.length)return json(409,{error:'Report is not an editable draft or reopened report, or is outside your permissions'});
@@ -111,9 +133,12 @@ export default async (request)=>{
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       const date=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
       const validText=(x,max)=>typeof x==='string'&&x.trim().length>0&&x.length<=max;
-      // Meeting-host authority is enforced by existing Supabase RLS policies.
-      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
-      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may manage meeting actions'});
+      // Hosts and administrators manage the shared register; department managers can create and update actions within their own department.
+      if(!uuid(data.department_id))return json(400,{error:'Valid department required'});
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=in.(meeting_host,administrator,executive)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok)return json(502,{error:'Action role lookup failed'});
+      const privileged=(await rolesResponse.json()).length>0;
+      if(!privileged){const membership=await fetch(url+'/rest/v1/department_memberships?select=department_id&user_id=eq.'+encodeURIComponent(user.id)+'&department_id=eq.'+encodeURIComponent(data.department_id)+'&membership_role=eq.manager&active=eq.true',{headers,signal:AbortSignal.timeout(12000)});if(!membership.ok||!(await membership.json()).length)return json(403,{error:'A department manager or meeting administrator is required'});}
       if(data.op==='create_action'){
         if(!uuid(data.department_id)||!uuid(data.reporting_week_id)||!validText(data.description,3000)||!validText(data.owner_text,200)||!date(data.required_by)||typeof data.support_text!=='string'||data.support_text.length>1000)return json(400,{error:'Description, owner, reporting week and required-by date are required'});
         const body={department_id:data.department_id,created_in_reporting_week_id:data.reporting_week_id,description:data.description.trim(),owner_text:data.owner_text.trim(),support_text:data.support_text.trim(),required_by:data.required_by,status:'open'};
