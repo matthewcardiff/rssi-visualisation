@@ -969,6 +969,7 @@ window.department=function(d,w){
  host.prepend(info);
  return result;
 };
+window.vhFinanceExtract=vhFinanceExtract;
 const oldUpdate=window.updateFinance;
 window.updateFinance=function(){if(!isFinance())return;return oldUpdate.apply(this,arguments)};
 
@@ -51993,7 +51994,7 @@ document.getElementById('vh26-finance-check').addEventListener('click',async()=>
    const managementPeriod=reportingWeek?.rail_calendar_periods;
    const sourceWeek=RAIL_WEEKS.find(x=>x.startDate===managementPeriod?.start_date&&x.endDate===managementPeriod?.end_date);
    if(!reportingWeek||!managementPeriod||!sourceWeek)throw Error('The selected management period is not present in the Network Rail calendar.');
-   const workbook=await vhFinanceExtract(file,sourceWeek.id);
+   const workbook=await window.vhFinanceExtract(file,sourceWeek.id);
    if(workbook.records.length!==9||workbook.records.some(record=>record.mappingStatus==='missing-department'))throw Error('The workbook must map all nine finance departments before review.');
    if(workbook.sourceFormulaIssues?.length)throw Error('Formula cells need independent recalculation before this workbook can be staged: '+workbook.sourceFormulaIssues.join(', '));
    const sourcePeriod=(nativeData?.periods||[]).find(x=>x.start_date===workbook.financialSourceStartDate&&x.end_date===workbook.financialSourceEndDate);
