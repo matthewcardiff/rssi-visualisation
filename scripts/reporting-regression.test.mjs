@@ -180,7 +180,8 @@ test('department report reveals core content before background finance and actio
 });
 test('manager Action Log shares Presenter Mode controls and navigation has one active route',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/vh26-action-view-active #vh26-actions-workspace\{max-width:1100px/);
+  assert.match(html,/vh26-action-view-active #vh26-actions-workspace\{display:block!important;max-width:1100px/);
+  assert.match(html,/vh26-action-view-active \.vh26-integration-notice\{display:none!important/);
   assert.match(html,/button\[aria-current="page"\]/);
   assert.match(html,/setConnectedNavActive=route=>/);
   assert.match(html,/vh26-action-view-active \.vh26-sidebar nav button\[data-connected-nav="report"\]\{background:transparent!important/);
