@@ -52022,7 +52022,7 @@ function showConnectedDashboard(identity){
 }
 async function enterConnected(session){await verify(session);sessionStorage.setItem(key,JSON.stringify(session));password.value='';message('Signed in. Loading authorised departments...');showConnectedDashboard(await verify(session))}
 form.addEventListener('submit',async e=>{e.preventDefault();e.stopImmediatePropagation();if(submit.disabled)return;submit.disabled=true;message('Signing in...');try{const session=await api('login',{email:email.value.trim(),password:password.value});await enterConnected(session)}catch(err){message(err.message);password.value='';submit.disabled=false}},true);
-async function restore(){const raw=sessionStorage.getItem(key);if(!raw)return;let session;try{session=JSON.parse(raw);await enterConnected(session)}catch{try{const refreshed=await api('refresh',{refresh_token:session?.refresh_token});await enterConnected(refreshed)}catch{sessionStorage.removeItem(key);message('Session expired. Sign in again.')}}}
+async function restore(){const raw=sessionStorage.getItem(key);if(!raw)return;let session;try{session=JSON.parse(raw);await enterConnected(session)}catch{if(sessionStorage.getItem(key)!==raw)return;try{const refreshed=await api('refresh',{refresh_token:session?.refresh_token});await enterConnected(refreshed)}catch{if(sessionStorage.getItem(key)===raw)sessionStorage.removeItem(key);message('Session expired. Sign in again.')}}}
 document.getElementById('vh26-signout').addEventListener('click',()=>{if(!confirmReportingLeave())return;sessionStorage.removeItem(key);location.reload()});
 document.getElementById('vh26-dashboard-signout').addEventListener('click',()=>{if(!confirmReportingLeave())return;sessionStorage.removeItem(key);location.reload()});
 enable();restore();
