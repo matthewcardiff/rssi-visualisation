@@ -52005,9 +52005,11 @@ document.getElementById('vh26-finance-check').addEventListener('click',async()=>
     return {reporting_week_id:selectedWeek,department_id:record.departmentId,metric_key,amount,input_state,source_period_id:sourcePeriod.id};
    });
    const departments=nativeData?.departments||verifiedIdentity?.departments||[];
+   const departmentCodes={TWS:'track-warning-systems',Civils:'civils','Rail Operations':'rail-operations',Welding:'welding','Managed Environments':'managed-environments',MMA:'midland-metro','S&T':'signalling',HS2:'hs2',Montel:'montel'};
    rows=workbook.records.flatMap(record=>{
     const norm=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-    const dept=departments.find(d=>norm(d.display_name)===norm(record.name)||norm(d.code)===norm(record.name)||norm(d.name)===norm(record.name));
+    const targetCode=departmentCodes[record.name];
+    const dept=departments.find(d=>norm(d.display_name)===norm(record.name)||norm(d.code)===norm(record.name)||norm(d.name)===norm(record.name)||(targetCode&&norm(d.code)===norm(targetCode)));
     if(!dept)throw Error('Workbook department could not be mapped: '+record.name);
     record.departmentId=dept.id;return metricValues(record);
    });
