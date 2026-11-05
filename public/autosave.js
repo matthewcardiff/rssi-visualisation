@@ -1,4 +1,7 @@
 (function () {
+  const brandFix = document.createElement('style');
+  brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}';
+  document.head.append(brandFix);
   const delay = 650;
   let sectionTimer = 0;
   let sectionSaving = false;
