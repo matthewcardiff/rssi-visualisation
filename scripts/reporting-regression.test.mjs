@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 5713)
-Total output lines: 308
-
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -133,7 +130,51 @@ test('published finance has its own view while import controls remain role-gated
 });
 
 test('Build 052 finance workbook layout stages XLSX through the authenticated finance API',()=>{
-  const html=readFileSync(new …713 tokens truncated…est('absence reasons are not stored in browser local storage',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/Excel financial workbook/);
+  assert.match(html,/accept="\.xlsx,\.csv,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet,text\/csv"/);
+  assert.match(html,/await vhFinanceExtract\(file,sourceWeek\.id\)/);
+  assert.match(html,/input_state,source_period_id/);
+  assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
+  assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
+  assert.match(html,/finance publication stays server-gated|finance_publish/);
+  assert.match(html,/Approval &amp; publication/);
+  assert.match(html,/Departments with finance figures/);
+  assert.match(html,/byDepartment\.length===9&&byDepartment\.every\(x=>x\.values\[metric\]!==null\)/);
+  assert.match(html,/vh26-finance-department-list/);
+});
+
+test('Build 050 Presenter Mode restores Safety Moment, finance and department tabs with rounded controls',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  for(const text of ['Safety Moment','Finance & Commercial','vh26-presenter-all','vh26-presenter-tabs','Generate Safety Moment','Write a Safety Moment','Save for this meeting','Create action'])assert.ok(html.includes(text),`Missing presenter control: ${text}`);
+  assert.match(html,/function presenterRenderSafety\(root\)/);
+  assert.match(html,/fetch\('\/.netlify\/functions\/safety-moment'/);
+  assert.match(html,/dataApi\('finance_published'\)/);
+  assert.match(html,/border-radius:999px/);
+  assert.match(html,/vh26-presenter-mode:fullscreen/);
+  assert.match(html,/id="vh26-session-loading"[\s\S]{0,500}Loading current workspace/);
+  assert.match(html,/async function enterConnected\(session\)\{const loader=document\.getElementById\('vh26-session-loading'\)/);
+});
+test('finance import endpoint accepts the approved xlsx workbook extension',()=>{
+  const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
+  assert.ok(api.includes('\\.(?:csv|xlsx)$/i.test(data.file_name)'));
+  assert.match(api,/Valid Excel workbook or CSV file name required/);
+});
+
+test('Report Absence opens the Build 052 screen and linked staging form',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const nav=html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')");
+  const navEnd=html.indexOf("side.querySelector('#vh26-sidebar-signout')",nav);
+  assert.ok(nav>0&&navEnd>nav);
+  const handler=html.slice(nav,navEnd);
+  assert.match(handler,/vh26-absence-view-active/);
+  assert.doesNotMatch(handler,/unavailable for this connected account/);
+  assert.match(html,/id='vh26-absence-workspace'/);
+  assert.match(html,/window\.vhOpenAttendance\(\)/);
+  assert.match(html,/vh26-absence-view-active #vh26-absence-workspace/);
+});
+
+test('absence reasons are not stored in browser local storage',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.doesNotMatch(html,/vh-absence-draft/);
   assert.match(html,/No absence details are stored in this browser/);
