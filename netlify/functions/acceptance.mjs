@@ -1,6 +1,3 @@
-Warning: truncated output (original token count: 8045)
-Total output lines: 316
-
 const json=(status,body)=>new Response(JSON.stringify(body),{status,headers:{'content-type':'application/json; charset=utf-8','cache-control':'no-store','x-content-type-options':'nosniff'}});
 export default async (request)=>{
   if(request.method!=='POST')return json(405,{error:'POST required'});
@@ -100,7 +97,85 @@ export default async (request)=>{
       const date=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
       const text=(x,max)=>typeof x==='string'&&x.trim().length>0&&x.length<=max;
       const send=async(path,method,body)=>{
-        const r=await fetch(url+'/rest/v1/'+path,{method,headers:{...headers,prefer:data.op==='hsqe_set_workforce'?'resolution=merge-duplicates,return=representation':'return…2045 tokens truncated…tate has no valid numeric amount');
+        const r=await fetch(url+'/rest/v1/'+path,{method,headers:{...headers,prefer:data.op==='hsqe_set_workforce'?'resolution=merge-duplicates,return=representation':'return=representation'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
+        const b=await r.json().catch(()=>[]);return r.ok?(method==='PATCH'&&Array.isArray(b)&&b.length===0?json(409,{error:'Record not found or update not authorised'}):json(200,{items:b})):json(r.status===403?403:409,{error:'HSQE change denied or invalid; verify membership and fields'});
+      };
+      if(data.op==='hsqe_add_assurance'){
+        if(!['audit','ncr'].includes(data.kind)||!uuid(data.department_id)||!text(data.reference,100)||!text(data.description,2000)||!text(data.owner_text,200)||!date(data.opened_on)||(data.due_on&&!date(data.due_on)))return json(400,{error:'Complete all required assurance fields'});
+        return send('hsqe_assurance_register','POST',{kind:data.kind,department_id:data.department_id,reference:data.reference.trim(),description:data.description.trim(),owner_text:data.owner_text.trim(),opened_on:data.opened_on,due_on:data.due_on||null,status:'open'});
+      }
+      if(data.op==='hsqe_update_assurance'){
+        if(!uuid(data.id)||!['in_progress','signed_off'].includes(data.status))return json(400,{error:'Invalid assurance update'});
+        return send('hsqe_assurance_register?id=eq.'+data.id+'&status=neq.signed_off','PATCH',data.status==='signed_off'?{status:'signed_off',signed_off_by:user.id,signed_off_on:new Date().toISOString().slice(0,10)}:{status:'in_progress'});
+      }
+      if(data.op==='hsqe_add_close_call'){
+        if(!uuid(data.department_id)||!date(data.occurred_on)||!text(data.description,2000))return json(400,{error:'Department, date and description required'});
+        return send('hsqe_close_calls','POST',{department_id:data.department_id,occurred_on:data.occurred_on,description:data.description.trim(),reference:typeof data.reference==='string'?data.reference.slice(0,150):null});
+      }
+      if(data.op==='hsqe_set_workforce'){
+        if(!uuid(data.department_id)||!date(data.effective_on)||!Number.isInteger(data.operative_count)||data.operative_count<0||data.operative_count>1000000)return json(400,{error:'Valid headcount and effective date required'});
+        return send('hsqe_workforce_counts?on_conflict=department_id,effective_on','POST',{department_id:data.department_id,effective_on:data.effective_on,operative_count:data.operative_count});
+      }
+    }
+    // Deployment safety: write RPCs remain disabled until database migration,
+    // RLS, transaction rollback and role isolation pass authenticated acceptance.
+    // This gate is deliberately independent of any client-provided flags.
+    if(['finance_import','finance_reconcile','finance_publish'].includes(data.op) &&
+       process.env.VH_FINANCE_WRITES_ACCEPTED !== 'staging-verified-26c19') {
+      return json(503,{error:'Finance writes are disabled pending database security acceptance',code:'FINANCE_SECURITY_GATE'});
+    }
+    if(data.op==='finance_reconcile'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
+        return json(400,{error:'Valid import, explicit confirmation and reconciliation comment (minimum 8 characters) required'});
+      const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
+      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
+        return json(403,{error:'Reconciliation requires authorised finance or administrator role'});
+      const response=await fetch(url+'/rest/v1/rpc/vh_finance_reconcile',{
+        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
+      if(!response.ok)return json(response.status===403?403:409,{error:'Finance reconciliation rejected; no status change committed',status:response.status});
+      return json(200,{result:await response.json(),reconciled:true});
+    }
+    if(data.op==='finance_publish'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.length>2000)
+        return json(400,{error:'Valid import, explicit confirmation and review comment required'});
+      const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
+      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
+        return json(403,{error:'Finance publication requires authorised finance or administrator role'});
+      const response=await fetch(url+'/rest/v1/rpc/vh_finance_publish',{
+        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment}),signal:AbortSignal.timeout(20000)});
+      if(!response.ok)return json(response.status===403?403:409,{error:'Atomic finance publication rejected; no publication committed',status:response.status});
+      return json(200,{result:await response.json(),published:true});
+    }
+    if(data.op==='finance_review'){
+      const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
+      if(!roleRes.ok)return json(403,{error:'Finance role lookup denied'});
+      const roles=await roleRes.json();
+      if(!roles.some(r=>['finance','finance_admin','administrator'].includes(r.role)))return json(403,{error:'Finance reconciliation review restricted'});
+      const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Finance review data unavailable');return r.json()};
+      const imports=await get('finance_imports?select=id,file_name,file_sha256,reporting_week_id,reconciliation_status,findings,imported_at&order=imported_at.desc&limit=100');
+      const ids=imports.map(x=>x.id).filter(x=>/^[0-9a-f-]{36}$/i.test(x));
+      const metrics=ids.length?await get('finance_metric_values?select=finance_import_id,department_id,reporting_week_id,metric_key,amount,input_state,source_period_id,mapping_status,issues&finance_import_id=in.('+ids.join(',')+')&limit=12000'):[];
+      const publications=await get('finance_publications?select=id,source_import_id,reporting_week_id,department_id,status,publication_version&order=publication_version.desc&limit=1000');
+      const [weeks,periods]=await Promise.all([
+        get('reporting_weeks?select=id,rail_period_id&limit=500'),
+        get('rail_calendar_periods?select=id,rail_week,start_date&order=start_date.asc&limit=500')
+      ]);
+      const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=2?periods[i-2].id:null]}));
+      const groups=imports.map(imp=>{
+        const rows=metrics.filter(r=>r.finance_import_id===imp.id);
+        const byDepartment=new Map();
+        for(const r of rows){const k=r.department_id+'|'+r.reporting_week_id;const a=byDepartment.get(k)||[];a.push(r);byDepartment.set(k,a)}
+        const problems=[];
+        if(!rows.length)problems.push('No metric rows saved');
+        if(rows.some(r=>r.reporting_week_id!==imp.reporting_week_id))problems.push('Management week mismatch');
+        if(rows.some(r=>r.mapping_status!=='reconciled'))problems.push('Metrics not marked reconciled');
+        if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
+        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source week differs from management week minus two rail periods');
+        if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
+        if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
+        if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
         if(rows.some(r=>!['missing','zero','value'].includes(r.input_state)))problems.push('Unrecognised input state');
         if(Array.isArray(imp.findings)&&imp.findings.length)problems.push('Import-level findings require resolution');
         if(rows.some(r=>Array.isArray(r.issues)&&r.issues.length))problems.push('Metric-level issues recorded');
