@@ -83,6 +83,22 @@ The following corrections address findings that could be fixed safely in the con
 - Host Action Log buttons use the shared compact 36 px control height and Build 050 rounded white/orange treatments.
 - Regression checks cover these route, loading, label, upload and control-size requirements.
 
-**Verification:** `npm test` passed 39/39 tests; Stage 26C4 reporting checks passed; `git diff --check` passed. These checks validate source and backend contracts. They do not verify browser rendering, authenticated data loading, workbook parsing with a real approved file, or deployment.
+**Verification:** `npm test` passed 39/39 tests; Stage 26C4 reporting checks passed; `git diff --check` passed. These checks validate source and backend contracts. The authenticated PR-preview retest additionally confirmed the Safety Moment launch state and Finance's direct route. No approved finance workbook was available for an end-to-end import, and no staging report was changed.
 
-**Phase 2 status: source corrections are synced to the restoration branch; staging acceptance remains open.** GitHub's connected repository integration updated `public/index.html`, the regression suite and this audit on `build052-visual-restoration`. The authenticated PR preview confirmed the 11 department cards, host routes and all 11 presenter tabs with Build 050 labels. It also exposed that Launch Presenter Mode still landed on the All departments overview; the binding fix above is ready for the next preview update. Reporting weeks initially showed “Loading live rail weeks…” and later populated with Weeks 31 and 32. Netlify access was obtained through its team sign-in, but the deployed commit could not be independently matched to the GitHub head. After the next preview refresh, recheck Safety Moment as the launch state, full screen and Exit, Finance direct navigation, Action Log button sizing, reporting-week loading, department report and the remaining dialog/workflow inventory. Do not mark the app visually matched until those deployed comparisons are complete.
+### Authenticated preview retest
+
+| Area | Deployed observation | Result |
+|---|---|---|
+| Department chooser | 11 authorised departments displayed. | Pass |
+| Meeting overview | Readiness initially showed a loading state, then populated NRW Weeks 31 and 32, with 1 submitted and 10 awaiting. | Pass after transient loading |
+| Presenter launch | Launch now opens directly on Safety Moment. All 11 tabs appear, including Build 050 short labels Civils, S&T, MMA and TWS. | Pass |
+| Presenter fullscreen | The control was clicked, but this cloud browser reports “Full screen unavailable”; its page context exposes no Fullscreen API. Exit works. | Unverified in a standard user browser |
+| Finance route | One click opens the Finance page directly; it does not show Department report first. The page presents the Excel financial workbook flow, and Weeks 31 and 32 load. | Pass for navigation and visible workflow |
+| Finance upload | No approved workbook was selected. | Not tested end to end |
+| Host Action Log | Register loads the empty state. Refresh, Export CSV and Print register buttons measure 36 px high, 13 px type and 8 px radius. | Pass for visible route and sizing; exports not exercised |
+| Reporting Weeks | Live week data populates. The connected page shows week rows, but not Build 050's report-count column, department selector or Add next week action. | Partial; functional parity remains open |
+| Settings | Connected host screen currently exposes account, role and department details; Build 050 calendar management controls are not represented in this view. | Gap remains open |
+
+GitHub accepted the code, regression tests and audit through its connected repository integration. The PR preview's served HTML contains the Phase 2 source markers, and its runtime showed the fixed Safety Moment launch and direct Finance route. GitHub reports no status checks for the latest commit, so an exact Netlify-to-commit SHA match is not independently confirmed.
+
+**Phase 2 status: targeted corrections deployed and observed; complete acceptance remains open.** Remaining work includes verifying native fullscreen in a standard browser, restoring the missing Reporting Weeks controls and host calendar settings, testing all remaining dialogs and workflows, and running a real approved `.xlsx` through finance review/staging without enabling publication. Do not call the product a visual match until those checks pass against the same Build 050 viewports.
