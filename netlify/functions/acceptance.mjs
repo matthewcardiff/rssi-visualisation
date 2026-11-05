@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -45,6 +45,21 @@ export default async (request)=>{
       if(!insert.ok)return json(insert.status===403?403:409,{error:'Reporting week creation was rejected. Refresh to check whether it was created by another host.'});
       if(!Array.isArray(result)||result.length!==1)return json(409,{error:'Reporting week creation returned no record. Refresh before retrying.'});
       return json(200,{items:result});
+    }
+    if(data.op==='calendar_import'){
+      if(!Array.isArray(data.periods)||data.periods.length<1||data.periods.length>300)return json(400,{error:'Upload 1–300 rail calendar periods'});
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=in.(meeting_host,administrator)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only an authorised meeting host or administrator may update the rail calendar'});
+      const periods=[];
+      for(const [index,row] of data.periods.entries()){
+        const week=Number(row?.week_number),start=typeof row?.start_date==='string'?row.start_date:'',end=typeof row?.end_date==='string'?row.end_date:'';
+        if(!Number.isInteger(week)||week<1||week>53||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return json(400,{error:'Calendar row '+(index+1)+' has an invalid week number or date'});
+        periods.push({week_number:week,start_date:start,end_date:end});
+      }
+      const rpc=await fetch(url+'/rest/v1/rpc/vh_import_rail_calendar',{method:'POST',headers,body:JSON.stringify({p_periods:periods}),signal:AbortSignal.timeout(20000)});
+      const result=await rpc.json().catch(()=>null);
+      if(!rpc.ok)return json(rpc.status===401||rpc.status===403?403:409,{error:result?.message||result?.hint||'Calendar import rejected; existing calendar and reporting history were left unchanged'});
+      return json(200,{result,updated:true});
     }
     // All mutations use the caller's JWT; Supabase RLS remains the authority.
     if(['create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
