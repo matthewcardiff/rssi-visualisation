@@ -216,9 +216,16 @@ test('host dashboard and action register are hidden while navigating to other wo
   assert.match(html,/presenterRoot\.hidden=true/);
   assert.ok(html.includes('function openDepartment(department){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
   const home=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')"),html.indexOf("side.querySelector('[data-connected-nav=\"report\"]')"));
-  assert.ok(home.includes('setHostHomeVisible(true)'));
+  assert.ok(home.includes('setHostHomeVisible(false)'), 'Home / Departments must leave the host-only layout');
   const absence=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')"),html.indexOf("side.querySelector('#vh26-sidebar-signout')"));
   assert.ok(absence.includes('setHostHomeVisible(false)'));
+});
+
+test('administrator lands in the department workspace and retains an explicit Meeting Overview route',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/const host=hostDashboardAllowed\(identity\),administrator=\(identity\.roles\|\|\[\]\)\.some\(r=>r\.role==='administrator'\);[\s\S]{0,260}setHostHomeVisible\(host&&!administrator\)/);
+  assert.match(html,/hostDashboardAllowed\(identity\)\?'<button type="button" data-connected-nav="host">Meeting overview<\/button>':''/);
+  assert.match(html,/side\.querySelector\('\[data-connected-nav="host"\]'\)\?\.addEventListener\('click'/);
 });
 
 test('Build 052 host dashboard restores responsive chrome, week selection and connected navigation',()=>{
