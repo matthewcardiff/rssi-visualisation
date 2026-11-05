@@ -318,6 +318,13 @@ test('manager submission blocks incomplete saved sections and restores Build 050
   assert.match(html,/textContent='Create action'/);assert.match(html,/textContent='Support \('\+supportCount\+' outstanding\)'/);
   assert.match(html,/vh26-reopen-report/);assert.match(html,/function enable\(\).*message\(''\)/);
 });
+test('departmental AI Review preserves original text and spellchecks dynamic textareas',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/new MutationObserver\(markSpellcheck\)/);
+  assert.match(html,/t\.spellcheck=true;t\.lang='en-GB'/);
+  assert.match(html,/const original=field\?\.value\?\.trim\(\)/);
+  assert.match(html,/Review ready\. Suggestions are optional; no report text has changed\./);
+});
 test('Presenter Mode uses the embedded Build 050 logo and renders authorised departments before opening',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const logo=readFileSync(new URL('../public/rssi-logo.png',import.meta.url));
