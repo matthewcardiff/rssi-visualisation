@@ -164,7 +164,11 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/Excel financial workbook/);
   assert.match(html,/accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
-  assert.match(html,/await vhFinanceExtract\(file,sourceWeek\.id\)/);
+  assert.match(html,/window\.vhFinanceExtract=vhFinanceExtract;\s*function vhFinancePreview/);
+  assert.match(html,/const financeReader=window\.vhFinanceExtract;if\(typeof financeReader!==\x27function\x27\)/);
+  assert.match(html,/await financeReader\(file,sourceWeek\.id\)/);
+  assert.match(html,/window\.vhFinDepartments=vhFinDepartments/);
+  assert.match(html,/window\.vhFinDepartments\|\|\[\[\x27TWS\x27\]/);
   assert.match(html,/nativeData=\{weeks,periods:response\.periods\|\|\[\],reports:\[\],sections:\[\],departments:verifiedIdentity\?\.departments\|\|\[\]\}/);
   assert.match(html,/nativeData\?\.periods\|\|\[\]/);
   assert.match(html,/input_state,source_period_id/);
@@ -225,7 +229,7 @@ test('Finance navigation opens its own week and workbook view without first open
 });
 test('Reporting Weeks resolves independently, times out visibly and can be retried',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const load=html.indexOf('let hostReadinessGeneration=0;loadHostReadiness=async function()');
+  const load=html.indexOf('let hostReadinessGeneration=0;loadHostReadiness=async function(retry=0)');
   const weeks=html.indexOf("const result=await request('weeks')",load);
   const reports=html.indexOf("Promise.allSettled(['reports','sections'].map(request))",load);
   assert.ok(load>0&&weeks>load&&reports>weeks);
