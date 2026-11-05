@@ -8,6 +8,7 @@ const id='11111111-1111-4111-8111-111111111111';
 process.env.SUPABASE_URL='https://test-project.supabase.co';
 process.env.SUPABASE_ANON_KEY='fixture-public-key';
 delete process.env.VH_FINANCE_WRITES_ACCEPTED;
+delete process.env.VH_FINANCE_STAGING_WRITES;
 const token='test-only-access-token-with-at-least-thirty-characters';
 test('a stale session restore cannot erase a newer sign-in session',()=>{const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');assert.match(html,/async function restore\(\)\{const raw=sessionStorage\.getItem\(key\);if\(!raw\)return;let session;try\{session=JSON\.parse\(raw\);await enterConnected\(session\)\}catch\{if\(sessionStorage\.getItem\(key\)!==raw\)return;/);assert.match(html,/catch\{if\(sessionStorage\.getItem\(key\)===raw\)sessionStorage\.removeItem\(key\);message\('Session expired\. Sign in again\.'\)\}\}\}/);});
 async function request(op,extra,responses){
@@ -40,9 +41,41 @@ test('submission includes reopened reports and does not query finance',async()=>
 test('submitted, inaccessible or concurrently changed report is not falsely submitted',async()=>{
   const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[]}]);assert.equal(out.status,409);
 });
-test('finance publication stays server-gated',async()=>{
+test('finance import and reconciliation are disabled unless the deploy-scoped staging gate is set',async()=>{
+  for(const op of ['finance_import','finance_reconcile']){
+    const out=await request(op,{},[{body:{id}}]);
+    assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
+  }
+});
+test('enabled finance reconciliation authorises the administrator and preserves the caller JWT',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  try{
+    const out=await request('finance_reconcile',{import_id:id,confirm:true,comment:'Acceptance test reconciliation'},[
+      {body:{id}},
+      {body:[{role:'administrator'}]},
+      {body:{reconciled:true,import_id:id}}
+    ]);
+    assert.equal(out.status,200);assert.equal(out.body.reconciled,true);
+    assert.match(out.calls[2].url,/\/rpc\/vh_finance_reconcile$/);
+    assert.equal(out.calls[2].options.headers.authorization,'Bearer '+token);
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+});
+test('finance staging gate does not grant the department manager finance RPC access',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  try{
+    const out=await request('finance_reconcile',{import_id:id,confirm:true,comment:'Manager denial acceptance test'},[
+      {body:{id}},
+      {body:[{role:'department_manager'}]}
+    ]);
+    assert.equal(out.status,403);assert.equal(out.calls.length,2);
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+});
+test('finance publication stays server-gated even when staging imports are enabled',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  try{
   const out=await request('finance_publish',{import_id:id,confirm:true,comment:'Test only'},[{body:{id}}]);
-  assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_SECURITY_GATE');assert.equal(out.calls.length,1);
+  assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_PUBLICATION_DISABLED');assert.equal(out.calls.length,1);
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
 });
 test('connected API requests time out with an actionable status',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');

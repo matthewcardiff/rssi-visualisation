@@ -117,13 +117,13 @@ export default async (request)=>{
         return send('hsqe_workforce_counts?on_conflict=department_id,effective_on','POST',{department_id:data.department_id,effective_on:data.effective_on,operative_count:data.operative_count});
       }
     }
-    // Deployment safety: write RPCs remain disabled until database migration,
-    // RLS, transaction rollback and role isolation pass authenticated acceptance.
-    // This gate is deliberately independent of any client-provided flags.
-    if(['finance_import','finance_reconcile','finance_publish'].includes(data.op) &&
-       process.env.VH_FINANCE_WRITES_ACCEPTED !== 'staging-verified-26c19') {
-      return json(503,{error:'Finance writes are disabled pending database security acceptance',code:'FINANCE_SECURITY_GATE'});
-    }
+    // This deployment-scoped gate permits finance staging/import and
+    // reconciliation after acceptance tests. Publication is separately and
+    // unconditionally disabled here and by the Supabase database gate.
+    if(data.op==='finance_publish')
+      return json(503,{error:'Finance publication remains disabled pending full workflow acceptance',code:'FINANCE_PUBLICATION_DISABLED'});
+    if(['finance_import','finance_reconcile'].includes(data.op) && process.env.VH_FINANCE_STAGING_WRITES !== 'enabled')
+      return json(503,{error:'Finance staging writes are disabled for this deployment',code:'FINANCE_STAGING_WRITES_DISABLED'});
     if(data.op==='finance_reconcile'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
@@ -135,18 +135,6 @@ export default async (request)=>{
         method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
       if(!response.ok)return json(response.status===403?403:409,{error:'Finance reconciliation rejected; no status change committed',status:response.status});
       return json(200,{result:await response.json(),reconciled:true});
-    }
-    if(data.op==='finance_publish'){
-      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
-      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.length>2000)
-        return json(400,{error:'Valid import, explicit confirmation and review comment required'});
-      const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
-      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
-        return json(403,{error:'Finance publication requires authorised finance or administrator role'});
-      const response=await fetch(url+'/rest/v1/rpc/vh_finance_publish',{
-        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment}),signal:AbortSignal.timeout(20000)});
-      if(!response.ok)return json(response.status===403?403:409,{error:'Atomic finance publication rejected; no publication committed',status:response.status});
-      return json(200,{result:await response.json(),published:true});
     }
     if(data.op==='finance_review'){
       const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
