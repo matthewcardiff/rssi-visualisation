@@ -113,6 +113,11 @@ test('AI provider failures return actionable diagnostics without exposing provid
   globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?new Response('<html>blocked</html>',{status:200}):upstream(input,options);
   const unreadable=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   assert.match((await unreadable.json()).error,/non-JSON response/);
+  globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?Response.json({message:{content:JSON.stringify({assessment:'ok',suggestions:'not an array',questions:[],draft:'private text must not appear'})}}):upstream(input,options);
+  const malformed=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
+  const malformedError=(await malformed.json()).error;
+  assert.match(malformedError,/suggestions=string/);
+  assert.doesNotMatch(malformedError,/private text/);
   globalThis.fetch=async(input,options)=>{if(String(input)==='https://ollama.com/api/chat')return Object.defineProperty({},'status',{get(){throw new TypeError('provider diagnostic test')}});return upstream(input,options)};
   const unexpected=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   assert.match((await unexpected.json()).error,/TypeError: provider diagnostic test/);
