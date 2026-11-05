@@ -51626,7 +51626,7 @@ Wordlist Command: mk-list --accents=strip en_GB-ise 60
 <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap"><label>Reporting week <select id="vh26-week" style="padding:10px;min-width:240px"></select></label><button id="vh26-refresh" type="button">Refresh</button><span id="vh26-report-status" role="status" aria-live="polite"></span></div>
 <section id="vh26-finance-preview" hidden class="vh26-finance-workbook"><h2>Excel financial workbook</h2><p>Finance and administrator access only. Upload the approved workbook to review the nine department allocations for the selected reporting period.</p><div class="vh26-finance-steps" aria-label="Finance workflow"><span aria-current="step">1 · Upload workbook</span><span>2 · Review figures</span><span>3 · Stage figures</span><span>4 · Approval &amp; publication</span></div><p id="vh26-finance-next" class="vh26-finance-next">Select the reporting period above, then upload the Excel workbook.</p><div class="vh26-finance-drop" id="vh26-finance-drop"><strong>Drag an Excel workbook here</strong><p>or select an .xlsx file</p><input type="file" id="vh26-finance-file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"><span>Finance figures are validated against the Network Rail calendar and department register. Staging does not approve or publish figures.</span></div><div class="vh26-finance-controls"><button type="button" id="vh26-finance-check">Review figures</button><button type="button" id="vh26-finance-import" disabled>Stage validated figures</button></div><p id="vh26-finance-preview-status" role="status"></p><div id="vh26-finance-preview-results"></div></section>
 <section id="vh26-finance-review" hidden class="vh26-finance-audit"><h2>Import reconciliation history</h2><p>Read-only audit of staged finance imports. <strong>Approval and publication remain disabled</strong> until atomic database transactions and role-controlled sign-off have passed acceptance.</p><button type="button" id="vh26-finance-review-refresh">Refresh import register</button><p id="vh26-finance-review-status" role="status"></p><div id="vh26-finance-review-list"></div></section>
-<section id="vh26-finance-panel" aria-label="Department financial allocation" class="vh26-finance-allocation"><h2>Department financial allocation</h2><p>Published backend figures appear here when available. Finance figures use the intentional two-week reporting lag. Missing data is never treated as zero; departmental reports can be submitted independently.</p><div id="vh26-finance-status" role="status">Finance not loaded.</div><div id="vh26-finance-content"></div></section>
+<section id="vh26-finance-panel" aria-label="Department financial allocation" class="vh26-finance-allocation"><h2>Department financial allocation</h2><p>Published backend figures appear here when available. Finance figures use the intentional two-week reporting lag. Missing data is never treated as zero; departmental reports can be submitted independently.</p><div id="vh26-finance-summary"></div><div id="vh26-finance-status" role="status">Finance not loaded.</div><div id="vh26-finance-content"></div></section>
 <section id="vh26-actions-workspace" style="padding:18px 24px;border-bottom:1px solid #d5e1e8"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center"><h2>Action log · <span id="vh26-action-department">Department</span></h2><button id="vh26-actions-refresh" type="button">Refresh actions</button></div><p>Outstanding actions carry forward between reporting weeks. Completed actions remain visible in history.</p><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><label>Show <select id="vh26-action-filter"><option value="outstanding">Outstanding</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="all">All actions</option></select></label><button type="button" id="vh26-actions-export">Export CSV / Excel</button><button type="button" id="vh26-actions-print">Print / Save PDF</button></div><div id="vh26-actions-summary" role="status"></div><div id="vh26-actions-list"></div><div id="vh26-action-create" hidden><h3>New meeting action</h3><div id="vh26-action-new-fields"></div><button id="vh26-action-add" type="button">Create action</button></div></section>
 <div class="vh26-stage-progress" aria-hidden="true"><span id="vh26-stage-progress-fill"></span></div><div id="vh26-section-tabs" style="display:flex;flex-wrap:wrap;gap:8px;margin:20px 0"></div><section id="vh26-pipeline-workspace" hidden aria-label="Pipeline opportunities"><div class="vh26-section-counter">SECTION 1 OF 6</div><h2>Pipeline</h2><p>Opportunities carry forward independently of weekly report submission. All required fields must be completed.</p><div id="vh26-pipeline-list"></div><button type="button" id="vh26-pipeline-add">Add opportunity</button><p id="vh26-pipeline-message" role="status"></p></section>
 <div id="vh26-section-editor"><div class="vh26-section-counter">SECTION 2 OF 6</div><h2 id="vh26-section-title">Delivery</h2><div id="vh26-generic-section-editor"><label>Section notes<textarea id="vh26-section-notes" rows="5" style="width:100%;display:block;padding:12px;margin-top:8px"></textarea></label><div id="vh26-entries"></div><button type="button" id="vh26-add-entry">Add entry</button></div><div id="vh26-hsqe-fields" hidden></div><p id="vh26-hsqe-register-link" hidden>For rolling audits, NCRs, close calls and operative headcount, <a href="/acceptance.html?department=hsqe">open the HSQE rolling registers</a>.</p><div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:18px"><button type="button" id="vh26-save-section">Save draft</button><button type="button" id="vh26-submit-report">Submit report</button></div></div>
@@ -51831,6 +51831,29 @@ async function loadPublishedFinance(){
   if(idx<2){status.textContent='Two-week finance source period is not available in the rail calendar.';return}
   const source=periods[idx-2];
   status.textContent=`Management week ${period?.rail_week??periods[idx].rail_week} | Finance source: week ${source.rail_week} (${source.start_date} to ${source.end_date})`;
+  const summary=document.getElementById('vh26-finance-summary');
+  if(summary){
+   const normalise=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+   const financeDepartments=vhFinDepartments.map(([name])=>({name,department:(nativeData?.departments||[]).find(d=>normalise(d.display_name)===normalise(name)||normalise(d.code)===normalise(name)||normalise(d.name)===normalise(name))})).filter(x=>x.department);
+   const byDepartment=financeDepartments.map(({name,department})=>{
+    const publication=(feed.publications||[]).filter(x=>x.reporting_week_id===selectedWeek&&x.department_id===department.id).sort((a,b)=>(b.publication_version||0)-(a.publication_version||0))[0];
+    const rows=publication?(feed.values||[]).filter(v=>v.publication_id===publication.id):[];
+    const values={};
+    for(const metric of ['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue']){
+     const row=rows.find(v=>v.metric_key===metric);
+     if(row&&row.source_period_id===source.id&&row.input_state==='zero'&&Number(row.amount)===0)values[metric]=0;
+     else if(row&&row.source_period_id===source.id&&row.input_state==='value'&&row.amount!==null&&Number.isFinite(Number(row.amount)))values[metric]=Number(row.amount);
+     else values[metric]=null;
+    }
+    return {name,publication,values};
+   });
+   const currency=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0});
+   const total=metric=>byDepartment.length===9&&byDepartment.every(x=>x.values[metric]!==null)?currency.format(byDepartment.reduce((sum,x)=>sum+x.values[metric],0)):'Not reported';
+   summary.innerHTML='<div class="vh26-finance-kpis">'+[
+    ['Departments with finance figures',byDepartment.filter(x=>x.publication).length+' / 9'],
+    ['Weekly budget',total('weekly_budget')],['Weekly revenue',total('weekly_revenue')],['YTD revenue',total('ytd_revenue')]
+   ].map(([label,value])=>'<div><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="vh26-finance-department-list">'+byDepartment.map(x=>'<div><strong>'+esc(x.name)+'</strong><span>'+(x.publication?'Published · v'+esc(x.publication.publication_version||1):'Awaiting approved finance figures')+'</span></div>').join('')+'</div>';
+  }
   const pubs=(feed.publications||[]).filter(p=>p.reporting_week_id===selectedWeek&&p.department_id===selectedDepartment.id);
   pubs.sort((a,b)=>(b.publication_version||0)-(a.publication_version||0));
   if(!pubs.length){const msg=document.createElement('p');msg.textContent='No published finance data for this department and management week.';target.append(msg);return}
@@ -52180,5 +52203,18 @@ enable();restore();
 #vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-review{padding:14px 18px!important}
 #vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results{max-height:260px;overflow:auto}
 @media(max-width:700px){#vh26-connected-dashboard.vh26-finance-view-active #vh26-native-report>div:first-child{justify-content:flex-start;flex-wrap:wrap}#vh26-connected-dashboard.vh26-finance-view-active .vh26-finance-steps{gap:5px}}
+</style>
+<style id="vh26-finance-summary-build052">
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary{display:block}
+#vh26-connected-dashboard:not(.vh26-finance-view-active) #vh26-finance-summary{display:none}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0 18px}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-kpis>div{min-width:0;padding:10px 11px;border:1px solid #dce5eb;border-radius:7px;background:#fff}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-kpis span{display:block;font-size:9px;color:#607183}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-kpis strong{display:block;margin-top:5px;font-size:15px;color:#004d71;font-variant-numeric:tabular-nums}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-department-list{border-top:1px solid #dce5eb;margin-top:8px}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-department-list>div{display:flex;justify-content:space-between;gap:8px;padding:8px 2px;border-bottom:1px solid #dce5eb;font-size:10px}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-department-list span{font-size:9px;color:#718594}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-status,#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-content{display:none}
+@media(max-width:650px){#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-summary .vh26-finance-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </body></html>

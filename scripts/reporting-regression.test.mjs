@@ -139,6 +139,9 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/Approval &amp; publication/);
+  assert.match(html,/Departments with finance figures/);
+  assert.match(html,/byDepartment\.length===9&&byDepartment\.every\(x=>x\.values\[metric\]!==null\)/);
+  assert.match(html,/vh26-finance-department-list/);
 });
 
 test('Report Absence opens the Build 052 screen and linked staging form',()=>{
