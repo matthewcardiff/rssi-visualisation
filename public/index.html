@@ -751,6 +751,8 @@ window.rssiFinanceRefresh=async function(w){const ok=await financeRefresh(w);if(
 
 
 const vhFinDepartments=[['TWS',6],['Civils',7],['Rail Operations',8],['Welding',9],['Managed Environments',10],['MMA',11],['S&T',12],['HS2',13],['Montel',14]];
+// The authenticated finance workflow and the legacy preview use the same mapping.
+window.vhFinDepartments=vhFinDepartments;
 function vhFinCol(n){let r='';for(n++;n;n=Math.floor((n-1)/26))r=String.fromCharCode(65+(n-1)%26)+r;return r}
 function vhFinZipEntries(buffer){
  const b=new DataView(buffer),u=new Uint8Array(buffer),dec=new TextDecoder(),entries=new Map();
@@ -890,6 +892,8 @@ async function vhFinanceExtract(file,selectedWeek){
  }catch(e){warnings.push('Company overview unavailable: '+e.message)}
 return {companyOverview,file:file.name,selectedWeek,financialSourceWeek:financePeriod?.sourceWeek??null,financialSourceYear:financePeriod?.sourceYear??null,financialSourcePeriodId:financePeriod?.sourcePeriodId??null,financialSourceStartDate:financePeriod?.sourceStartDate??null,financialSourceEndDate:financePeriod?.sourceEndDate??null,records,warnings,cautions:financePeriod&&!financePeriod.requiresPriorCycle?['Workbook identifies the finance source by NRW week number only; verify that its data belongs to '+financePeriod.sourceStartDate+'–'+financePeriod.sourceEndDate+'.']:[],sourceFormulaIssues,acceptanceReady:!!matching&&records.length===9&&records.every(x=>x.issues.length===0)&&warnings.length===0,formulaCells:[...revenue.values(),...budget.values()].filter(c=>c.formula).length,weekFound:!!matching};
 }
+// Export the reader as soon as it is defined, before optional legacy UI hooks run.
+window.vhFinanceExtract=vhFinanceExtract;
 function vhFinancePreview(data){
     const display=v=>v===null||v===undefined||v===''?'Not reported':fmt(v),isIssue=r=>(r.issues||[]).length>0;
     return (data.companyOverview?'<section class="vh-finance-box"><h3>Company overview · '+esc(data.companyOverview.sheet)+'</h3><p>Extracted directly from the selected weekly worksheet. '+(data.companyOverview.complete?'All four totals reconcile to its nine department blocks.':'Totals are incomplete or do not reconcile; the Finance presentation will flag them for review.')+'</p><p>'+Object.entries(data.companyOverview.totals).map(([k,v])=>esc(k.replace(/([A-Z])/g,' $1'))+': '+(v===null?'Not reported':fmt(v))).join(' · ')+'</p><p>The overview preserves this worksheet’s own cutoffs; department slides retain the existing management-week budget policy.</p></section>':'<p>Company overview unavailable: no matching weekly worksheet was found.</p>')+'<div class="vh-finance-box" style="margin-top:14px"><h3>Review imported finance figures</h3><p class="vh-finance-note">Reporting week: '+esc(weekLabel(data.selectedWeek))+' · Workbook: '+esc(data.file)+'</p><p class="vh-finance-note">These figures have not been published. Check the department, budget and revenue summary below. “Not reported” means a department, source period or reliable value is unavailable. Blank revenue inputs sum to £0 as in Excel; this is a calculated total, not a confirmed revenue entry.</p><p class="vh-finance-note"><strong>Financial source period:</strong> '+(data.financialSourceWeek===null?'Calendar mapping needs review':('NRW WK'+esc(data.financialSourceWeek)+' · '+esc(data.financialSourceStartDate)+'–'+esc(data.financialSourceEndDate)))+' (revenue: two rail weeks before the report week; budget and YTD budget: through the selected management week).</p>'+(data.cautions?.length?'<div class="vh-finance-note"><strong>Calendar notes:</strong> '+data.cautions.map(esc).join(' ')+'</div>':'')+'<div class="vh-overview-scroll"><table><thead><tr><th>Department</th><th>Weekly budget</th><th>Weekly revenue</th><th>YTD budget</th><th>YTD revenue</th><th>Check</th></tr></thead><tbody>'+data.records.map(r=>'<tr><td>'+esc(r.name)+'</td><td>'+display(r.bv)+'</td><td>'+display(r.rv)+'</td><td>'+display(r.ytdBudget)+'</td><td>'+display(r.ytdRevenue)+'</td><td>'+(isIssue(r)?esc(r.issues.join('; ')):(r.calculationNotes?.length?esc(r.calculationNotes.join(' ')):'Ready for your review'))+'</td></tr>').join('')+'</tbody></table></div><p class="vh-finance-note"><strong>'+((data.warnings||[]).length?'Some checks need attention. Review the messages before applying figures.':'No workbook-level problems were found in the mapped fields.')+'</strong> '+((data.warnings||[]).length?esc(data.warnings.slice(0,8).join('; ')):'Missing values remain Not reported; they are not converted to zero.')+'</p><details><summary>Advanced support: download technical findings</summary><p class="vh-finance-note">Optional file for technical support. You do not need to open this to review the figures.</p><button type="button" id="vhFinExport">Download technical findings (JSON)</button></details></div>';
@@ -969,7 +973,6 @@ window.department=function(d,w){
  host.prepend(info);
  return result;
 };
-window.vhFinanceExtract=vhFinanceExtract;
 const oldUpdate=window.updateFinance;
 window.updateFinance=function(){if(!isFinance())return;return oldUpdate.apply(this,arguments)};
 
@@ -51835,7 +51838,7 @@ async function loadPublishedFinance(){
   const summary=document.getElementById('vh26-finance-summary');
   if(summary){
    const normalise=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-   const financeDepartments=vhFinDepartments.map(([name])=>({name,department:(nativeData?.departments||[]).find(d=>normalise(d.display_name)===normalise(name)||normalise(d.code)===normalise(name)||normalise(d.name)===normalise(name))})).filter(x=>x.department);
+   const financeDepartments=(window.vhFinDepartments||[['TWS'],['Civils'],['Rail Operations'],['Welding'],['Managed Environments'],['MMA'],['S&T'],['HS2'],['Montel']]).map(([name])=>({name,department:(nativeData?.departments||[]).find(d=>normalise(d.display_name)===normalise(name)||normalise(d.code)===normalise(name)||normalise(d.name)===normalise(name))})).filter(x=>x.department);
    const byDepartment=financeDepartments.map(({name,department})=>{
     const publication=(feed.publications||[]).filter(x=>x.reporting_week_id===selectedWeek&&x.department_id===department.id).sort((a,b)=>(b.publication_version||0)-(a.publication_version||0))[0];
     const rows=publication?(feed.values||[]).filter(v=>v.publication_id===publication.id):[];
