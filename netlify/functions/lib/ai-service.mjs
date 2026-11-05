@@ -65,7 +65,15 @@ function providerError(status,model){
 }
 
 async function generate(config,{system,prompt,schema}){
-  const response=await fetch('https://ollama.com/api/chat',{method:'POST',headers:{authorization:'Bearer '+config.apiKey,'content-type':'application/json',accept:'application/json'},body:JSON.stringify({model:config.model,stream:false,format:schema,options:{temperature:0.25},messages:[{role:'system',content:system},{role:'user',content:prompt}]}),signal:AbortSignal.timeout(35000)});
+  let response;
+  try{response=await fetch('https://ollama.com/api/chat',{method:'POST',headers:{authorization:'Bearer '+config.apiKey,'content-type':'application/json',accept:'application/json'},body:JSON.stringify({model:config.model,stream:false,format:schema,options:{temperature:0.25},messages:[{role:'system',content:system},{role:'user',content:prompt}]}),signal:AbortSignal.timeout(35000)})}
+  catch(error){
+    const code=error?.cause?.code;
+    const timedOut=error?.name==='TimeoutError'||error?.name==='AbortError'||code==='ETIMEDOUT';
+    const knownNetworkCode=['ENOTFOUND','EAI_AGAIN','ECONNRESET','ECONNREFUSED','ENETUNREACH'].includes(code);
+    const detail=timedOut?'Ollama Cloud did not respond within 35 seconds. Check model availability and Netlify function timeout settings.':knownNetworkCode?'Ollama Cloud network request failed ('+code+'). Check Netlify outbound connectivity to ollama.com.':'Ollama Cloud network request failed ('+(error?.name||'unknown error')+'). Check Netlify outbound connectivity to ollama.com.';
+    return {response:json(timedOut?504:502,{error:detail})};
+  }
   if(response.status===429)return {response:json(429,{error:'Review limit reached. Please try later.'})};
   if(!response.ok)return {response:json(response.status===429?429:502,{error:providerError(response.status,config.model)})};
   const body=await response.json();

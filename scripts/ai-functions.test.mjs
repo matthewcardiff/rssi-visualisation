@@ -103,6 +103,10 @@ test('AI provider failures return actionable diagnostics without exposing provid
     assert.match(error,expected);
     assert.doesNotMatch(error,/secret=provider-detail/);
   }
+  globalThis.fetch=async(input,options)=>{if(String(input)==='https://ollama.com/api/chat')throw Object.assign(new TypeError('fetch failed'),{cause:{code:'ENOTFOUND'}});return upstream(input,options)};
+  const network=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
+  assert.equal(network.status,502);
+  assert.match((await network.json()).error,/ENOTFOUND/);
 }));
 
 test('Safety Moment generation is restricted to presenter roles and produces exactly three points and two questions',async()=>withEnv(async()=>{
