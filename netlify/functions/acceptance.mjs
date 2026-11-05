@@ -179,11 +179,11 @@ export default async (request)=>{
         return send('hsqe_workforce_counts?on_conflict=department_id,effective_on','POST',{department_id:data.department_id,effective_on:data.effective_on,operative_count:data.operative_count});
       }
     }
-    // This deployment-scoped gate permits finance staging/import and
-    // reconciliation after acceptance tests. Publication is separately and
-    // unconditionally disabled here and by the Supabase database gate.
-    if(data.op==='finance_publish')
-      return json(503,{error:'Finance publication remains disabled pending full workflow acceptance',code:'FINANCE_PUBLICATION_DISABLED'});
+    // Finance publication has two independent gates: this deployment flag and
+    // the database publication_gate row. The database RPC is the final
+    // authority and revalidates every row in its transaction.
+    if(data.op==='finance_publish' && process.env.VH_FINANCE_PUBLICATION_ENABLED !== 'enabled')
+      return json(503,{error:'Finance publication is disabled for this deployment',code:'FINANCE_PUBLICATION_DISABLED'});
     if(['finance_import','finance_reconcile'].includes(data.op) && process.env.VH_FINANCE_STAGING_WRITES !== 'enabled')
       return json(503,{error:'Finance staging writes are disabled for this deployment',code:'FINANCE_STAGING_WRITES_DISABLED'});
     if(data.op==='finance_reconcile'){
@@ -191,12 +191,24 @@ export default async (request)=>{
       if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
         return json(400,{error:'Valid import, explicit confirmation and reconciliation comment (minimum 8 characters) required'});
       const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
-      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
+      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','finance_admin','administrator'].includes(r.role)))
         return json(403,{error:'Reconciliation requires authorised finance or administrator role'});
       const response=await fetch(url+'/rest/v1/rpc/vh_finance_reconcile',{
         method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
       if(!response.ok)return json(response.status===403?403:409,{error:'Finance reconciliation rejected; no status change committed',status:response.status});
       return json(200,{result:await response.json(),reconciled:true});
+    }
+    if(data.op==='finance_publish'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
+        return json(400,{error:'Valid import, explicit publication confirmation and rationale (minimum 8 characters) required'});
+      const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
+      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
+        return json(403,{error:'Finance publication requires an authorised finance or administrator role'});
+      const response=await fetch(url+'/rest/v1/rpc/vh_finance_publish',{
+        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
+      if(!response.ok)return json(response.status===403?403:409,{error:'Finance publication rejected; no publication committed',status:response.status});
+      return json(200,{result:await response.json(),published:true});
     }
     if(data.op==='finance_review'){
       const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
@@ -220,22 +232,28 @@ export default async (request)=>{
         const problems=[];
         if(!rows.length)problems.push('No metric rows saved');
         if(rows.some(r=>r.reporting_week_id!==imp.reporting_week_id))problems.push('Management week mismatch');
-        if(rows.some(r=>r.mapping_status!=='reconciled'))problems.push('Metrics not marked reconciled');
+        const expectedMapping=imp.reconciliation_status==='pending'?'pending':'reconciled';
+        if(rows.some(r=>r.mapping_status!==expectedMapping))problems.push('Metric reconciliation state does not match the import');
         if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
         if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source week differs from management week minus two rail periods');
         if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
         if(rows.some(r=>!['missing','zero','value'].includes(r.input_state)))problems.push('Unrecognised input state');
-        if(Array.isArray(imp.findings)&&imp.findings.length)problems.push('Import-level findings require resolution');
+        if(!Array.isArray(imp.findings))problems.push('Import findings could not be verified');
+        else if(imp.findings.length)problems.push('Import-level findings require resolution');
         if(rows.some(r=>Array.isArray(r.issues)&&r.issues.length))problems.push('Metric-level issues recorded');
         for(const [k,group] of byDepartment){if(group.length!==4||new Set(group.map(r=>r.metric_key)).size!==4||!['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].every(m=>group.some(r=>r.metric_key===m)))problems.push('Incomplete or duplicate metric group: '+k)}
         if(rows.some(r=>r.department_id===null||r.reporting_week_id===null))problems.push('Metric has no department or reporting week');
-        if(imp.reconciliation_status!=='reconciled')problems.push('Import reconciliation not approved');
         const linked=publications.filter(pub=>pub.source_import_id===imp.id);
-        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:problems.length===0,metric_count:rows.length,department_count:byDepartment.size,issues:problems,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
+        if(!['pending','reconciled'].includes(imp.reconciliation_status))problems.push('Import is not in a reviewable state');
+        if(linked.length)problems.push('Import already has publication history');
+        const ready=problems.length===0;
+        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:ready,can_reconcile:ready&&imp.reconciliation_status==='pending',can_publish:ready&&imp.reconciliation_status==='reconciled',metric_count:rows.length,department_count:byDepartment.size,issues:problems,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
       });
-      return json(200,{imports:groups,approval_enabled:false,publication_enabled:false,notice:'Approval and publication are disabled until a transactional, database-authorised workflow is installed and tested.'});
+      const approvalEnabled=process.env.VH_FINANCE_STAGING_WRITES==='enabled';
+      const publicationEnabled=process.env.VH_FINANCE_PUBLICATION_ENABLED==='enabled';
+      return json(200,{imports:groups,approval_enabled:approvalEnabled,publication_enabled:publicationEnabled,notice:publicationEnabled?'Finance changes require a separate review and publication confirmation.':'Approval or publication is disabled for this deployment.'});
     }
     if(['finance_preview','finance_import'].includes(data.op)){
       // Finance-only validation; no import is committed and no service-role credentials are used.
