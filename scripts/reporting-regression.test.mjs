@@ -201,6 +201,8 @@ test('shared calendar upload remains host-gated and appends only via the atomic 
 });
 test('published finance has its own view while import controls remain role-gated',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/pending reconciliation is staged only and will not appear/);
+  assert.match(html,/intentional two-week reporting lag/);
   assert.match(html,/const financeRole=roles\.some\(r=>\['finance','finance_admin','administrator'\]\.includes\(r\.role\)\)/);
   assert.ok(html.includes('<button type="button" data-connected-nav="finance">£ Finance</button>'));
   assert.match(html,/vh26-finance-preview'\)\.hidden=!roles\.some/);
