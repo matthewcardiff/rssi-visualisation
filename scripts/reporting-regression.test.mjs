@@ -24,6 +24,25 @@ async function request(op,extra,responses){
     return {status:response.status,body:await response.json(),calls};
   }finally{globalThis.fetch=previous}
 }
+test('next reporting week is host-only and uses the next chronological rail calendar period',async()=>{
+  const previous='22222222-2222-4222-8222-222222222222',next='33333333-3333-4333-8333-333333333333';
+  const out=await request('create_week',{},[
+    {body:{id}},
+    {body:[{role:'meeting_host'}]},
+    {body:[{rail_period_id:previous}]},
+    {body:[{id:previous,start_date:'2026-10-24',end_date:'2026-10-30'},{id:next,start_date:'2026-10-31',end_date:'2026-11-06'}]},
+    {body:[{id,rail_period_id:next,status:'open'}]}
+  ]);
+  assert.equal(out.status,200);
+  assert.equal(out.body.items[0].rail_period_id,next);
+  assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
+  assert.deepEqual(JSON.parse(out.calls.at(-1).options.body),{rail_period_id:next,status:'open',creation_method:'manual'});
+});
+test('reporting week creation is denied before calendar lookup for non-host roles',async()=>{
+  const out=await request('create_week',{},[{body:{id}},{body:[]}]);
+  assert.equal(out.status,403);
+  assert.equal(out.calls.length,2);
+});
 test('a zero-row RLS-filtered section PATCH is reported as failure',async()=>{
   const out=await request('save_section',{report_id:id,section_key:'delivery',content:{notes:'Update'}},[{body:{id}},{body:[{id}]},{body:[]}]);
   assert.equal(out.status,409);assert.match(out.body.error,/not saved/);
@@ -290,11 +309,31 @@ test('host dashboard and action register are hidden while navigating to other wo
   assert.match(html,/function setHostHomeVisible\(visible\)\{const active=!!\(visible&&hostDashboardAllowed\(\)\)/);
   assert.match(html,/dash\.classList\.toggle\('vh26-host-layout-active',active\)/);
   assert.match(html,/presenterRoot\.hidden=true/);
-  assert.ok(html.includes('function openDepartment(department){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
+  assert.ok(html.includes('function openDepartment(department,initialWeekId=null){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
   const home=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')"),html.indexOf("side.querySelector('[data-connected-nav=\"report\"]')"));
   assert.ok(home.includes('setHostHomeVisible(false)'), 'Home / Departments must leave the host-only layout');
   const absence=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')"),html.indexOf("side.querySelector('#vh26-sidebar-signout')"));
   assert.ok(absence.includes('setHostHomeVisible(false)'));
+});
+
+test('Build 050 Reporting Weeks restores department filtering, report counts, view and next-week controls',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/vh26-host-weeks-department/);
+  assert.match(html,/Department reports started/);
+  assert.match(html,/count\.textContent=started\.size\+' \/ '\+presenterDepartments\.length/);
+  assert.match(html,/function addNextHostWeek\(status\)/);
+  assert.match(html,/dataApi\('create_week'\)/);
+  assert.match(html,/openDepartment\(d,week\.id\)/);
+  assert.match(html,/Download calendar CSV/);
+  assert.match(html,/vh26-host-calendar-controls/);
+});
+
+test('Presenter full-window fallback keeps fullscreen control usable without the Fullscreen API',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/typeof presenterMode\.requestFullscreen!=='function'/);
+  assert.match(html,/vh26-pseudo-fullscreen/);
+  assert.match(html,/document\.body\.style\.overflow='hidden'/);
+  assert.match(html,/vh26-presenter-fullscreen/);
 });
 
 test('administrator lands in the department workspace and retains an explicit Meeting Overview route',()=>{
