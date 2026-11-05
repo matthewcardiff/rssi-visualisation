@@ -1,6 +1,6 @@
 (function () {
   const brandFix = document.createElement('style');
-  brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}';
+  brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-report-intro{max-width:750px!important}';
   document.head.append(brandFix);
   const delay = 650;
   let sectionTimer = 0;
