@@ -52505,14 +52505,12 @@ function install(){
  btn.addEventListener('click',async function(){
  const field=document.getElementById('vh26-section-notes'),feedback=document.getElementById('vh26-ai-feedback');
  const original=field?.value?.trim();if(!original){feedback.textContent='Enter an update before requesting AI suggestions.';return}
- const token=typeof window.vhGetAIReviewToken==='function'?await window.vhGetAIReviewToken():null;
+ const token=typeof window.vhGetAIReviewToken==='function'?await window.vhGetAIReviewToken():((typeof activeSession==='function')?activeSession()?.access_token:null);
  if(!token){feedback.textContent='AI review requires an authenticated session.';return}
  btn.disabled=true;feedback.textContent='Reviewing response…';
  try{
- const departmentSelect=document.getElementById('vh26-department-select');
- const weekSelect=document.getElementById('vh26-week-select');
- const department=departmentSelect?.selectedOptions?.[0]?.textContent?.trim()||document.querySelector('#vh26-report-intro h1')?.textContent?.trim()||'';
- const week=weekSelect?.selectedOptions?.[0]?.textContent?.trim()||'';
+ const department=typeof selectedDepartment!=='undefined'?(selectedDepartment?.display_name||''):'';
+ const week=typeof selectedWeek!=='undefined'?(String(nativeData?.weeks?.find(w=>w.id===selectedWeek)?.rail_week||selectedWeek).slice(0,40)):'';
  const section=document.querySelector('#vh26-section-title')?.textContent?.trim()?.toLowerCase();
  const valid=['delivery','programme','risks','resources','pipeline'];
  const response=await fetch('/.netlify/functions/review-report',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+token},body:JSON.stringify({section:valid.includes(section)?section:'delivery',text:original,department,week})});
