@@ -132,6 +132,7 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
     if(url==='https://ollama.com/api/chat'){
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
+      assert.match(JSON.parse(options.body).messages[0].content,/must never be presented as an approved procedure/);
       return Response.json({message:{content:JSON.stringify(safety)}});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
