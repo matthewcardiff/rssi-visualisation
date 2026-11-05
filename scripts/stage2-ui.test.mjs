@@ -34,6 +34,8 @@ test('department chooser, static week selector, aligned heading and one-column P
   assert.match(html, /#vh26-report-intro,#vh26-connected-dashboard #vh26-native-report\{width:100%;max-width:1000px/);
   assert.match(html, /#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide\{grid-template-columns:minmax\(0,1fr\)!important\}/);
   assert.ok(existsSync(new URL('../public/rssi-logo.png', import.meta.url)));
+  assert.match(autosave, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
+  assert.match(html, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
 });
 
 test('finance upload retains the Build 050 weekly-budget reader and submits its extracted budget field', () => {
