@@ -81,6 +81,8 @@ test('AI report review requires department membership and returns the agreed rev
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
       assert.equal(JSON.parse(options.body).model,'gpt-oss:120b');
       assert.equal(JSON.parse(options.body).stream,false);
+      assert.equal(JSON.parse(options.body).options.temperature,0);
+      assert.deepEqual(JSON.parse(options.body).format.required,['assessment','suggestions','questions','draft']);
       return Response.json({message:{content:JSON.stringify(review)}});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
