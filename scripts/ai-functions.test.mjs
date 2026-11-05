@@ -61,12 +61,14 @@ test('AI report review rejects missing, inactive and out-of-scope sessions befor
 }));
 
 test('AI report review requires department membership and returns the agreed review shape',async()=>withEnv(async()=>{
+  delete process.env.OLLAMA_MODEL;
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
     if(url==='https://ollama.com/api/chat'){
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
+      assert.equal(JSON.parse(options.body).model,'gpt-oss:120b');
       assert.equal(JSON.parse(options.body).stream,false);
       return Response.json({message:{content:JSON.stringify(review)}});
     }
