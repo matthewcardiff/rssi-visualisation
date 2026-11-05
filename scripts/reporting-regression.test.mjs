@@ -167,6 +167,7 @@ test('Presenter Mode uses the embedded Build 050 logo and renders authorised dep
 });
 test('Presenter Mode opens directly on Safety Moment while readiness loads, and clears stale department tabs',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.ok(html.includes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
   assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
   assert.match(html,/presenterDepartments=resolved/);
   assert.match(html,/function presenterDepartmentLabel\(department\)/);
