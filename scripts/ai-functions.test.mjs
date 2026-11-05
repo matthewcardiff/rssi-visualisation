@@ -93,6 +93,18 @@ test('AI report review requires department membership and returns the agreed rev
   assert.equal(providerCalls,1);
 }));
 
+test('AI provider failures return actionable diagnostics without exposing provider response bodies',async()=>withEnv(async()=>{
+  const upstream=supabaseMock();
+  for(const [status,expected] of [[401,/OLLAMA_API_KEY/],[404,/OLLAMA_MODEL/],[400,/structured JSON output/]]){
+    globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?Response.json({error:'secret=provider-detail'}, {status}):upstream(input,options);
+    const response=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
+    assert.equal(response.status,502);
+    const error=(await response.json()).error;
+    assert.match(error,expected);
+    assert.doesNotMatch(error,/secret=provider-detail/);
+  }
+}));
+
 test('Safety Moment generation is restricted to presenter roles and produces exactly three points and two questions',async()=>withEnv(async()=>{
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
