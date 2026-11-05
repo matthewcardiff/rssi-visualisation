@@ -129,6 +129,18 @@ test('published finance has its own view while import controls remain role-gated
   assert.ok(html.includes("[data-connected-nav=\"finance\"]')?.addEventListener"));
 });
 
+test('Build 052 finance workbook layout stages XLSX through the authenticated finance API',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/Excel financial workbook/);
+  assert.match(html,/accept="\.xlsx,\.csv,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet,text\/csv"/);
+  assert.match(html,/await vhFinanceExtract\(file,sourceWeek\.id\)/);
+  assert.match(html,/input_state,source_period_id/);
+  assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
+  assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
+  assert.match(html,/finance publication stays server-gated|finance_publish/);
+  assert.match(html,/Approval &amp; publication/);
+});
+
 test('Report Absence opens the Build 052 screen and linked staging form',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const nav=html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')");
