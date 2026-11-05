@@ -43,6 +43,26 @@ test('reporting week creation is denied before calendar lookup for non-host role
   assert.equal(out.status,403);
   assert.equal(out.calls.length,2);
 });
+test('shared rail calendar import is host-authorised and sent to the atomic database function',async()=>{
+  const periods=[{week_number:40,start_date:'2027-12-25',end_date:'2027-12-31'}];
+  const out=await request('calendar_import',{periods},[
+    {body:{id}},
+    {body:[{role:'meeting_host'}]},
+    {body:{inserted_periods:1,rows_checked:1}}
+  ]);
+  assert.equal(out.status,200);
+  assert.match(out.calls.at(-1).url,/rpc\/vh_import_rail_calendar$/);
+  assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
+  assert.deepEqual(JSON.parse(out.calls.at(-1).options.body),{p_periods:periods});
+});
+test('shared rail calendar import is denied before database mutation for non-host roles',async()=>{
+  const out=await request('calendar_import',{periods:[{week_number:40,start_date:'2027-12-25',end_date:'2027-12-31'}]},[
+    {body:{id}},
+    {body:[]}
+  ]);
+  assert.equal(out.status,403);
+  assert.equal(out.calls.length,2);
+});
 test('weeks lookup returns all rail periods for lagged finance source validation',async()=>{
   const out=await request('weeks',{},[
     {body:{id}},
@@ -150,6 +170,34 @@ test('connected Action Log uses a dedicated view and the Build 052 table layout'
   for(const heading of ['Department','Action','Owner','Due date','Status','Created in','Completed'])assert.ok(renderer.includes(heading));
   assert.match(html,/vh26-visual-restoration-routes/);
   assert.match(html,/vh26-workspace-active:not\(\.vh26-action-view-active\):not\(\.vh26-finance-view-active\).*#vh26-finance-preview/);
+});
+test('department report reveals core content before background finance and action loads finish',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const load=html.slice(html.indexOf('async function loadNative(){'),html.indexOf('\nfunction openDepartment('));
+  assert.ok(load.indexOf('renderSection();')<load.indexOf('loading.hidden=true'));
+  assert.ok(load.indexOf('loading.hidden=true')<load.indexOf('Promise.allSettled(secondary)'));
+  assert.match(load,/reportLoadGeneration/);
+});
+test('manager Action Log shares Presenter Mode controls and navigation has one active route',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/vh26-action-view-active #vh26-actions-workspace\{max-width:1100px/);
+  assert.match(html,/button\[aria-current="page"\]/);
+  assert.match(html,/setConnectedNavActive=route=>/);
+  assert.match(html,/vh26-action-view-active \.vh26-sidebar nav button\[data-connected-nav="report"\]\{background:transparent!important/);
+  assert.match(html,/#vh26-connected-dashboard \.vh26-brand img\{display:none!important\}/);
+  assert.match(html,/id="vh26-presenter-logo" src="\/rssi-logo\.png"/);
+});
+test('shared calendar upload remains host-gated and appends only via the atomic calendar RPC',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
+  const sql=readFileSync(new URL('../database/rail_calendar_import.sql',import.meta.url),'utf8');
+  assert.match(html,/Upload official rail calendar CSV/);
+  assert.match(html,/Validate and add future weeks/);
+  assert.match(api,/calendar_import/);
+  assert.match(api,/rpc\/vh_import_rail_calendar/);
+  assert.match(sql,/SECURITY DEFINER/);
+  assert.match(sql,/existing periods are preserved/i);
+  assert.match(sql,/role IN \('meeting_host', 'administrator'\)/);
 });
 test('published finance has its own view while import controls remain role-gated',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
