@@ -319,8 +319,12 @@ test('Reporting Weeks resolves independently, times out visibly and can be retri
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const load=html.indexOf('let hostReadinessGeneration=0;loadHostReadiness=async function(retry=0)');
   const weeks=html.indexOf("const result=await request('weeks')",load);
-  const reports=html.indexOf("Promise.allSettled(['reports','sections'].map(request))",load);
+  const reports=html.indexOf("const names=['reports','sections','pipeline'],results=await Promise.allSettled(names.map(request))",load);
   assert.ok(load>0&&weeks>load&&reports>weeks);
+  assert.match(html,/syncPresenterDepartments\(\);const request=async op=>/);
+  assert.match(html,/hostData=\{weeks:\[\],reports:\[\],sections:\[\],pipeline:\[\],loading:\{weeks:true,reports:true,sections:true,pipeline:true\}/);
+  assert.match(html,/const names=\['reports','sections','pipeline'\],results=await Promise\.allSettled\(names\.map\(request\)\)/);
+  assert.match(html,/hostData\[name\]=result\.value\.items\|\|\[\]/);
   assert.match(html,/request timed out after 8 seconds/);
   assert.match(html,/Retry loading weeks/);
   assert.match(html,/Reporting weeks unavailable:/);
@@ -407,6 +411,7 @@ test('meeting host view is role-gated and supplies live readiness plus read-only
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
   assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'&&departments\.includes\(r\.department_id\)&&hostReportComplete\(r\)/);
+  assert.match(html,/const departments=presenterDepartments\.map\(d=>d\.id\),submitted=new Set\(\(hostData\.reports\|\|\[\]\)\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'&&departments\.includes\(r\.department_id\)&&hostReportComplete\(r\)\)/);
   assert.match(html,/id="vh26-host-submitted"/);
   assert.match(html,/id="vh26-host-awaiting"/);
   assert.match(html,/id="vh26-host-open-actions"/);
