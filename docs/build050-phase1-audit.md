@@ -102,3 +102,20 @@ The following corrections address findings that could be fixed safely in the con
 GitHub accepted the code, regression tests and audit through its connected repository integration. The PR preview's served HTML contains the Phase 2 source markers, and its runtime showed the fixed Safety Moment launch and direct Finance route. GitHub reports no status checks for the latest commit, so an exact Netlify-to-commit SHA match is not independently confirmed.
 
 **Phase 2 status: targeted corrections deployed and observed; complete acceptance remains open.** Remaining work includes verifying native fullscreen in a standard browser, restoring the missing Reporting Weeks controls and host calendar settings, testing all remaining dialogs and workflows, and running a real approved `.xlsx` through finance review/staging without enabling publication. Do not call the product a visual match until those checks pass against the same Build 050 viewports.
+
+
+## Phase 2 follow-up — source fixes and open verification
+
+The following corrections were made after the authenticated preview retest:
+
+- Connected Reporting Weeks now uses the Build 050 table hierarchy, a department selector, a report-started count, View actions, and a host-only Add next week action. The create operation selects only the next chronological period already in the shared rail calendar and sends the signed-in caller token; it does not create a local-only week.
+- Connected Settings now shows the loaded rail-calendar range and provides Download calendar CSV, Refresh calendar data, and Add next week controls. Shared calendar upload, activation, backup and rollback are still not available because this branch has no shared calendar-version endpoint.
+- Presenter full-screen now falls back to a full-window presentation layout when the browser does not expose the Fullscreen API. Standard-browser native fullscreen remains to be verified.
+- The finance workbook path now carries the complete rail-calendar list and department register into Finance, resolves the intentional two-week source period, presents the validated department figures before staging, preserves blank values as missing, and requires an acknowledgement when workbook checks produce warnings.
+- Finance SQL source scripts accept `.xlsx` filenames for the atomic staging RPC. The staging database function and deployment gate have not been updated or exercised in this session.
+
+The supplied test workbook was inspected read-only. It contains 11 worksheets and maps to the nine finance departments. For the Finance source period selected by a Week 31 management report (Week 29), the weekly revenue cells are blank for all nine departments; those remain “Not reported” in the import representation. The workbook's YTD total formula excludes the Montel row, so review must show that warning and require acknowledgement. No figures were published or written to staging.
+
+`npm test` passes 44/44 tests; `node --check netlify/functions/acceptance.mjs`, Stage 26C4 checks and `git diff --check` pass. These are source-level checks. The preview is at the sign-in screen, and this session does not expose the secure sign-in/file-upload handoff or Supabase project access. The workbook was not uploaded. The latest GitHub commit has zero status checks; Netlify's exact deployed SHA remains unconfirmed.
+
+**Acceptance remains open.** Required next evidence: deploy the updated branch to its Netlify preview; apply the reviewed `.xlsx` RPC filename change and confirm the staging write gate; authenticate using the secure app sign-in flow; review the workbook and verify the import register without approval/publication; and compare every reference screen at matching viewport/zoom.
