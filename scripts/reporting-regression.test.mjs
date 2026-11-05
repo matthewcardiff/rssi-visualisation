@@ -145,10 +145,34 @@ test('finance staging gate does not grant the department manager finance RPC acc
 });
 test('finance publication stays server-gated even when staging imports are enabled',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  const priorPublication=process.env.VH_FINANCE_PUBLICATION_ENABLED;delete process.env.VH_FINANCE_PUBLICATION_ENABLED;
   try{
   const out=await request('finance_publish',{import_id:id,confirm:true,comment:'Test only'},[{body:{id}}]);
   assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_PUBLICATION_DISABLED');assert.equal(out.calls.length,1);
-  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior;if(priorPublication===undefined)delete process.env.VH_FINANCE_PUBLICATION_ENABLED;else process.env.VH_FINANCE_PUBLICATION_ENABLED=priorPublication}
+});
+test('finance register exposes only per-import reconciled and publish actions when enabled',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/item\.can_reconcile&&data\.approval_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
+  assert.match(html,/item\.can_publish&&data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
+  assert.match(html,/Enter the review rationale \(at least 8 characters\)/);
+  assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
+});
+test('enabled finance publication requires finance role, rationale and database RPC approval',async()=>{
+  const prior=process.env.VH_FINANCE_PUBLICATION_ENABLED;process.env.VH_FINANCE_PUBLICATION_ENABLED='enabled';
+  try{
+    const denied=await request('finance_publish',{import_id:id,confirm:true,comment:'Acceptance publication rationale'},[
+      {body:{id}},{body:[{role:'department_manager'}]}
+    ]);
+    assert.equal(denied.status,403);assert.equal(denied.calls.length,2);
+    const out=await request('finance_publish',{import_id:id,confirm:true,comment:'Acceptance publication rationale'},[
+      {body:{id}},{body:[{role:'finance'}]},{body:{published:true}}
+    ]);
+    assert.equal(out.status,200);assert.equal(out.body.published,true);
+    assert.match(out.calls[2].url,/\/rpc\/vh_finance_publish$/);
+    assert.deepEqual(JSON.parse(out.calls[2].options.body),{p_import_id:id,p_comment:'Acceptance publication rationale'});
+    assert.equal(out.calls[2].options.headers.authorization,'Bearer '+token);
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_PUBLICATION_ENABLED;else process.env.VH_FINANCE_PUBLICATION_ENABLED=prior}
 });
 test('connected API requests time out with an actionable status',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
