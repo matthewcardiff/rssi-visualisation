@@ -324,6 +324,7 @@ test('departmental AI Review preserves original text and spellchecks dynamic tex
   assert.match(html,/t\.spellcheck=true;t\.lang='en-GB'/);
   assert.match(html,/const original=field\?\.value\?\.trim\(\)/);
   assert.match(html,/Review ready\. Suggestions are optional; no report text has changed\./);
+  assert.match(html,/window\.vhGetAIReviewToken=async\(\)=>activeSession\(\)\?\.access_token\|\|null/);
 });
 test('Presenter Mode uses the embedded Build 050 logo and renders authorised departments before opening',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');

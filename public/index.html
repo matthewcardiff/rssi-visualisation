@@ -51788,6 +51788,8 @@ function confirmReportingLeave(){return !reportingDirty||confirm('You have unsav
 window.addEventListener('beforeunload',e=>{if(reportingDirty){e.preventDefault();e.returnValue='';}});
 function reportMessage(msg){document.getElementById('vh26-report-status').textContent=msg}
 function activeSession(){return JSON.parse(sessionStorage.getItem(key)||'null')}
+// AI endpoints use the same authenticated staging session as the connected dashboard.
+window.vhGetAIReviewToken=async()=>activeSession()?.access_token||null;
 async function dataApi(op,extra={}){const session=activeSession();if(!session)throw Error('Session expired');return api(op,{access_token:session.access_token,...extra})}
 function canManage(){return !!verifiedIdentity?.memberships?.some(m=>m.active&&m.department_id===selectedDepartment?.id&&m.membership_role==='manager')}
 function canEdit(){return !!verifiedIdentity?.memberships?.some(m=>m.active&&m.department_id===selectedDepartment?.id&&['manager','contributor'].includes(m.membership_role))}
