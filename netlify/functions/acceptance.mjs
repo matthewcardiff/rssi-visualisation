@@ -73,6 +73,7 @@ export default async (request)=>{
     // All mutations use the caller's JWT; Supabase RLS remains the authority.
     if(['create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      const validDate=x=>{if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;const parsed=new Date(x+'T00:00:00Z');return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===x};
       const send=async(path,method,body)=>{
         const r=await fetch(url+'/rest/v1/'+path,{method,headers:{...headers,prefer:'return=representation'},body:JSON.stringify(body),signal:AbortSignal.timeout(12000)});
         const b=await r.json().catch(()=>[]);
@@ -80,14 +81,14 @@ export default async (request)=>{
         return {items:b};
       };
       if(data.op==='update_pipeline'){
-        if(!uuid(data.id)||!uuid(data.department_id)||typeof data.customer!=='string'||!data.customer.trim()||data.customer.length>200||typeof data.project!=='string'||!data.project.trim()||data.project.length>300||typeof data.owner_text!=='string'||!data.owner_text.trim()||data.owner_text.length>200||typeof data.required_by!=='string'||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(data.required_by)||typeof data.estimated_value!=='number'||!Number.isFinite(data.estimated_value)||data.estimated_value<0||data.estimated_value>100000000000)return json(400,{error:'Valid opportunity details required'});
+        if(!uuid(data.id)||!uuid(data.department_id)||typeof data.customer!=='string'||!data.customer.trim()||data.customer.length>200||typeof data.project!=='string'||!data.project.trim()||data.project.length>300||typeof data.owner_text!=='string'||!data.owner_text.trim()||data.owner_text.length>200||!validDate(data.required_by)||typeof data.estimated_value!=='number'||!Number.isFinite(data.estimated_value)||data.estimated_value<0||data.estimated_value>100000000000)return json(400,{error:'Valid opportunity details required'});
         const out=await send('pipeline_opportunities?id=eq.'+encodeURIComponent(data.id)+'&department_id=eq.'+encodeURIComponent(data.department_id),'PATCH',{customer:data.customer.trim(),project:data.project.trim(),owner_text:data.owner_text.trim(),estimated_value:data.estimated_value,required_by:data.required_by});
         if(out.error)return json(403,{error:'Opportunity update denied'});
         if(!out.items.length)return json(403,{error:'Opportunity not found or not authorised'});
         return json(200,out);
       }
       if(data.op==='create_pipeline'){
-        if(!uuid(data.department_id)||typeof data.customer!=='string'||!data.customer.trim()||data.customer.length>200||typeof data.project!=='string'||!data.project.trim()||data.project.length>300||typeof data.owner_text!=='string'||!data.owner_text.trim()||data.owner_text.length>200||typeof data.required_by!=='string'||!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(data.required_by)||typeof data.estimated_value!=='number'||!Number.isFinite(data.estimated_value)||data.estimated_value<0||data.estimated_value>100000000000)return json(400,{error:'Customer, project, owner, value and required-by date are required'});
+        if(!uuid(data.department_id)||typeof data.customer!=='string'||!data.customer.trim()||data.customer.length>200||typeof data.project!=='string'||!data.project.trim()||data.project.length>300||typeof data.owner_text!=='string'||!data.owner_text.trim()||data.owner_text.length>200||!validDate(data.required_by)||typeof data.estimated_value!=='number'||!Number.isFinite(data.estimated_value)||data.estimated_value<0||data.estimated_value>100000000000)return json(400,{error:'Customer, project, owner, value and required-by date are required'});
         const out=await send('pipeline_opportunities','POST',{department_id:data.department_id,customer:data.customer.trim(),project:data.project.trim(),owner_text:data.owner_text.trim(),estimated_value:data.estimated_value,required_by:data.required_by,status:'open'});
         return out.error?json(out.status===403?403:409,{error:'Opportunity save denied; check department membership'}):json(200,out);
       }
@@ -118,9 +119,14 @@ export default async (request)=>{
       if(!sectionResponse.ok)return json(sectionResponse.status===403?403:502,{error:'Saved report sections could not be checked'});
       const sections=await sectionResponse.json(),departmentCode=reports[0].departments?.code;
       const required=departmentCode==='hsqe'?['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents']:['pipeline','delivery','programme','risks','resources'];
-      let hasPipelineOpportunity=false;
-      if(required.includes('pipeline')){const pipelineResponse=await fetch(url+'/rest/v1/pipeline_opportunities?select=id&department_id=eq.'+encodeURIComponent(reports[0].department_id)+'&status=neq.removed&limit=1',{headers,signal:AbortSignal.timeout(12000)});if(!pipelineResponse.ok)return json(pipelineResponse.status===403?403:502,{error:'Pipeline details could not be checked'});hasPipelineOpportunity=(await pipelineResponse.json()).length>0}
-      const complete=(key,content)=>{if(!content||typeof content!=='object')return false;if(key==='pipeline')return hasPipelineOpportunity||!!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>Object.values(e||{}).some(v=>String(v||'').trim())));if(departmentCode==='hsqe')return Object.values(content.fields||{}).some(v=>String(v??'').trim().length>0);return !!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>['title','update','owner','support','required_by'].some(k=>String(e?.[k]||'').trim())))};
+      let pipelineOpportunities=[];
+      if(required.includes('pipeline')){const pipelineResponse=await fetch(url+'/rest/v1/pipeline_opportunities?select=customer,project,owner_text,estimated_value,required_by&department_id=eq.'+encodeURIComponent(reports[0].department_id)+'&status=neq.removed&limit=500',{headers,signal:AbortSignal.timeout(12000)});if(!pipelineResponse.ok)return json(pipelineResponse.status===403?403:502,{error:'Pipeline details could not be checked'});pipelineOpportunities=await pipelineResponse.json()}
+      const validReportDate=value=>{if(typeof value!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(value))return false;const parsed=new Date(value+'T00:00:00Z');return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===value};
+      const completeEntry=entry=>!!String(entry?.title||'').trim()&&!!String(entry?.update||'').trim()&&(!!String(entry?.owner||'').trim()||!!String(entry?.support||'').trim())&&validReportDate(entry?.required_by);
+      const completeOpportunity=row=>!!String(row?.customer||'').trim()&&!!String(row?.project||'').trim()&&!!String(row?.owner_text||'').trim()&&String(row?.estimated_value??'').trim()!==''&&Number.isFinite(Number(row.estimated_value))&&Number(row.estimated_value)>=0&&validReportDate(row?.required_by);
+      const hsqeRequired={hsqe_accidents:{text:['details'],numbers:['accidents','incidents']},hsqe_close_calls:{text:['department_breakdown','notes'],numbers:['total_12_months']},hsqe_assurance:{text:['toolbox_talks','audits','ncrs','supplier_performance','site_inspections','campaigns','sustainability']},hsqe_events:{text:['events']},hsqe_documents:{text:['documents']}};
+      const completeHsqe=(key,content)=>{const required=hsqeRequired[key],fields=content?.fields;if(!required||!fields||typeof fields!=='object')return false;return required.text.every(k=>String(fields[k]??'').trim().length>0)&&(required.numbers||[]).every(k=>String(fields[k]??'').trim()!==''&&Number.isFinite(Number(fields[k]))&&Number(fields[k])>=0)};
+      const complete=(key,content)=>{if(!content||typeof content!=='object')return false;const entries=Array.isArray(content.entries)?content.entries:[];const notes=!!String(content.notes||'').trim();if(key==='pipeline')return (notes||pipelineOpportunities.length>0)&&pipelineOpportunities.every(completeOpportunity)&&entries.every(completeEntry);if(departmentCode==='hsqe')return completeHsqe(key,content);return (notes||entries.length>0)&&entries.every(completeEntry)};
       const saved=new Map(sections.map(section=>[section.section_key,section.content]));
       const missing=required.filter(key=>!complete(key,saved.get(key)));
       if(missing.length)return json(422,{error:'Complete and save every required report section before submission',missing_sections:missing});
@@ -131,7 +137,7 @@ export default async (request)=>{
     }
     if(['create_action','update_action'].includes(data.op)){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
-      const date=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
+      const date=x=>{if(typeof x!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(x))return false;const parsed=new Date(x+'T00:00:00Z');return !Number.isNaN(parsed.getTime())&&parsed.toISOString().slice(0,10)===x};
       const validText=(x,max)=>typeof x==='string'&&x.trim().length>0&&x.length<=max;
       // Hosts and administrators manage the shared register; department managers can create and update actions within their own department.
       if(!uuid(data.department_id))return json(400,{error:'Valid department required'});
@@ -266,6 +272,14 @@ export default async (request)=>{
       const roles=await rr.json();
       if(!roles.some(r=>['finance','finance_admin','administrator'].includes(r.role)))return json(403,{error:'Finance preview requires an authorised finance or administrator role'});
       if(!Array.isArray(data.rows)||data.rows.length>300||!data.rows.length)return json(400,{error:'Provide 1-300 finance rows'});
+      let persistedFindings=[];
+      if(data.op==='finance_import'){
+        if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
+        const findings=data.findings===undefined?[]:data.findings;
+        if(!Array.isArray(findings)||findings.length>100||findings.some(x=>typeof x!=='string'||!x.trim()||x.trim().length>1000))
+          return json(400,{error:'Workbook findings must be an array of up to 100 non-empty text items (maximum 1,000 characters each)'});
+        persistedFindings=findings.map(x=>x.trim());
+      }
       const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Reference data access denied');return r.json()};
       const [departments,periods,weeks]=await Promise.all([
         get('departments?select=id,code,display_name&limit=100'),
@@ -308,7 +322,6 @@ export default async (request)=>{
       if(data.op==='finance_preview')return json(200,{valid:errors.length===0,accepted_rows:normalized.length,errors,preview:normalized,committed:false});
       // Explicit, validated, one-week staging import. No approval or publication.
       if(errors.length)return json(422,{error:'Resolve reconciliation errors before importing',errors,committed:false});
-      if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
       const weeksInImport=[...new Set(normalized.map(r=>r.reporting_week_id))];
       if(weeksInImport.length!==1)return json(422,{error:'Import one management reporting week at a time'});
       if(normalized.length>300)return json(422,{error:'Import exceeds the row limit'});
@@ -320,7 +333,7 @@ export default async (request)=>{
         method:'POST',headers:{...headers,prefer:'return=representation'},
         body:JSON.stringify({p_file_name:data.file_name,p_file_sha256:hash,
           p_reporting_week_id:weeksInImport[0],
-          p_metrics:normalized.map(({source_rail_week,...row})=>row)}),
+          p_metrics:normalized.map(({source_rail_week,...row})=>row),p_findings:persistedFindings}),
         signal:AbortSignal.timeout(20000)
       });
       if(!response.ok){

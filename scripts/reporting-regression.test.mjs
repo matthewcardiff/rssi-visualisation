@@ -111,6 +111,50 @@ test('submission rejects an incomplete report before changing its status',async(
   const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'managed-environments'}}]},{body:[{section_key:'pipeline',content:{notes:'Only one section'}}]},{body:[]}]);
   assert.equal(out.status,422);assert.match(out.body.error,/every required report section/);assert.equal(out.calls.length,4);
 });
+test('submission rejects partially completed report entries even when all sections exist',async()=>{
+  const sections=[
+    {section_key:'pipeline',content:{notes:'No pipeline update this week'}},
+    {section_key:'delivery',content:{notes:'',entries:[{title:'Partial entry',update:'Update entered',owner:'',support:'',required_by:''}]}},
+    ...['programme','risks','resources'].map(section_key=>({section_key,content:{notes:'Completed '+section_key}}))
+  ];
+  const out=await request('submit_report',{report_id:id},[
+    {body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'managed-environments'}}]},{body:sections},{body:[]}
+  ]);
+  assert.equal(out.status,422);assert.deepEqual(out.body.missing_sections,['delivery']);assert.equal(out.calls.length,4);
+});
+test('submission rejects incomplete pipeline opportunities',async()=>{
+  const sections=['pipeline','delivery','programme','risks','resources'].map(section_key=>({section_key,content:{notes:section_key==='pipeline'?'':'Completed '+section_key}}));
+  const out=await request('submit_report',{report_id:id},[
+    {body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'managed-environments'}}]},{body:sections},
+    {body:[{customer:'NRW',project:'Arbor tender',owner_text:'',estimated_value:null,required_by:null}]}
+  ]);
+  assert.equal(out.status,422);assert.deepEqual(out.body.missing_sections,['pipeline']);assert.equal(out.calls.length,4);
+});
+test('submission rejects impossible dates in report entries and pipeline opportunities',async()=>{
+  const sections=[
+    {section_key:'pipeline',content:{notes:'',entries:[{title:'Opportunity',update:'Update',owner:'Owner',required_by:'2026-02-30'}]}},
+    {section_key:'delivery',content:{notes:'',entries:[{title:'Delivery item',update:'Update',owner:'Owner',required_by:'2026-02-30'}]}},
+    ...['programme','risks','resources'].map(section_key=>({section_key,content:{notes:'Completed '+section_key}}))
+  ];
+  const out=await request('submit_report',{report_id:id},[
+    {body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'managed-environments'}}]},{body:sections},
+    {body:[{customer:'NRW',project:'Arbor tender',owner_text:'Owner',estimated_value:100,required_by:'2026-02-30'}]}
+  ]);
+  assert.equal(out.status,422);assert.deepEqual(out.body.missing_sections,['pipeline','delivery']);assert.equal(out.calls.length,4);
+});
+test('HSQE submission requires every field in each specialist section',async()=>{
+  const sections=[
+    {section_key:'hsqe_accidents',content:{fields:{accidents:0}}},
+    {section_key:'hsqe_close_calls',content:{fields:{total_12_months:0}}},
+    {section_key:'hsqe_assurance',content:{fields:{toolbox_talks:'None'}}},
+    {section_key:'hsqe_events',content:{fields:{events:''}}},
+    {section_key:'hsqe_documents',content:{fields:{documents:''}}}
+  ];
+  const out=await request('submit_report',{report_id:id},[
+    {body:{id}},{body:[{id,department_id:id,status:'draft',departments:{code:'hsqe'}}]},{body:sections}
+  ]);
+  assert.equal(out.status,422);assert.deepEqual(out.body.missing_sections,['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents']);assert.equal(out.calls.length,3);
+});
 test('submitted, inaccessible or concurrently changed report is not falsely submitted',async()=>{
   const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[]}]);assert.equal(out.status,409);
 });
@@ -119,6 +163,27 @@ test('finance import and reconciliation are disabled unless the deploy-scoped st
     const out=await request(op,{},[{body:{id}}]);
     assert.equal(out.status,503);assert.equal(out.body.code,op==='finance_reconcile'?'FINANCE_RECONCILIATION_DISABLED':'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
   }
+});
+test('finance import persists reviewed workbook findings with the staged rows',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  const department='22222222-2222-4222-8222-222222222222',source='33333333-3333-4333-8333-333333333333',middle='44444444-4444-4444-8444-444444444444',current='55555555-5555-4555-8555-555555555555';
+  const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:id,department_id:department,metric_key,amount:100,input_state:'value',source_period_id:source}));
+  const findings=['Missing company overview worksheet','Weekly revenue formula source row needs review'];
+  try{
+    const out=await request('finance_import',{file_name:'finance-review.xlsx',rows,findings},[
+      {body:{id}},{body:[{role:'administrator'}]},{body:[{id:department,code:'managed-environments',display_name:'Managed Environments'}]},
+      {body:[{id:source,start_date:'2026-10-17',end_date:'2026-10-23',rail_week:29},{id:middle,start_date:'2026-10-24',end_date:'2026-10-30',rail_week:30},{id:current,start_date:'2026-10-31',end_date:'2026-11-06',rail_week:31}]},
+      {body:[{id,rail_period_id:current}]},{body:{import_id:id,imported_rows:4,reconciliation_status:'pending',published:false,committed:true}}
+    ]);
+    assert.equal(out.status,200);assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
+    assert.match(out.calls.at(-1).url,/rpc\/vh_finance_stage_import$/);
+    assert.deepEqual(JSON.parse(out.calls.at(-1).options.body).p_findings,findings);
+  }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
+});
+test('finance import rejects malformed persisted workbook findings',async()=>{
+  const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
+  try{const out=await request('finance_import',{file_name:'finance-review.xlsx',rows:[{}],findings:[{warning:'not text'}]},[{body:{id}},{body:[{role:'administrator'}]}]);assert.equal(out.status,400);assert.match(out.body.error,/findings/);assert.equal(out.calls.length,2)}
+  finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
 });
 test('finance staging permission alone does not enable reconciliation before findings are persisted',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;
@@ -277,7 +342,7 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/nativeData\?\.periods\|\|\[\]/);
   assert.match(html,/input_state,source_period_id/);
   assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
-  assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
+  assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name,findings:v\.warnings\|\|\[\]\}\)/);
   assert.match(html,/vh26-finance-review-table/);
   assert.match(html,/workbookWarnings\.length>0/);
   assert.match(html,/if\(!v\.acknowledged\)/);
@@ -306,11 +371,17 @@ test('Presenter reads separate pipeline opportunities and omits false status and
   assert.match(html,/\['weeks','reports','sections','pipeline'\]/);
   const renderer=html.slice(html.indexOf('function renderPresenterSlide(){'),html.indexOf('function openPresenterMode()'));
   assert.match(renderer,/hostData\?\.pipeline/);assert.match(renderer,/item\.customer/);assert.doesNotMatch(renderer,/Report status:/);
+  assert.match(html,/function hostReportComplete\(report\).*opportunities\.every\(completePipelineOpportunity\).*completeHsqeSection/);
   assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
 });
 test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function reportComplete\(\)\{return currentReportKeys\(\)\.slice\(0,-1\)\.every\(reportSectionComplete\)\}/);
+  assert.match(html,/function completeReportEntry\(entry\).*entry\?\.title.*entry\?\.update.*validRequiredDate/);
+  assert.match(html,/function completePipelineOpportunity\(row\).*row\?\.estimated_value.*validRequiredDate/);
+  assert.match(html,/function completeHsqeSection\(key,content\).*definition\.fields\.every/);
+  assert.match(html,/#vh26-connected-dashboard \.vh26-sidebar \.vh26-brand\{display:none!important\}/);
+  assert.match(html,/#vh26-connected-dashboard\{font-family:Inter,Segoe UI,Arial,sans-serif!important\}/);
   assert.match(html,/Complete and save every required section before submission/);
   assert.match(html,/textContent='Create action'/);assert.match(html,/textContent='Support \('\+supportCount\+' outstanding\)'/);
   assert.match(html,/vh26-reopen-report/);assert.match(html,/function enable\(\).*message\(''\)/);
