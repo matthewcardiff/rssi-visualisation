@@ -36,7 +36,7 @@ test('department chooser, static week selector, aligned heading and one-column P
   assert.ok(existsSync(new URL('../public/rssi-logo.png', import.meta.url)));
   assert.match(autosave, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
   assert.match(autosave, /setProperty\('display', 'block', 'important'\)/);
-  assert.match(autosave, /#vh26-report-intro\{max-width:750px!important\}/);
+  assert.match(autosave, /#vh26-connected-dashboard\.vh26-workspace-active #vh26-report-intro\{max-width:750px!important\}/);
   assert.match(html, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
 });
 
