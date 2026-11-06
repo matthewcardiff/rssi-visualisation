@@ -95,8 +95,9 @@ test('finance checks and import history are readable without an inner results sc
   assert.match(autosave, /vh26-finance-preview-results \.vh26-finance-warning\{order:0!important/);
   assert.match(autosave, /function polishFinanceHistory\(\)/);
   assert.match(autosave, /if \(importId && seen\.has\(importId\)\)/);
-  assert.match(autosave, /Staged finance imports/);
+  assert.match(autosave, /Finance files for review/);
   assert.match(autosave, /Only approved figures appear in reports/);
+  assert.match(autosave, /waiting for review/);
   assert.match(autosave, /They are not approved and are not shown in reports/);
 });
 
