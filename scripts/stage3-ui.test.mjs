@@ -99,6 +99,8 @@ test('Presenter Mode follows the Build 050 centered meeting layout and navigatio
   assert.match(autosave, /slideTitle === 'Meeting readiness' \? 'all'/);
   assert.match(autosave, /if \(viewKind === 'all'\)[\s\S]*vh26-presenter-kpis/);
   assert.match(autosave, /@media\(max-width:560px\)[\s\S]*vh26-presenter-revenue-grid\{grid-template-columns:1fr/);
+  assert.match(autosave, /#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide\{display:flex!important;flex-direction:column!important/);
+  assert.match(autosave, /#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide>\.vh26-presenter-finance-card\{display:block!important;height:auto!important/);
 });
 
 test('Safety Moment separates practical reminders from distinct discussion questions', () => {
