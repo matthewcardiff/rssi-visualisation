@@ -45,11 +45,14 @@ test('report entry textarea sits below evenly sized single-line fields at deskto
 test('sidebar navigation waits for the current autosave and retries the selected route', () => {
   assert.match(autosave, /async function flushSectionSave\(\)/);
   assert.match(autosave, /window\.vhFlushReportingSave = flushSectionSave/);
-  assert.match(autosave, /\.vh26-sidebar nav button\[data-connected-nav\]/);
-  assert.match(autosave, /if \(!target \|\| !reportingDirty\) return/);
+  assert.match(autosave, /\.vh26-sidebar nav button\[data-connected-nav\], #vh26-section-tabs button, \.vh26-report-step-controls button/);
+  assert.match(autosave, /reportingDirty \|\| reportingBusy \|\| appDirtyNeedsClearing/);
   assert.match(autosave, /event\.stopImmediatePropagation\(\)/);
-  assert.match(autosave, /if \(saved && next\?\.isConnected\) next\.click\(\)/);
-  assert.match(autosave, /Stay on this section and retry after resolving the save issue/);
+  assert.match(autosave, /async function saveCurrentSectionForNavigation\(root\)/);
+  assert.match(autosave, /Draft saved to Supabase/);
+  assert.match(autosave, /navigationReplay = true/);
+  assert.match(autosave, /savedEditVersion/);
+  assert.match(autosave, /Complete the pipeline opportunity or remove it before changing section/);
 });
 
 test('reporting forms are wider and narrative sections use notes instead of entry cards', () => {
