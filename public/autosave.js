@@ -4,7 +4,6 @@
   document.head.append(brandFix);
   document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
 
-
   const pipelineLayout = document.createElement('style');
   pipelineLayout.id = 'vh26-pipeline-layout';
   pipelineLayout.textContent = `
@@ -26,7 +25,6 @@
   `;
   document.head.append(pipelineLayout);
 
-
   const reportingWeekGuard = document.createElement('style');
   reportingWeekGuard.id = 'vh26-reporting-week-guard';
   reportingWeekGuard.textContent = `
@@ -42,6 +40,7 @@
   reportingFormStyle.id = 'vh26-report-form-consistency';
   reportingFormStyle.textContent = `
     #vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{box-sizing:border-box!important;width:100%!important;max-width:1100px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-native-report{box-sizing:border-box!important;width:100%!important;max-width:926px!important;margin-left:auto!important;margin-right:auto!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:26px 30px!important;border:1px solid #dce5e9!important;border-radius:14px!important;background:#fff!important;box-shadow:0 6px 20px #16364c0a!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries{display:grid!important;gap:12px!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:end!important;gap:12px!important;width:100%!important;margin:0!important;padding:16px!important;border:1px solid #d5e1e8!important;border-radius:12px!important;background:#fff!important}
@@ -291,6 +290,13 @@
     });
   }
 
+  function applyReportingSpellcheck(root) {
+    root.querySelectorAll('textarea, input:not([type]), input[type="text"]').forEach(field => {
+      field.setAttribute('spellcheck', 'true');
+      field.setAttribute('lang', 'en-GB');
+    });
+  }
+
   function installDepartmentChooserStyle() {
     if (document.getElementById('vh26-department-chooser-polish')) return;
     const style = document.createElement('style');
@@ -318,13 +324,6 @@
       @media(prefers-reduced-motion:reduce){#vh26-connected-dashboard #vh26-department-grid .dept-card,#vh26-connected-dashboard #vh26-department-grid .dept-card:before{transition:none}}
     `;
     document.head.append(style);
-  }
-
-  function applyReportingSpellcheck(root) {
-    root.querySelectorAll('textarea, input:not([type]), input[type="text"]').forEach(field => {
-      field.setAttribute('spellcheck', 'true');
-      field.setAttribute('lang', 'en-GB');
-    });
   }
 
   function install() {
