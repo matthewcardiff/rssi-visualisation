@@ -869,8 +869,8 @@
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
       const actions = presenterActionsCard(slide, context);
-      heading.after(revenue);
-      revenue.after(actions);
+      if (heading.nextElementSibling !== revenue) heading.after(revenue);
+      if (revenue.nextElementSibling !== actions) revenue.after(actions);
       const ordered = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
       const desired = [heading, revenue, actions, ...ordered];
       if (desired.some((node, index) => slide.children[index] !== node)) {
@@ -886,7 +886,7 @@
         panel.className = 'vh26-presenter-card vh26-presenter-finance-panel';
         slide.append(panel);
       }
-      for (const child of [...slide.children]) if (child !== heading && child !== panel) panel.append(child);
+      for (const child of [...slide.children]) if (child !== heading && child !== panel && child.parentElement !== panel) panel.append(child);
     } else if (viewKind === 'safety') {
       const content = slide.querySelector(':scope > .vh26-presenter-safety-content');
       let panel = slide.querySelector(':scope > .vh26-presenter-safety-panel');
@@ -895,7 +895,7 @@
         panel.className = 'vh26-presenter-safety-panel';
         slide.append(panel);
       }
-      for (const child of [...slide.children]) if (child !== heading && child !== content && child !== panel) panel.append(child);
+      for (const child of [...slide.children]) if (child !== heading && child !== content && child !== panel && child.parentElement !== panel) panel.append(child);
       polishSafetyMoment(slide);
     }
   }
