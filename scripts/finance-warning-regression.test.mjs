@@ -5,6 +5,7 @@ import vm from 'node:vm';
 
 const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
 function installFinanceCheckCorrection(result) {
   const window = { vhFinanceExtract: async () => structuredClone(result) };
@@ -101,9 +102,19 @@ test('finance checks and import history are readable without an inner results sc
 
 test('finance import action is described as applying validated figures', () => {
   assert.match(financeUi, /3 · Apply figures/);
-  assert.match(financeUi, /Apply validated figures/);
+  assert.match(financeUi, /Apply figures/);
   assert.match(financeUi, /before applying/);
   assert.match(financeUi, /Apply only the validated department figures/);
-  assert.match(financeUi, /Applying saves the figures for finance review/);
+  assert.match(financeUi, /Applying saves figures for finance review/);
   assert.doesNotMatch(financeUi, /Stage validated figures|3 · Stage figures/);
+});
+
+test('finance flow shows one next action and advances to Apply after checks are acknowledged', () => {
+  assert.match(financeUi, /id="vh26-finance-check" disabled/);
+  assert.match(financeUi, /id="vh26-finance-import" hidden disabled>Apply figures/);
+  assert.match(financeFlow, /function financeSetStep\(step\)/);
+  assert.match(financeFlow, /financeSetStep\(check\.checked\?3:2\)/);
+  assert.match(financeFlow, /financeSetActions\('apply'\)/);
+  assert.match(financeFlow, /no weekly revenue recorded in source NRW WK/);
+  assert.doesNotMatch(financeFlow, /if\(!confirm\(/);
 });
