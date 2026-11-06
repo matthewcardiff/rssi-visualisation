@@ -201,6 +201,7 @@
   let sectionSaving = false;
   let sectionSaveQueued = false;
   let reportingDirty = false;
+  let reportingBusy = false;
   let reportingEditVersion = 0;
   let appDirtyNeedsClearing = false;
   let navigationSavePending = false;
