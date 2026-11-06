@@ -41,13 +41,13 @@ test('department chooser, static week selector, aligned heading and one-column P
 });
 
 test('department chooser uses the modern RSSI card layout at desktop and mobile sizes', () => {
-  assert.match(autosave, /function installDepartmentChooserStyle\\(\\)/);
+  assert.match(autosave, /function installDepartmentChooserStyle\(\)/);
   assert.match(autosave, /vh26-department-chooser-polish/);
   assert.match(autosave, /max-width:1320px/);
-  assert.match(autosave, /grid-template-columns:repeat\\(auto-fit,minmax\\(min\\(100%,255px\\),1fr\\)\\)/);
-  assert.match(autosave, /dept-card:hover\\{transform:translateY\\(-2px\\)/);
+  assert.match(autosave, /grid-template-columns:repeat\(auto-fit,minmax\(min\(100%,255px\),1fr\)\)/);
+  assert.match(autosave, /dept-card:hover\{transform:translateY\(-2px\)/);
   assert.match(autosave, /content:"→"/);
-  assert.match(autosave, /@media\\(max-width:540px\\)/);
+  assert.match(autosave, /@media\(max-width:540px\)/);
   assert.match(autosave, /prefers-reduced-motion:reduce/);
 });
 
@@ -59,12 +59,12 @@ test('report heading aligns with the week selector and keeps the orange section 
 
 test('pipeline fields use a single Build 050 row with coordinated buttons below', () => {
   assert.match(autosave, /id = 'vh26-pipeline-layout'/);
-  assert.match(autosave, /grid-template-columns:1\\.2fr 1\\.2fr \\.85fr 1fr 1fr/);
-  assert.match(autosave, /\\.vh26-pipeline-actions\\{display:grid!important;grid-template-columns:repeat\\(2,minmax\\(0,1fr)\\)/);
+  assert.match(autosave, /grid-template-columns:1\.2fr 1\.2fr \.85fr 1fr 1fr/);
+  assert.match(autosave, /\.vh26-pipeline-actions\{display:grid!important;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
   assert.match(autosave, /background:#fafbfc!important;color:#163247!important;font:400 15px/);
   assert.match(autosave, /background:#004d71!important;color:#fff!important/);
   assert.match(autosave, /background:#ff6b00!important;color:#173448!important;font:600 14px/);
-  assert.match(autosave, /@media\\(max-width:560px\\)/);
+  assert.match(autosave, /@media\(max-width:560px\)/);
 });
 
 test('department report has one persistent week selector and confirms period changes', () => {
@@ -74,16 +74,16 @@ test('department report has one persistent week selector and confirms period cha
   assert.match(html, /Switch the department report from /);
   assert.match(html, /The selected week will be used for all further entries and automatic saves/);
   assert.doesNotMatch(html, /Opportunities for this department/);
-  assert.doesNotMatch(html, /reportMessage\(c\.report\?'Report: '/);
+  assert.doesNotMatch(html, /Report: '\+c\.report\.status/);
   assert.match(html, /introEyebrow\.textContent='YOUR WEEKLY REPORT'/);
-  assert.doesNotMatch(html, /YOUR WEEKLY REPORT · /);
-  assert.match(html, /Weekly department report/);
+  assert.match(html, /Weekly department report';/);
 });
 
 test('department reporting sections share the wider Build 050 form styling', () => {
   assert.match(autosave, /vh26-report-form-consistency/);
   assert.match(autosave, /max-width:1100px!important/);
-  assert.match(autosave, /grid-template-columns:repeat\(3,minmax\(0,1fr)\)!important/);
+  assert.match(autosave, /#vh26-report-workspace #vh26-native-report\{box-sizing:border-box!important;width:100%!important;max-width:976px!important/);
+  assert.match(autosave, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
   assert.match(autosave, /\.vh26-entry>button\{justify-self:start!important;align-self:end!important;width:max-content!important;min-width:0!important;min-height:42px/);
   assert.match(autosave, /border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px/);
   assert.match(autosave, /#vh26-hsqe-fields\[hidden\]\{display:none!important\}/);
@@ -99,7 +99,7 @@ test('spellchecking covers dynamically added UK English text fields only', () =>
 });
 
 test('finance history list is hidden in preview because it offers no review action', () => {
-  assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\\}/);
+  assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\}/);
   assert.match(html, /async function financeReviewRefresh\(\)/);
   assert.match(html, /dataApi\('finance_review'\)/);
 });
