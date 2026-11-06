@@ -452,7 +452,6 @@
 
     const tabs = mode.querySelector('#vh26-presenter-tabs');
     const activeTab = tabs?.querySelector('button.selected')?.textContent.trim() || '';
-    const viewKind = activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : activeTab === 'All departments' ? 'all' : 'department';
     const title = [...slide.children].find(child => child.tagName === 'H1');
     let heading = slide.querySelector(':scope > .vh26-presenter-heading');
     if (title && !heading) {
@@ -462,6 +461,15 @@
       heading.append(title);
       const following = heading.nextElementSibling;
       if (following?.tagName === 'P' && !following.classList.contains('vh26-presenter-notice')) heading.append(following);
+    }
+
+    const slideTitle = (title?.textContent || heading?.querySelector('h1')?.textContent || '').trim();
+    const viewKind = slideTitle === 'Meeting readiness' ? 'all' : activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : 'department';
+
+    if (viewKind === 'all') {
+      heading?.querySelector('.vh26-presenter-heading-meta')?.remove();
+      slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
+      slide.querySelector(':scope > .vh26-presenter-actions-card')?.remove();
     }
 
     if (heading && viewKind === 'department') {
