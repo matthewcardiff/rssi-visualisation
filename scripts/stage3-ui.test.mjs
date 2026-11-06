@@ -52,6 +52,16 @@ test('sidebar navigation waits for the current autosave and retries the selected
   assert.match(autosave, /Stay on this section and retry after resolving the save issue/);
 });
 
+test('reporting forms are wider and narrative sections use notes instead of entry cards', () => {
+  assert.match(autosave, /#vh26-report-workspace #vh26-report-intro[\s\S]*max-width:1066px!important/);
+  assert.match(autosave, /function simplifyNarrativeEntries\(root\)/);
+  assert.match(autosave, /notes\.dispatchEvent\(new Event\('input', \{ bubbles: true \}\)\)/);
+  assert.match(autosave, /entries\.replaceChildren\(\)/);
+  assert.match(autosave, /#vh26-section-editor:not\(\[hidden\]\) #vh26-generic-section-editor:not\(\[hidden\]\) #vh26-add-entry\{display:none!important\}/);
+  assert.match(autosave, /function applyReportingSpellcheck\(root\)[\s\S]*field\.setAttribute\('lang', 'en-GB'\)/);
+  assert.match(autosave, /vh26-pipeline-workspace/);
+});
+
 test('Presenter Mode follows the Build 050 card, KPI, navigation and responsive layout', () => {
   assert.match(autosave, /vh26-presenter-restoration-style/);
   assert.match(autosave, /linear-gradient\(120deg,#00354e,#075675\)/);
