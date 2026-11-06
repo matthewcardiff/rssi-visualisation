@@ -294,6 +294,8 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/const financeReader=window\.vhFinanceExtract;if\(typeof financeReader!==\x27function\x27\)/);
   assert.match(html,/await financeReader\(file,sourceWeek\.id\)/);
   assert.match(html,/window\.vhFinDepartments=vhFinDepartments/);
+  assert.match(html,/<script src="\/pako_inflate\.min\.js"><\/script><script id="vh-finance-stage3a-js">/);
+  assert.match(html,/window\.pako\?\.inflateRaw/);
   assert.match(html,/window\.vhFinDepartments\|\|\[\[\x27TWS\x27\]/);
   assert.match(html,/nativeData=\{weeks,periods:response\.periods\|\|\[\],reports:\[\],sections:\[\],departments:verifiedIdentity\?\.departments\|\|\[\]\}/);
   assert.match(html,/nativeData\?\.periods\|\|\[\]/);

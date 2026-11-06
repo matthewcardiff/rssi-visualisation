@@ -718,7 +718,7 @@ const original=window.renderPresentation;if(typeof original==='function')window.
 const save=window.stage3SaveAction;if(typeof save==='function')window.stage3SaveAction=function(){const result=save.apply(this,arguments);refresh();return result;};
 })();
 </script>
-<script id="vh-finance-stage3a-js">
+<script src="/pako_inflate.min.js"></script><script id="vh-finance-stage3a-js">
 (function(){
 'use strict';
 const FINANCE_EMAIL=null;
@@ -771,9 +771,10 @@ function vhFinZipEntries(buffer){
  const pos=x.off,begin=pos+30+b.getUint16(pos+26,true)+b.getUint16(pos+28,true);
  const raw=u.slice(begin,begin+x.size);
  if(x.method===0)return dec.decode(raw);
- if(x.method!==8||typeof DecompressionStream==='undefined')throw Error('Browser does not support XLSX decompression');
- try{const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return dec.decode(await new Response(stream).arrayBuffer())}
- catch{throw Error('Excel ZIP decompression is not available in this browser. Use a current version of Edge or Chrome.')}
+ if(x.method!==8)throw Error('Unsupported XLSX compression method '+x.method+' in '+name);
+ if(typeof DecompressionStream!=='undefined')try{const stream=new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return dec.decode(await new Response(stream).arrayBuffer())}catch{/* Fall through to the bundled raw-DEFLATE reader. */}
+ if(window.pako?.inflateRaw)try{return dec.decode(window.pako.inflateRaw(raw))}catch{throw Error('Could not decompress workbook component: '+name)}
+ throw Error('This browser cannot decompress Excel workbooks. Refresh the page or use a current version of Edge or Chrome.');
  };
 }
 function vhFinParse(xml){
