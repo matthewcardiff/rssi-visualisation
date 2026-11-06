@@ -38,6 +38,27 @@
   `;
   document.head.append(reportingWeekGuard);
 
+  const reportingFormStyle = document.createElement('style');
+  reportingFormStyle.id = 'vh26-report-form-consistency';
+  reportingFormStyle.textContent = `
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{box-sizing:border-box!important;width:100%!important;max-width:1100px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:26px 30px!important;border:1px solid #dce5e9!important;border-radius:14px!important;background:#fff!important;box-shadow:0 6px 20px #16364c0a!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries{display:grid!important;gap:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:end!important;gap:12px!important;width:100%!important;margin:0!important;padding:16px!important;border:1px solid #d5e1e8!important;border-radius:12px!important;background:#fff!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries label,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields label{display:grid!important;grid-template-rows:auto 1fr!important;gap:7px!important;min-width:0!important;margin:0!important;color:#263d50!important;font:500 13px/1.35 Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries input,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields input,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:46px!important;padding:12px 14px!important;border:1px solid #cdd7df!important;border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea{min-height:100px!important;line-height:1.5!important;resize:vertical!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries input:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields input:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes:focus{outline:3px solid #004d7126!important;border-color:#004d71!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>button{justify-self:start!important;align-self:end!important;width:max-content!important;min-width:0!important;min-height:42px!important;padding:10px 16px!important;border:1px solid #cbd6de!important;border-radius:12px!important;background:#fff!important;color:#004d71!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>button:hover{border-color:#004d71!important;background:#f5f9fb!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields[hidden]{display:none!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-ai-review{min-height:42px!important;padding:10px 16px!important;border-radius:12px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+    @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:18px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:1fr!important}}
+  `;
+  document.head.append(reportingFormStyle);
+
   function polishFinanceHistory() {
     const panel = document.getElementById('vh26-finance-review');
     const list = document.getElementById('vh26-finance-review-list');
@@ -299,6 +320,13 @@
     document.head.append(style);
   }
 
+  function applyReportingSpellcheck(root) {
+    root.querySelectorAll('textarea, input:not([type]), input[type="text"]').forEach(field => {
+      field.setAttribute('spellcheck', 'true');
+      field.setAttribute('lang', 'en-GB');
+    });
+  }
+
   function install() {
     installDepartmentChooserStyle();
     const root = workspace();
@@ -338,9 +366,13 @@
         status('Saving changes automatically. Wait for the saved status, then return to departments.');
       }
     }, true);
-    const observer = new MutationObserver(() => hideOpportunitySaveButtons(root));
+    const observer = new MutationObserver(() => {
+      hideOpportunitySaveButtons(root);
+      applyReportingSpellcheck(root);
+    });
     observer.observe(root, { childList: true, subtree: true });
     hideOpportunitySaveButtons(root);
+    applyReportingSpellcheck(root);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
