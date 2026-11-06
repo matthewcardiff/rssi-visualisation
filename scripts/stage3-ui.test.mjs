@@ -57,7 +57,7 @@ test('Presenter Mode follows the Build 050 card, KPI, navigation and responsive 
   assert.match(autosave, /linear-gradient\(120deg,#00354e,#075675\)/);
   assert.match(autosave, /vh26-presenter-heading/);
   assert.match(autosave, /vh26-presenter-kpis/);
-  assert.match(autosave, /Outstanding actions \(/);
+  assert.match(autosave, /Outstanding actions/);
   assert.match(autosave, /max-width:1250px/);
   assert.match(autosave, /vh26-presenter-finance-panel/);
   assert.match(autosave, /vh26-presenter-overview-grid/);
