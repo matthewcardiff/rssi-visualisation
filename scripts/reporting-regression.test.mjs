@@ -1,4 +1,4 @@
-Warning: truncated output (original token count: 10717)
+Warning: truncated output (original token count: 10726)
 Total output lines: 556
 
 import test from 'node:test';
@@ -209,7 +209,7 @@ test('native submit control enables reopened manager reports and locks submitted
     const make=()=>({hidden:false,disabled:false,value:'',textContent:'',style:{},classList:{contains(){return false},toggle(){}},querySelector(){return null},replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
     const document={getElementById(id){if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},querySelector(){return make()},querySelectorAll(){return []},createElement:make};
     const source=html.slice(fn,end).replace(/function renderHsqeFields\([\s\S]*?\n(?=function renderSection)/,'');
-    vm.runIn…2717 tokens truncated…udes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
+    vm.runIn…2726 tokens truncated…udes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
   assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
   assert.match(html,/presenterDepartments=resolved/);
   assert.match(html,/function presenterDepartmentLabel\(department\)/);
