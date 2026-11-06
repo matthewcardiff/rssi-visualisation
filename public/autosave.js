@@ -398,8 +398,8 @@
     const rename = (name, title, placeholder) => {
       const field = editor?.querySelector(`[name="${name}"]`);
       const label = field?.closest('label');
-      if (label?.firstChild?.nodeType === Node.TEXT_NODE) label.firstChild.textContent = title;
-      if (field && placeholder) field.placeholder = placeholder;
+      if (label?.firstChild?.nodeType === Node.TEXT_NODE && label.firstChild.textContent !== title) label.firstChild.textContent = title;
+      if (field && placeholder && field.placeholder !== placeholder) field.placeholder = placeholder;
     };
     rename('points', 'Practical reminders', 'One reminder per line');
     rename('questions', 'Discussion questions', 'Use only questions that add a different point');
@@ -475,7 +475,8 @@
         meta.className = 'vh26-presenter-heading-meta';
         heading.append(meta);
       }
-      meta.textContent = `DEPARTMENT ${Math.max(0, departmentIndex) + 1} OF ${departmentTabs.length} · ${week}`;
+      const metaText = `DEPARTMENT ${Math.max(0, departmentIndex) + 1} OF ${departmentTabs.length} · ${week}`;
+      if (meta.textContent !== metaText) meta.textContent = metaText;
 
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
       const reported = cards.filter(card => !card.querySelector('p.empty')).length;
