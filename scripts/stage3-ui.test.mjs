@@ -65,6 +65,8 @@ test('Presenter Mode follows the Build 050 card, KPI, navigation and responsive 
   assert.match(autosave, /vh26-presenter-pager/);
   assert.match(autosave, /if \(meta\.textContent !== metaText\) meta\.textContent = metaText/);
   assert.match(autosave, /function presenterTextElement\(tag, text\)/);
+  assert.match(autosave, /slideTitle === 'Meeting readiness' \? 'all'/);
+  assert.match(autosave, /if \(viewKind === 'all'\)[\s\S]*vh26-presenter-kpis/);
   assert.match(autosave, /@media\(max-width:560px\)[\s\S]*vh26-presenter-overview-grid\{grid-template-columns:1fr/);
 });
 
