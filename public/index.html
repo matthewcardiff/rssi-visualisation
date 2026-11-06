@@ -52097,6 +52097,14 @@ financeFile.addEventListener('change',()=>{
  financeSetGuide(hasFile?'Workbook selected. Select Review figures to check the budget and revenue values.':'Select the approved Excel workbook to begin.');
  document.getElementById('vh26-finance-preview-status').textContent='';
 });
+document.getElementById('vh26-week').addEventListener('change',()=>{
+ if(!document.getElementById('vh26-connected-dashboard').classList.contains('vh26-finance-view-active'))return;
+ validatedFinance=null;financeImportButton.disabled=true;
+ const hasFile=!!financeFile.files?.[0];financeSetActions(hasFile?'review':'none');financeCheckButton.disabled=!hasFile;
+ financeSetStep(hasFile?2:1);financeSetGuide(hasFile?'Reporting week changed. Review the workbook again for this week.':'Select the approved Excel workbook to begin.');
+ document.getElementById('vh26-finance-preview-results').replaceChildren();
+ document.getElementById('vh26-finance-preview-status').textContent=hasFile?'Reporting week changed. Review the workbook again before applying.':'';
+});
 financeCheckButton.addEventListener('click',async()=>{
  validatedFinance=null;financeImportButton.disabled=true;financeSetStep(2);financeSetActions('review');
  const status=document.getElementById('vh26-finance-preview-status'),results=document.getElementById('vh26-finance-preview-results');results.replaceChildren();
