@@ -615,6 +615,220 @@
     }
   }
 
+  const presenterApiCache = { token: null, identity: null, reports: null, finance: new Map(), actions: new Map() };
+
+  async function presenterApi(op, extra = {}) {
+    const token = await window.vhGetAIReviewToken?.();
+    if (!token) throw new Error('Sign in again to continue.');
+    if (presenterApiCache.token !== token) {
+      presenterApiCache.token = token;
+      presenterApiCache.identity = null;
+      presenterApiCache.reports = null;
+      presenterApiCache.finance.clear();
+      presenterApiCache.actions.clear();
+    }
+    const response = await fetch('/api/acceptance', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+      body: JSON.stringify({ op, access_token: token, ...extra })
+    });
+    let body;
+    try { body = await response.json(); } catch { throw new Error('The presenter could not load meeting data.'); }
+    if (!response.ok) throw new Error(body.error || 'The presenter could not load meeting data.');
+    return body;
+  }
+
+  function presenterMoney(value) {
+    if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return 'Not reported';
+    return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));
+  }
+
+  function presenterGap(budget, revenue) {
+    if (budget === null || budget === undefined || budget === '' || revenue === null || revenue === undefined || revenue === '') return 'Not reported';
+    const gap = Number(budget) - Number(revenue);
+    if (!Number.isFinite(gap)) return 'Not reported';
+    return gap < 0 ? '−' + presenterMoney(Math.abs(gap)) : presenterMoney(gap);
+  }
+
+  function presenterDepartmentContext(slide, tabs) {
+    const departmentName = slide.querySelector(':scope > .vh26-presenter-heading h1')?.textContent.trim() || '';
+    const selected = [...(tabs?.querySelectorAll('button') || [])].slice(2).findIndex(button => button.classList.contains('selected'));
+    const count = Math.max(1, [...(tabs?.querySelectorAll('button') || [])].length - 2);
+    const weekLabel = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
+    const weekId = document.getElementById('vh26-host-week-select')?.value || '';
+    const activeCards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
+    const populated = activeCards.filter(card => !card.querySelector('p.empty')).length;
+    return { departmentName, departmentNumber: Math.max(0, selected) + 1, departmentCount: count, weekLabel, weekId, activeCards, populated };
+  }
+
+  function presenterAppendOverview(slide, heading, context) {
+    const signature = JSON.stringify([context.departmentName, context.weekId, context.populated]);
+    if (heading.dataset.overviewSignature === signature && heading.querySelector('.vh26-presenter-heading-meta') && heading.querySelector('.vh26-presenter-overview')) return;
+    const meta = presenterTextElement('p', 'DEPARTMENT ' + context.departmentNumber + ' OF ' + context.departmentCount + ' · ' + context.populated + '/6 sections populated');
+    meta.className = 'vh26-presenter-heading-meta';
+    let status = 'Report status unavailable';
+    heading.dataset.overviewSignature = signature;
+    heading.querySelector('.vh26-presenter-heading-meta')?.remove();
+    heading.querySelector('.vh26-presenter-overview')?.remove();
+    heading.prepend(meta);
+    const overview = presenterTextElement('p', 'Weekly department update · ' + context.weekLabel);
+    overview.className = 'vh26-presenter-overview';
+    heading.append(overview);
+    void (async () => {
+      try {
+        if (!presenterApiCache.reports) presenterApiCache.reports = presenterApi('reports');
+        const [identity, reports] = await Promise.all([
+          presenterApiCache.identity || (presenterApiCache.identity = presenterApi('whoami')),
+          presenterApiCache.reports
+        ]);
+        if (!heading.isConnected || heading.dataset.overviewSignature !== signature) return;
+        const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+        const report = (reports.items || []).find(r => r.department_id === department?.id && r.reporting_week_id === context.weekId);
+        const state = String(report?.status || 'unsubmitted').toLowerCase();
+        status = state === 'reopened' ? 'Report Reopened' : 'Report ' + (state.charAt(0).toUpperCase() + state.slice(1));
+        meta.textContent = 'DEPARTMENT ' + context.departmentNumber + ' OF ' + context.departmentCount + ' · ' + context.populated + '/6 sections populated · ' + status;
+      } catch { /* Keep the meeting week and section summary visible if status lookup is unavailable. */ }
+    })();
+  }
+
+  function presenterFinanceCard(slide, context) {
+    let panel = slide.querySelector(':scope > .vh26-presenter-finance-card');
+    if (!panel) {
+      panel = document.createElement('section');
+      panel.className = 'vh26-presenter-card vh26-presenter-finance-card';
+      panel.setAttribute('aria-label', 'Revenue');
+      slide.append(panel);
+    }
+    const signature = JSON.stringify([context.departmentName, context.weekId]);
+    if (panel.dataset.signature === signature) return;
+    panel.dataset.signature = signature;
+    panel.replaceChildren();
+    panel.append(presenterTextElement('div', 'REVENUE'));
+    panel.querySelector('div').className = 'vh26-presenter-revenue-title';
+    const data = presenterTextElement('p', 'Loading figures…');
+    data.className = 'vh26-presenter-revenue-status';
+    panel.append(data);
+    void (async () => {
+      try {
+        if (!presenterApiCache.identity) presenterApiCache.identity = presenterApi('whoami');
+        const identity = await presenterApiCache.identity;
+        const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+        if (!department || !context.weekId) throw new Error('Finance figures are unavailable.');
+        const cacheKey = context.weekId;
+        if (!presenterApiCache.finance.has(cacheKey)) presenterApiCache.finance.set(cacheKey, presenterApi('finance_published'));
+        const finance = await presenterApiCache.finance.get(cacheKey);
+        const publications = (finance.publications || []).filter(p => p.reporting_week_id === context.weekId).sort((a,b) => Number(b.publication_version || 0) - Number(a.publication_version || 0));
+        const publication = publications.find(p => p.department_id === department.id);
+        if (!publication) { data.textContent = 'Finance figures have not been reported for this week.'; return; }
+        const values = (finance.values || []).filter(v => v.publication_id === publication.id);
+        const get = key => { const item = values.find(v => v.metric_key === key); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
+        const metrics = [
+          ['Weekly budget', get('weekly_budget')], ['YTD budget', get('ytd_budget')],
+          ['Weekly revenue', get('weekly_revenue')], ['YTD revenue', get('ytd_revenue')],
+          ['Gap to close', presenterGap(get('weekly_budget'), get('weekly_revenue'))], ['YTD gap to close', presenterGap(get('ytd_budget'), get('ytd_revenue'))]
+        ];
+        const grid = document.createElement('div');
+        grid.className = 'vh26-presenter-revenue-grid';
+        for (const [label, amount] of metrics) {
+          const item = document.createElement('div'); item.className = 'vh26-presenter-revenue-item';
+          item.append(presenterTextElement('strong', label), presenterTextElement('span', label.includes('gap') || label === 'Gap to close' ? amount : presenterMoney(amount)));
+          grid.append(item);
+        }
+        if (!panel.isConnected || panel.dataset.signature !== signature) return;
+        const foot = presenterTextElement('p', 'Figures from the Finance upload · ' + context.weekLabel);
+        foot.className = 'vh26-presenter-finance-source';
+        const sourceId = values.find(v => v.source_period_id)?.source_period_id;
+        const source = (finance.periods || []).find(p => p.id === sourceId);
+        if (source) foot.textContent = 'Finance source NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date + ' · two-week lag';
+        panel.replaceChildren(panel.querySelector('.vh26-presenter-revenue-title'), grid, foot);
+      } catch {
+        if (panel.isConnected && panel.dataset.signature === signature) data.textContent = 'Finance figures are not available for this week.';
+      }
+    })();
+    return panel;
+  }
+
+  function presenterActionsCard(slide, context) {
+    let panel = slide.querySelector(':scope > .vh26-presenter-actions-card');
+    if (!panel) { panel = document.createElement('section'); panel.className = 'vh26-presenter-card vh26-presenter-actions-card'; slide.append(panel); }
+    const signature = JSON.stringify([context.departmentName, context.weekId]);
+    if (panel.dataset.signature === signature) return panel;
+    panel.dataset.signature = signature;
+    const header = document.createElement('div'); header.className = 'vh26-presenter-actions-head';
+    header.append(presenterTextElement('h2', 'Outstanding actions'));
+    panel.replaceChildren(header);
+    const intro = presenterTextElement('p', 'Review and update actions during the meeting. Changes are saved to the department action register.');
+    intro.className = 'vh26-presenter-actions-intro'; panel.append(intro);
+    const status = presenterTextElement('p', 'Loading actions…'); status.className = 'vh26-presenter-actions-status'; status.setAttribute('role','status'); panel.append(status);
+    void loadPresenterActions(panel, context, signature);
+    return panel;
+  }
+
+  async function loadPresenterActions(panel, context, signature, notice = '') {
+    try {
+      if (!presenterApiCache.identity) presenterApiCache.identity = presenterApi('whoami');
+      const [identity, result] = await Promise.all([
+        presenterApiCache.identity,
+        presenterApi('actions')
+      ]);
+      if (!panel.isConnected || panel.dataset.signature !== signature) return;
+      const dept = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+      const canEdit = (identity.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role));
+      const actions = (result.items || []).filter(a => a.department_id === dept?.id && !['completed','cancelled'].includes(a.status));
+      const head = panel.querySelector('h2');
+      if (head) head.textContent = 'Outstanding actions (' + actions.length + ')';
+      const actionStatus = panel.querySelector('.vh26-presenter-actions-status');
+      if (actionStatus) actionStatus.textContent = notice;
+      const table = document.createElement('table'); table.className = 'vh26-presenter-action-table';
+      const thead = document.createElement('thead'), hr = document.createElement('tr');
+      for (const label of ['Action / decision','Owner','Target date','Status','Controls']) hr.append(presenterTextElement('th',label));
+      thead.append(hr); table.append(thead);
+      const tbody = document.createElement('tbody'); table.append(tbody);
+      for (const action of actions) {
+        const tr = document.createElement('tr');
+        const description = document.createElement('td'); const owner = document.createElement('td'); const target = document.createElement('td'); const state = document.createElement('td'); const controls = document.createElement('td');
+        const descriptionField = document.createElement('input'); descriptionField.value = action.description || ''; descriptionField.setAttribute('aria-label','Action or decision'); descriptionField.readOnly = !canEdit; descriptionField.spellcheck = true; descriptionField.lang='en-GB';
+        const ownerField = document.createElement('input'); ownerField.value = action.owner_text || ''; ownerField.setAttribute('aria-label','Owner'); ownerField.readOnly = !canEdit; ownerField.spellcheck = true; ownerField.lang='en-GB';
+        const dateField = document.createElement('input'); dateField.type='date'; dateField.value = action.required_by || ''; dateField.setAttribute('aria-label','Target date'); dateField.disabled = !canEdit;
+        const stateSelect = document.createElement('select'); stateSelect.setAttribute('aria-label','Status'); for (const value of ['open','in_progress','completed','cancelled']) {const option=document.createElement('option');option.value=value;option.textContent=value.replace('_',' ');stateSelect.append(option)} stateSelect.value=action.status || 'open'; stateSelect.disabled=!canEdit;
+        description.append(descriptionField); owner.append(ownerField); target.append(dateField); state.append(stateSelect);
+        const save = async () => {
+          if (!canEdit) return;
+          const token = await window.vhGetAIReviewToken?.();
+          if (!token) {status.textContent='Sign in again to save actions.';return}
+          const saveState = presenterTextElement('span','Saving…'); controls.replaceChildren(saveState);
+          try {
+            await presenterApi('update_action',{id:action.id,department_id:action.department_id,version:action.version,status:stateSelect.value,description:descriptionField.value.trim(),owner_text:ownerField.value.trim(),support_text:action.support_text||'',required_by:dateField.value});
+            await loadPresenterActions(panel,context,signature,'Action saved.');
+          } catch (error) { controls.replaceChildren(presenterTextElement('span','Could not save. Try again.')); }
+        };
+        for (const field of [descriptionField,ownerField,dateField,stateSelect]) field.addEventListener('change',save);
+        if (canEdit) { const remove=document.createElement('button');remove.type='button';remove.className='outline vh26-presenter-delete-action';remove.textContent='Delete';remove.addEventListener('click',async()=>{if(!confirm('Remove this action from the outstanding list? It will remain in action history.'))return;stateSelect.value='cancelled';await save()});controls.append(remove)}
+        else controls.textContent='—';
+        tr.append(description,owner,target,state,controls); tbody.append(tr);
+      }
+      if (!actions.length) {const row=document.createElement('tr'),cell=presenterTextElement('td','No outstanding actions for this department.');cell.colSpan=5;row.append(cell);tbody.append(row)}
+      const existing = panel.querySelector('.vh26-presenter-action-table'); existing?.replaceWith(table);
+      if (!existing) panel.append(table);
+      let createForm = panel.querySelector('.vh26-presenter-create-action');
+      if (canEdit && !createForm) {
+        const create=document.createElement('button');create.type='button';create.className='orange vh26-presenter-create-action-toggle';create.textContent='+ Create action';
+        create.addEventListener('click',()=>{const form=panel.querySelector('.vh26-presenter-create-action');form.hidden=!form.hidden});
+        const form=document.createElement('form');form.className='vh26-presenter-create-action';form.hidden=true;
+        const desc=document.createElement('textarea');desc.name='description';desc.required=true;desc.maxLength=3000;desc.placeholder='Action or decision';desc.setAttribute('aria-label','Action or decision');desc.spellcheck=true;desc.lang='en-GB';
+        const person=document.createElement('input');person.name='owner_text';person.required=true;person.maxLength=200;person.placeholder='Owner';person.setAttribute('aria-label','Owner');person.spellcheck=true;person.lang='en-GB';
+        const due=document.createElement('input');due.name='required_by';due.type='date';due.required=true;due.setAttribute('aria-label','Target date');
+        const submit=document.createElement('button');submit.type='submit';submit.className='orange';submit.textContent='Save action';
+        form.append(desc,person,due,submit);
+        form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{const dept=(identity.departments||[]).find(d=>(d.display_name||d.name||d.code)===context.departmentName);if(!dept||!context.weekId)throw new Error('Department or reporting week is unavailable.');await presenterApi('create_action',{department_id:dept.id,reporting_week_id:context.weekId,description:desc.value.trim(),owner_text:person.value.trim(),support_text:'',required_by:due.value});form.reset();form.hidden=true;await loadPresenterActions(panel,context,signature,'Action saved.')}catch{status.textContent='The action could not be saved. Check the required fields and try again.'}finally{submit.disabled=false}});
+        const actionsHead = panel.querySelector('.vh26-presenter-actions-head');
+        if (actionsHead) actionsHead.append(create);
+        panel.insertBefore(form,panel.querySelector('.vh26-presenter-action-table'));
+      }
+    } catch {
+      if (panel.isConnected && panel.dataset.signature === signature) {const status=panel.querySelector('.vh26-presenter-actions-status');if(status)status.textContent='Actions are unavailable. Refresh Presenter Mode and try again.'}
+    }
+  }
+
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -641,6 +855,7 @@
       heading?.querySelector('.vh26-presenter-heading-meta')?.remove();
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       slide.querySelector(':scope > .vh26-presenter-actions-card')?.remove();
+      slide.querySelector(':scope > .vh26-presenter-finance-card')?.remove();
     }
 
     if (heading && viewKind === 'department') {
@@ -648,54 +863,19 @@
       const departmentIndex = departmentTabs.findIndex(button => button.classList.contains('selected'));
       const departmentName = activeTab || title?.textContent || 'Department';
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
-      let meta = heading.querySelector('.vh26-presenter-heading-meta');
-      if (!meta) {
-        meta = document.createElement('p');
-        meta.className = 'vh26-presenter-heading-meta';
-        heading.append(meta);
-      }
-      const metaText = `DEPARTMENT ${Math.max(0, departmentIndex) + 1} OF ${departmentTabs.length} · ${week}`;
-      if (meta.textContent !== metaText) meta.textContent = metaText;
-
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
-      const reported = cards.filter(card => !card.querySelector('p.empty')).length;
-      const pipelineCard = cards.find(card => card.querySelector('h2')?.textContent.trim() === 'Pipeline');
-      const pipelineUpdates = [...(pipelineCard?.querySelectorAll('p') || [])].filter(p => !p.classList.contains('empty')).length;
-      const actionCount = document.getElementById('vh26-host-open-actions')?.textContent.trim();
-      let metrics = slide.querySelector(':scope > .vh26-presenter-kpis');
-      if (!metrics) {
-        metrics = document.createElement('div');
-        metrics.className = 'vh26-presenter-kpis';
-        heading.after(metrics);
-      }
-      const values = [
-        ['Reporting sections', `${reported} / 5`],
-        ['Pipeline updates', String(pipelineUpdates)],
-        ['Open actions · all departments', actionCount && /^\d+$/.test(actionCount) ? actionCount : 'See Action log'],
-        ['Department', departmentName]
-      ];
-      const metricSignature = JSON.stringify(values);
-      if (metrics.dataset.signature !== metricSignature) {
-        metrics.replaceChildren(...values.map(([label, value]) => {
-          const card = document.createElement('div');
-          card.className = 'vh26-presenter-stat';
-          card.append(presenterTextElement('span', label), presenterTextElement('strong', value));
-          return card;
-        }));
-        metrics.dataset.signature = metricSignature;
-      }
-
-      let actionCard = slide.querySelector(':scope > .vh26-presenter-actions-card');
-      if (!actionCard) {
-        actionCard = document.createElement('section');
-        actionCard.className = 'vh26-presenter-card vh26-presenter-actions-card';
-        slide.append(actionCard);
-      }
-      const actionSignature = JSON.stringify([departmentName, actionCount || 'unavailable']);
-      if (actionCard.dataset.signature !== actionSignature) {
-        actionCard.replaceChildren(presenterTextElement('h2', 'Outstanding actions'));
-        actionCard.append(presenterTextElement('p', 'Use the Action log to review actions for this department.'));
-        actionCard.dataset.signature = actionSignature;
+      const context = presenterDepartmentContext(slide, tabs);
+      presenterAppendOverview(slide, heading, context);
+      slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
+      const revenue = presenterFinanceCard(slide, context);
+      const actions = presenterActionsCard(slide, context);
+      heading.after(revenue);
+      revenue.after(actions);
+      const ordered = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
+      const desired = [heading, revenue, actions, ...ordered];
+      if (desired.some((node, index) => slide.children[index] !== node)) {
+        let anchor = actions;
+        for (const card of ordered) { anchor.after(card); anchor = card; }
       }
     }
 
@@ -736,21 +916,38 @@
         #vh26-presenter-mode .vh26-presenter-pager{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:501!important;box-sizing:border-box!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;width:100%!important;max-width:none!important;margin:0!important;padding:12px clamp(18px,3vw,48px) calc(12px + env(safe-area-inset-bottom))!important;transform:none!important;background:#f5f6f8!important;border-top:1px solid #dce5eb!important;box-shadow:0 -5px 16px #1230440d!important}
         #vh26-presenter-mode .vh26-presenter-controls button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
         #vh26-presenter-mode .vh26-presenter-pager button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:10px!important;background:#fff!important;color:#004d71!important;font-size:14px!important}
-        #vh26-presenter-mode #vh26-presenter-slide{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:15px!important;width:calc(100% - 44px)!important;max-width:1250px!important;margin:4px auto 0!important;padding:12px 0 calc(108px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;background:transparent!important}
+        #vh26-presenter-mode #vh26-presenter-slide{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:15px!important;width:calc(100% - 44px)!important;max-width:780px!important;margin:4px auto 0!important;padding:12px 0 calc(108px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;background:transparent!important}
         #vh26-presenter-mode #vh26-presenter-slide>h1,#vh26-presenter-mode .vh26-presenter-heading{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 28px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 8px 30px #12304408!important}
         #vh26-presenter-mode .vh26-presenter-heading h1{margin:0!important;color:#003e5b!important;font-size:clamp(27px,2.8vw,38px)!important;font-weight:650!important;letter-spacing:-.035em!important;line-height:1.2!important}
         #vh26-presenter-mode .vh26-presenter-heading p{margin:8px 0 0!important;color:#597182!important;font-size:14px!important;line-height:1.5!important}
         #vh26-presenter-mode .vh26-presenter-heading-meta{margin:0 0 8px!important;color:#587080!important;font-size:11px!important;font-weight:700!important;letter-spacing:.09em!important}
-        #vh26-presenter-mode .vh26-presenter-kpis{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;width:100%!important;margin:0!important}
-        #vh26-presenter-mode .vh26-presenter-stat{display:flex!important;min-width:0!important;flex-direction:column!important;justify-content:space-between!important;gap:10px!important;min-height:86px!important;padding:16px 18px!important;border:1px solid #dce5eb!important;border-radius:16px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
-        #vh26-presenter-mode .vh26-presenter-stat span{color:#597182!important;font-size:13px!important;font-weight:600!important}
-        #vh26-presenter-mode .vh26-presenter-stat strong{color:#004d71!important;font-size:clamp(18px,2vw,25px)!important;font-weight:700!important;letter-spacing:-.025em!important}
+        #vh26-presenter-mode .vh26-presenter-kpis,#vh26-presenter-mode .vh26-presenter-stat{display:none!important}
         #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-panel{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 26px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
         #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card h2,#vh26-presenter-mode .vh26-presenter-safety-content h2{margin:0 0 12px!important;padding:0 0 10px!important;border-bottom:1px solid #e9eef2!important;color:#004d71!important;font-size:19px!important;font-weight:650!important;letter-spacing:-.015em!important}
         #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card p,#vh26-presenter-mode .vh26-presenter-safety-panel p,#vh26-presenter-mode .vh26-presenter-safety-content p{margin:9px 0!important;color:#29485b!important;font-size:16px!important;line-height:1.65!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
         #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card p.empty{color:#687c88!important;font-style:italic!important}
         #vh26-presenter-mode .vh26-presenter-actions-card span{color:#597182!important;font-size:14px!important}
         #vh26-presenter-mode .vh26-presenter-finance-panel{overflow-x:auto!important}
+        #vh26-presenter-mode .vh26-presenter-finance-card{overflow:hidden!important;padding:0!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-title{padding:12px 18px!important;background:#ff6b00!important;color:#173448!important;text-align:center!important;font-size:16px!important;font-weight:800!important;letter-spacing:.04em!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 24px!important;padding:16px 20px 8px!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)!important;gap:12px!important;padding:8px 4px!important;border-bottom:1px solid #e7edf1!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item strong{color:#173448!important;text-transform:uppercase!important;font-size:13px!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item span{text-align:right!important;color:#173448!important;font-variant-numeric:tabular-nums!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-status,#vh26-presenter-mode .vh26-presenter-finance-source{margin:12px 18px!important;color:#526c7b!important;font-size:12px!important}
+        #vh26-presenter-mode .vh26-presenter-actions-card{padding:18px!important}
+        #vh26-presenter-mode .vh26-presenter-actions-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
+        #vh26-presenter-mode .vh26-presenter-actions-head h2{flex:1!important;margin-bottom:0!important}
+        #vh26-presenter-mode .vh26-presenter-actions-intro,#vh26-presenter-mode .vh26-presenter-actions-feedback{font-size:12px!important;line-height:1.4!important}
+        #vh26-presenter-mode .vh26-presenter-create-action-toggle,#vh26-presenter-mode .vh26-presenter-create-action button{min-height:38px!important;padding:8px 12px!important;border-radius:8px!important;font-size:13px!important}
+        #vh26-presenter-mode .vh26-presenter-create-action{display:grid!important;grid-template-columns:2fr 1fr 1fr auto!important;gap:8px!important;align-items:end!important;margin:14px 0!important;padding:12px!important;background:#f6f8f9!important;border:1px solid #e2e9ee!important;border-radius:10px!important}
+        #vh26-presenter-mode .vh26-presenter-create-action[hidden]{display:none!important}
+        #vh26-presenter-mode .vh26-presenter-create-action textarea,#vh26-presenter-mode .vh26-presenter-create-action input,#vh26-presenter-mode .vh26-presenter-action-table input,#vh26-presenter-mode .vh26-presenter-action-table select{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:38px!important;padding:8px 9px!important;border:1px solid #cbd6de!important;border-radius:8px!important;background:#fff!important;color:#173448!important;font:400 13px Inter,Segoe UI,Arial,sans-serif!important}
+        #vh26-presenter-mode .vh26-presenter-action-table{width:100%!important;border-collapse:collapse!important;font-size:12px!important}
+        #vh26-presenter-mode .vh26-presenter-action-table th{text-align:left!important;padding:8px 6px!important;border-bottom:1px solid #dce5eb!important;color:#5b7181!important;font-size:11px!important}
+        #vh26-presenter-mode .vh26-presenter-action-table td{padding:8px 6px!important;border-bottom:1px solid #e5ebef!important;vertical-align:middle!important}
+        #vh26-presenter-mode .vh26-presenter-action-table td:last-child{width:74px!important}
+        #vh26-presenter-mode .vh26-presenter-action-table .vh26-presenter-delete-action{min-height:34px!important;padding:6px 9px!important;border-color:#d58484!important;color:#9c2828!important;font-size:12px!important}
         #vh26-presenter-mode .vh26-presenter-finance-table{width:100%!important;min-width:720px!important;border-collapse:collapse!important;background:#fff!important;font-size:14px!important}
         #vh26-presenter-mode .vh26-presenter-finance-table th{padding:13px 12px!important;border-bottom:1px solid #dce5eb!important;background:#f5f8fa!important;color:#31566d!important;text-align:left!important;font-weight:700!important}
         #vh26-presenter-mode .vh26-presenter-finance-table td{padding:13px 12px!important;border-bottom:1px solid #e6edf1!important;color:#29485b!important}
@@ -765,8 +962,9 @@
         #vh26-presenter-mode .vh26-presenter-department-card{display:flex!important;min-height:112px!important;flex-direction:column!important;align-items:flex-start!important;justify-content:space-between!important;gap:14px!important;padding:20px!important;border:1px solid #dce5eb!important;border-radius:16px!important;background:#fff!important;color:#173448!important;text-align:left!important;box-shadow:0 5px 20px #12304408!important}
         #vh26-presenter-mode .vh26-presenter-department-card strong{font-size:17px!important}
         #vh26-presenter-mode .vh26-presenter-department-card span{color:#597182!important;font-size:13px!important}
-        @media(max-width:850px){#vh26-presenter-mode .vh26-presenter-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
-        @media(max-width:560px){#vh26-presenter-mode #vh26-presenter-slide{width:calc(100% - 28px)!important;padding:10px 0 calc(105px + env(safe-area-inset-bottom))!important}#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-heading,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-content,#vh26-presenter-mode .vh26-presenter-safety-panel{padding:17px!important}#vh26-presenter-mode .vh26-presenter-tabs{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important}#vh26-presenter-mode .vh26-presenter-tabs button{flex:0 0 auto!important}#vh26-presenter-mode .vh26-presenter-kpis,#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:1fr!important}}
+        @media(max-width:850px){#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+        @media(max-width:700px){#vh26-presenter-mode .vh26-presenter-create-action{grid-template-columns:1fr 1fr!important}#vh26-presenter-mode .vh26-presenter-action-table{min-width:640px!important}#vh26-presenter-mode .vh26-presenter-actions-card{overflow-x:auto!important}}
+        @media(max-width:560px){#vh26-presenter-mode #vh26-presenter-slide{width:calc(100% - 28px)!important;padding:10px 0 calc(105px + env(safe-area-inset-bottom))!important}#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-heading,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-content,#vh26-presenter-mode .vh26-presenter-safety-panel{padding:17px!important}#vh26-presenter-mode .vh26-presenter-tabs{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important}#vh26-presenter-mode .vh26-presenter-tabs button{flex:0 0 auto!important}#vh26-presenter-mode .vh26-presenter-revenue-grid{grid-template-columns:1fr!important}}
       `;
       document.head.append(style);
     }
