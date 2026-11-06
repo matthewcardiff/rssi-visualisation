@@ -1,4 +1,6 @@
 (function () {
+  const reportingBridge = () => window.vh26AutosaveBridge || null;
+  const reportContext = () => reportingBridge()?.context?.() || { editable: false };
   const brandFix = document.createElement('style');
   brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{max-width:750px!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results{display:flex!important;flex-direction:column!important;max-height:none!important;overflow:visible!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results .vh26-finance-warning{order:0!important;margin:8px 0 12px!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results table{order:1!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results details{order:2!important}';
   document.head.append(brandFix);
@@ -227,33 +229,30 @@
   };
 
   async function reportId() {
-    let id = context().report?.id;
+    let id = reportContext().report?.id;
     if (id) return id;
-    if (!canManage()) throw Error('A manager must create the first draft before contributors can edit it.');
-    const created = await dataApi('create_report', {
-      department_id: selectedDepartment.id,
-      reporting_week_id: selectedWeek
-    });
+    if (!reportingBridge()?.canManage?.()) throw Error('A manager must create the first draft before contributors can edit it.');
+    const created = await reportingBridge().createReport();
     id = created.items?.[0]?.id;
     if (!id) throw Error('Draft creation failed.');
     return id;
   }
 
   async function saveSection() {
-    if (!context().editable || selectedSection === 'review' || selectedDepartment?.code === 'bids-rfqs') return;
+    if (!reportContext().editable || reportingBridge()?.selectedSection?.() === 'review' || reportingBridge()?.selectedDepartment?.()?.code === 'bids-rfqs') return;
     if (sectionSaving) {
       sectionSaveQueued = true;
       return;
     }
-    const sectionKey = selectedSection;
-    const departmentCode = selectedDepartment?.code;
+    const sectionKey = reportingBridge()?.selectedSection?.();
+    const departmentCode = reportingBridge()?.selectedDepartment?.()?.code;
     const savedEditVersion = reportingEditVersion;
     sectionSaving = true;
     reportingBusy = true;
     status('Saving changes to Supabase…');
     try {
       const id = await reportId();
-      const old = nativeData.sections.find(x => x.report_id === id && x.section_key === sectionKey)?.content || {};
+      const old = (reportingBridge()?.nativeData?.()?.sections || []).find(x => x.report_id === id && x.section_key === sectionKey)?.content || {};
       let content;
       if (departmentCode === 'hsqe') {
         const fields = Object.fromEntries(
@@ -272,11 +271,11 @@
         );
         content = { ...old, notes: document.getElementById('vh26-section-notes').value, entries };
       }
-      await dataApi('save_section', { report_id: id, section_key: sectionKey, content });
+      await reportingBridge().saveSection({ report_id: id, section_key: sectionKey, content });
       reportingDirty = reportingEditVersion !== savedEditVersion;
       if (reportingDirty) status('A newer change is still saving…');
       else {
-        await loadNative();
+        await reportingBridge().loadNative();
         status('Saved automatically to Supabase');
       }
     } catch (error) {
@@ -306,7 +305,7 @@
   window.vhFlushReportingSave = flushSectionSave;
 
   function scheduleSectionSave() {
-    if (!context().editable) return;
+    if (!reportContext().editable) return;
     reportingEditVersion++;
     reportingDirty = true;
     status('Changes will save automatically…');
@@ -316,7 +315,7 @@
 
   function scheduleOpportunitySave(card) {
     const save = card.querySelector(':scope > button:first-of-type');
-    if (!save || !context().editable) return;
+    if (!save || !reportContext().editable) return;
     clearTimeout(opportunityTimers.get(card));
     opportunityTimers.set(card, setTimeout(() => {
       const values = Object.fromEntries([...card.querySelectorAll('[data-pipeline-prop]')].map(el => [el.dataset.pipelineProp, el.value.trim()]));
