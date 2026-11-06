@@ -78,8 +78,8 @@ test('Presenter Mode follows the Build 050 centered meeting layout and navigatio
   assert.match(autosave, /context\.departmentNumber \+ ' OF ' \+ context\.departmentCount/);
   assert.match(autosave, /vh26-presenter-finance-card/);
   assert.match(autosave, /finance_published/);
-  assert.match(autosave, /\['Weekly budget', get\('weekly_budget'\)\]/);
-  assert.match(autosave, /\['Weekly revenue', get\('weekly_revenue'\)\]/);
+  assert.match(autosave, /\['Weekly budget', presenterMoney\(weeklyBudget\)\]/);
+  assert.match(autosave, /\['Weekly revenue', presenterMoney\(weeklyRevenue\)\]/);
   assert.match(autosave, /YTD gap to close/);
   assert.match(autosave, /two-week lag/);
   assert.match(autosave, /Not reported/);

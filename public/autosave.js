@@ -643,11 +643,13 @@
     return new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));
   }
 
-  function presenterGap(budget, revenue) {
-    if (budget === null || budget === undefined || budget === '' || revenue === null || revenue === undefined || revenue === '') return 'Not reported';
-    const gap = Number(budget) - Number(revenue);
-    if (!Number.isFinite(gap)) return 'Not reported';
-    return gap < 0 ? '−' + presenterMoney(Math.abs(gap)) : presenterMoney(gap);
+  function presenterVariance(revenue, budget) {
+    if (budget === null || budget === undefined || budget === '' || revenue === null || revenue === undefined || revenue === '') return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
+    const variance = Number(revenue) - Number(budget);
+    if (!Number.isFinite(variance)) return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
+    const favourable = variance >= 0;
+    const amount = presenterMoney(Math.abs(variance));
+    return { text: (favourable ? '↑ ' : '↓ ') + amount, state: favourable ? 'favourable' : 'adverse', label: amount + (favourable ? ' above budget' : ' below budget') };
   }
 
   function presenterDepartmentContext(slide, tabs) {
@@ -722,16 +724,22 @@
         if (!publication) { data.textContent = 'Finance figures have not been reported for this week.'; return; }
         const values = (finance.values || []).filter(v => v.publication_id === publication.id);
         const get = key => { const item = values.find(v => v.metric_key === key); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
+        const weeklyBudget = get('weekly_budget'), weeklyRevenue = get('weekly_revenue');
+        const ytdBudget = get('ytd_budget'), ytdRevenue = get('ytd_revenue');
         const metrics = [
-          ['Weekly budget', get('weekly_budget')], ['YTD budget', get('ytd_budget')],
-          ['Weekly revenue', get('weekly_revenue')], ['YTD revenue', get('ytd_revenue')],
-          ['Gap to close', presenterGap(get('weekly_budget'), get('weekly_revenue'))], ['YTD gap to close', presenterGap(get('ytd_budget'), get('ytd_revenue'))]
+          ['Weekly budget', presenterMoney(weeklyBudget)], ['Weekly revenue', presenterMoney(weeklyRevenue)],
+          ['Weekly gap to close', presenterVariance(weeklyRevenue, weeklyBudget)],
+          ['YTD budget', presenterMoney(ytdBudget)], ['YTD revenue', presenterMoney(ytdRevenue)],
+          ['YTD gap to close', presenterVariance(ytdRevenue, ytdBudget)]
         ];
         const grid = document.createElement('div');
         grid.className = 'vh26-presenter-revenue-grid';
         for (const [label, amount] of metrics) {
           const item = document.createElement('div'); item.className = 'vh26-presenter-revenue-item';
-          item.append(presenterTextElement('strong', label), presenterTextElement('span', label.includes('gap') || label === 'Gap to close' ? amount : presenterMoney(amount)));
+          item.append(presenterTextElement('strong', label));
+          const value = presenterTextElement('span', typeof amount === 'string' ? amount : amount.text);
+          if (typeof amount !== 'string') { value.classList.add('vh26-presenter-variance-' + amount.state); value.setAttribute('aria-label', amount.label); }
+          item.append(value);
           grid.append(item);
         }
         if (!panel.isConnected || panel.dataset.signature !== signature) return;
@@ -935,6 +943,9 @@
         #vh26-presenter-mode .vh26-presenter-revenue-item{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)!important;gap:12px!important;padding:8px 4px!important;border-bottom:1px solid #e7edf1!important}
         #vh26-presenter-mode .vh26-presenter-revenue-item strong{color:#173448!important;text-transform:uppercase!important;font-size:13px!important}
         #vh26-presenter-mode .vh26-presenter-revenue-item span{text-align:right!important;color:#173448!important;font-variant-numeric:tabular-nums!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item span.vh26-presenter-variance-favourable{color:#17633c!important;font-weight:750!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item span.vh26-presenter-variance-adverse{color:#a12a16!important;font-weight:750!important}
+        #vh26-presenter-mode .vh26-presenter-revenue-item span.vh26-presenter-variance-unavailable{color:#687c88!important;font-weight:500!important}
         #vh26-presenter-mode .vh26-presenter-revenue-status,#vh26-presenter-mode .vh26-presenter-finance-source{margin:12px 18px!important;color:#526c7b!important;font-size:12px!important}
         #vh26-presenter-mode .vh26-presenter-actions-card{padding:18px!important}
         #vh26-presenter-mode .vh26-presenter-actions-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:12px!important}
@@ -949,9 +960,12 @@
         #vh26-presenter-mode .vh26-presenter-action-table td{padding:8px 6px!important;border-bottom:1px solid #e5ebef!important;vertical-align:middle!important}
         #vh26-presenter-mode .vh26-presenter-action-table td:last-child{width:74px!important}
         #vh26-presenter-mode .vh26-presenter-action-table .vh26-presenter-delete-action{min-height:34px!important;padding:6px 9px!important;border-color:#d58484!important;color:#9c2828!important;font-size:12px!important}
-        #vh26-presenter-mode .vh26-presenter-finance-table{width:100%!important;min-width:720px!important;border-collapse:collapse!important;background:#fff!important;font-size:14px!important}
-        #vh26-presenter-mode .vh26-presenter-finance-table th{padding:13px 12px!important;border-bottom:1px solid #dce5eb!important;background:#f5f8fa!important;color:#31566d!important;text-align:left!important;font-weight:700!important}
-        #vh26-presenter-mode .vh26-presenter-finance-table td{padding:13px 12px!important;border-bottom:1px solid #e6edf1!important;color:#29485b!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table{width:100%!important;min-width:960px!important;border-collapse:collapse!important;background:#fff!important;font-size:14px!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table th{padding:11px 9px!important;border-bottom:1px solid #dce5eb!important;background:#f5f8fa!important;color:#31566d!important;text-align:left!important;font-weight:700!important;white-space:nowrap!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table td{padding:11px 9px!important;border-bottom:1px solid #e6edf1!important;color:#29485b!important;white-space:nowrap!important;font-variant-numeric:tabular-nums!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table .vh26-finance-variance-favourable{color:#17633c!important;font-weight:750!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table .vh26-finance-variance-adverse{color:#a12a16!important;font-weight:750!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table .vh26-finance-variance-unavailable{color:#687c88!important;font-weight:500!important}
         #vh26-presenter-mode .vh26-presenter-safety-panel{display:flex!important;flex-direction:column!important;gap:14px!important;width:100%!important;padding:20px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
         #vh26-presenter-mode .vh26-presenter-safety-controls{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:10px!important;margin:0!important;padding:0!important}
         #vh26-presenter-mode .vh26-presenter-safety-controls select,#vh26-presenter-mode .vh26-presenter-safety-controls button{min-height:44px!important;border-radius:10px!important;font-weight:600!important}

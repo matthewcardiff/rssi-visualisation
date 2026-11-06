@@ -37,7 +37,7 @@ test('department chooser, static week selector, aligned heading and one-column P
   assert.match(autosave, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
   assert.match(autosave, /setProperty\('display', 'block', 'important'\)/);
   assert.match(autosave, /#vh26-connected-dashboard\.vh26-workspace-active #vh26-report-intro\{max-width:750px!important\}/);
-  assert.match(html, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
+  assert.match(autosave, /document\.head\.append\(brandFix\)/);
 });
 
 test('department chooser uses the modern RSSI card layout at desktop and mobile sizes', () => {

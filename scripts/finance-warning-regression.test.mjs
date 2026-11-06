@@ -110,6 +110,22 @@ test('finance import action is described as applying validated figures', () => {
   assert.doesNotMatch(financeUi, /Stage validated figures|3 · Stage figures/);
 });
 
+test('finance review and presenters expose all six budget, revenue and gap values', () => {
+  assert.match(financeUi, /Weekly gap to close/);
+  assert.match(financeUi, /YTD gap to close/);
+  assert.match(financeUi, /Green ↑ means revenue is above budget; red ↓ means it is below/);
+  assert.match(financeUi, /revenue minus budget/);
+  assert.match(financeUi, /presenterRenderFinance/);
+  assert.match(financeUi, /Applied figures appear here after finance review and publication/);
+  assert.match(financeUi, /vh26-finance-review-table/);
+  assert.match(autosave, /\['Weekly budget', presenterMoney\(weeklyBudget\)\]/);
+  assert.match(autosave, /\['Weekly gap to close', presenterVariance\(weeklyRevenue, weeklyBudget\)\]/);
+  assert.match(autosave, /\['YTD gap to close', presenterVariance\(ytdRevenue, ytdBudget\)\]/);
+  assert.match(autosave, /function presenterVariance\(revenue, budget\)/);
+  assert.match(autosave, /variance = Number\(revenue\) - Number\(budget\)/);
+  assert.match(autosave, /presenterFinanceCard\(slide, context\)/);
+});
+
 test('finance flow shows one next action and advances to Apply after checks are acknowledged', () => {
   assert.match(financeUi, /id="vh26-finance-check" disabled/);
   assert.match(financeUi, /id="vh26-finance-import" hidden disabled>Apply figures/);

@@ -187,7 +187,7 @@ export default async (request)=>{
     if(data.op==='finance_reconcile' && process.env.VH_FINANCE_RECONCILIATION_ENABLED !== 'enabled')
       return json(503,{error:'Finance reconciliation is disabled until workbook review findings are persisted',code:'FINANCE_RECONCILIATION_DISABLED'});
     if(['finance_import','finance_reconcile'].includes(data.op) && process.env.VH_FINANCE_STAGING_WRITES !== 'enabled')
-      return json(503,{error:'Finance staging writes are disabled for this deployment',code:'FINANCE_STAGING_WRITES_DISABLED'});
+      return json(503,{error:'Finance figure saving is not enabled for this preview. No figures were saved.',code:'FINANCE_STAGING_WRITES_DISABLED',committed:false});
     if(data.op==='finance_reconcile'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
@@ -309,6 +309,9 @@ export default async (request)=>{
       // Explicit, validated, one-week staging import. No approval or publication.
       if(errors.length)return json(422,{error:'Resolve reconciliation errors before importing',errors,committed:false});
       if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
+      const findings=Array.isArray(data.findings)?data.findings:[];
+      if(findings.length>100||findings.some(x=>typeof x!=='string'||!x.trim()||x.length>1000))return json(400,{error:'Workbook checks are invalid; review the workbook again',committed:false});
+      if(findings.length&&data.findings_acknowledged!==true)return json(422,{error:'Review and acknowledge the workbook checks before applying figures',committed:false});
       const weeksInImport=[...new Set(normalized.map(r=>r.reporting_week_id))];
       if(weeksInImport.length!==1)return json(422,{error:'Import one management reporting week at a time'});
       if(normalized.length>300)return json(422,{error:'Import exceeds the row limit'});
@@ -320,13 +323,14 @@ export default async (request)=>{
         method:'POST',headers:{...headers,prefer:'return=representation'},
         body:JSON.stringify({p_file_name:data.file_name,p_file_sha256:hash,
           p_reporting_week_id:weeksInImport[0],
-          p_metrics:normalized.map(({source_rail_week,...row})=>row)}),
+          p_metrics:normalized.map(({source_rail_week,...row})=>row),p_findings:findings.map(x=>x.trim())}),
         signal:AbortSignal.timeout(20000)
       });
       if(!response.ok){
         const detail=await response.json().catch(()=>({}));
-        if(response.status===404||detail.code==='PGRST202')return json(503,{error:'Atomic finance import is not installed; import disabled',committed:false});
-        return json(response.status===409?409:422,{error:'Atomic finance import rejected; no partial import committed',detail:detail.message||'Database validation or permissions failed',committed:false});
+        if(response.status===404||detail.code==='PGRST202')return json(503,{error:'Finance saving is unavailable because the secure import function is not installed. No figures were saved.',code:'FINANCE_ATOMIC_IMPORT_UNAVAILABLE',committed:false});
+        if(response.status===409&&detail.code==='23505')return json(409,{error:'These figures were already saved. Refresh finance history before trying again.',code:'FINANCE_DUPLICATE_IMPORT',committed:true});
+        return json(response.status===403||detail.code==='42501'?403:response.status===409?409:422,{error:'Finance figures were not saved.',code:'FINANCE_IMPORT_REJECTED',detail:detail.message||'Database validation or permissions failed',committed:false});
       }
       const result=await response.json();
       return json(200,result);
