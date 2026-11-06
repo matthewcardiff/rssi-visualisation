@@ -1,8 +1,84 @@
 (function () {
   const brandFix = document.createElement('style');
-  brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{max-width:750px!important}';
+  brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{max-width:750px!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results{display:flex!important;flex-direction:column!important;max-height:none!important;overflow:visible!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results .vh26-finance-warning{order:0!important;margin:8px 0 12px!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results table{order:1!important}#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results details{order:2!important}';
   document.head.append(brandFix);
   document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
+
+  function polishFinanceHistory() {
+    const panel = document.getElementById('vh26-finance-review');
+    const list = document.getElementById('vh26-finance-review-list');
+    if (!panel || !list) return;
+
+    const heading = panel.querySelector('h2');
+    if (heading) heading.textContent = 'Staged finance imports';
+    const intro = heading?.nextElementSibling;
+    if (intro?.tagName === 'P') {
+      intro.textContent = 'This list shows finance files saved for review. Only approved figures appear in reports. Approval and publication are switched off in this preview.';
+    }
+    const refresh = document.getElementById('vh26-finance-review-refresh');
+    if (refresh) refresh.textContent = 'Refresh list';
+
+    const status = document.getElementById('vh26-finance-review-status');
+    if (status?.textContent) {
+      const count = status.textContent.match(/(\d+) imports? found/i)?.[1];
+      if (count) status.textContent = `${count} staged finance file${count === '1' ? '' : 's'}. They are not published.`;
+      else if (/loading finance import register/i.test(status.textContent)) status.textContent = 'Loading staged finance files…';
+    }
+
+    const seen = new Set();
+    for (const card of [...list.children]) {
+      const raw = card.textContent || '';
+      const importId = raw.match(/Import ID:\s*([0-9a-f-]{36})/i)?.[1]?.toLowerCase();
+      if (importId && seen.has(importId)) {
+        card.remove();
+        continue;
+      }
+      if (importId) seen.add(importId);
+      if (card.dataset.financeHistoryPolished === 'true') continue;
+      card.dataset.financeHistoryPolished = 'true';
+
+      const title = card.querySelector('strong');
+      if (title) {
+        const parts = title.textContent.split('|').map(part => part.trim());
+        const state = /pending/i.test(parts[1] || '') ? 'Awaiting finance review' : (parts[1] || 'Status unavailable');
+        title.textContent = `${parts[0]} · ${state}`;
+      }
+
+      const paragraphs = card.querySelectorAll('p');
+      const meta = paragraphs[0];
+      if (meta) {
+        const details = document.createElement('details');
+        const summary = document.createElement('summary');
+        summary.textContent = 'Import details';
+        details.append(summary, meta.cloneNode(true));
+        meta.replaceWith(details);
+      }
+      const detail = card.querySelector('p');
+      if (detail) {
+        if (/import-level findings require resolution/i.test(detail.textContent)) {
+          detail.textContent = 'This workbook has checks that must be resolved before it can be approved.';
+        } else if (/metric-level issues recorded/i.test(detail.textContent)) {
+          detail.textContent = 'Some figures need correction before this workbook can be approved.';
+        } else if (/pending|staged/i.test(detail.textContent)) {
+          detail.textContent = 'The figures are saved for review. They are not approved and are not shown in reports.';
+        }
+      }
+    }
+  }
+
+  const financeHistoryObserver = new MutationObserver(polishFinanceHistory);
+  const observeFinanceHistory = () => {
+    const list = document.getElementById('vh26-finance-review-list');
+    if (list && list.dataset.plainLanguageObserver !== 'true') {
+      list.dataset.plainLanguageObserver = 'true';
+      financeHistoryObserver.observe(list, { childList: true, subtree: true });
+      polishFinanceHistory();
+    }
+    polishFinanceHistory();
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', observeFinanceHistory);
+  else observeFinanceHistory();
+  new MutationObserver(observeFinanceHistory).observe(document.documentElement, { childList: true, subtree: true });
 
   // Finance workbook rows are authoritative for their mapped periods. The
   // optional WKxx dashboard tabs are historical management snapshots whose
