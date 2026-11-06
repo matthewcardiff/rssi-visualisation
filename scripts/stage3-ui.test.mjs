@@ -51,3 +51,26 @@ test('sidebar navigation waits for the current autosave and retries the selected
   assert.match(autosave, /if \(saved && next\?\.isConnected\) next\.click\(\)/);
   assert.match(autosave, /Stay on this section and retry after resolving the save issue/);
 });
+
+test('Presenter Mode follows the Build 050 card, KPI, navigation and responsive layout', () => {
+  assert.match(autosave, /vh26-presenter-restoration-style/);
+  assert.match(autosave, /linear-gradient\(120deg,#00354e,#075675\)/);
+  assert.match(autosave, /vh26-presenter-heading/);
+  assert.match(autosave, /vh26-presenter-kpis/);
+  assert.match(autosave, /Outstanding actions \(/);
+  assert.match(autosave, /max-width:1250px/);
+  assert.match(autosave, /vh26-presenter-finance-panel/);
+  assert.match(autosave, /vh26-presenter-overview-grid/);
+  assert.match(autosave, /vh26-presenter-department-card/);
+  assert.match(autosave, /vh26-presenter-pager/);
+  assert.match(autosave, /@media\(max-width:560px\)[\s\S]*vh26-presenter-overview-grid\{grid-template-columns:1fr/);
+});
+
+test('Safety Moment separates practical reminders from distinct discussion questions', () => {
+  assert.match(autosave, /rename\('points', 'Practical reminders'/);
+  assert.match(autosave, /rename\('questions', 'Discussion questions'/);
+  assert.match(autosave, /safetyQuestionIsDuplicate\(question, reminders\)/);
+  assert.match(autosave, /section\('Practical reminders', reminders, true\)/);
+  assert.match(autosave, /Discussion question/);
+  assert.match(autosave, /vh26-presenter-safety-content/);
+});
