@@ -40,6 +40,17 @@ test('department chooser, static week selector, aligned heading and one-column P
   assert.match(html, /#login \.brand \.rss-logo,#chooser \.choose-head \.rss-logo\{display:block!important\}/);
 });
 
+test('department chooser uses the modern RSSI card layout at desktop and mobile sizes', () => {
+  assert.match(autosave, /function installDepartmentChooserStyle\\(\\)/);
+  assert.match(autosave, /vh26-department-chooser-polish/);
+  assert.match(autosave, /max-width:1320px/);
+  assert.match(autosave, /grid-template-columns:repeat\\(auto-fit,minmax\\(min\\(100%,255px\\),1fr\\)\\)/);
+  assert.match(autosave, /dept-card:hover\\{transform:translateY\\(-2px\\)/);
+  assert.match(autosave, /content:"→"/);
+  assert.match(autosave, /@media\\(max-width:540px\\)/);
+  assert.match(autosave, /prefers-reduced-motion:reduce/);
+});
+
 test('finance upload retains the Build 050 weekly-budget reader and submits its extracted budget field', () => {
   assert.match(html, /async function vhFinanceExtract\(file,selectedWeek\)/);
   assert.match(html, /const budgetWeek=weeks\.find\(x=>x\.week===financePeriod\.managementWeek\)/);
