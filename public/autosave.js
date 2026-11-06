@@ -420,15 +420,16 @@
       pendingOpportunityCards.clear();
       const saveNotes = root.querySelector('#vh26-pipeline-save-notes');
       if (saveNotes && !saveNotes.disabled) {
-        const latestNotes = root.querySelector('#vh26-pipeline-notes');
-        if (latestNotes) latestNotes.value = notesValue;
-        const reportStatus = document.getElementById('vh26-report-status');
-        if (reportStatus) reportStatus.textContent = 'Saving pipeline notes…';
-        saveNotes.click();
-        if (!await waitForStatus(/^Pipeline section saved$/i, /could not be saved/i, 'Saving pipeline notes…')) {
-          status('Pipeline notes could not be saved. Stay here and retry.');
-          return false;
-        }
+        const id = await reportId();
+        await reportingBridge().saveSection({
+          report_id: id,
+          section_key: 'pipeline',
+          content: { notes: notesValue.trim(), entries: [] }
+        });
+        await reportingBridge().loadNative();
+        reportingDirty = false;
+        reportingBridge().markSaved?.();
+        status('Pipeline section saved');
       }
       appDirtyNeedsClearing = false;
       reportingDirty = false;
