@@ -839,6 +839,40 @@
     }
   }
 
+  function polishManagedEnvironmentTestCards(slide, departmentName) {
+    if (departmentName !== 'Managed Environments') return;
+    const setLines = (card, lines) => {
+      let paragraphs = [...card.querySelectorAll('p')];
+      while (paragraphs.length < lines.length) {
+        const paragraph = document.createElement('p');
+        card.append(paragraph);
+        paragraphs = [...card.querySelectorAll('p')];
+      }
+      paragraphs.forEach((paragraph, index) => {
+        if (index < lines.length) paragraph.textContent = lines[index];
+        else paragraph.remove();
+      });
+    };
+    const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
+    for (const card of cards) {
+      const title = card.querySelector('h2')?.textContent.trim();
+      const content = card.textContent || '';
+      if (!/QA TEST DATA|QA TEST — Fictional|Fictional scenario/i.test(content)) continue;
+      if (title === 'Pipeline') {
+        setLines(card, [
+          'Illustrative staging examples · Synthetic test data only.',
+          'Lineside vegetation survey — £12,345 · Test owner: QA Test User · Required by 13 November 2026.',
+          'Ecology constraints review — £1,111 · Test owner: QA Test User · Required by 20 November 2026.'
+        ]);
+      } else if (title === 'Delivery') {
+        setLines(card, [
+          'Illustrative staging scenario · Synthetic test data only.',
+          'Vegetation clearance quality checks: 18 of 20 complete across two sample work fronts. Two follow-up inspections are due by 13 November 2026. Test owner: QA Test User.'
+        ]);
+      }
+    }
+  }
+
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -859,6 +893,31 @@
 
     const slideTitle = (title?.textContent || heading?.querySelector('h1')?.textContent || '').trim();
     const viewKind = slideTitle === 'Meeting readiness' ? 'all' : activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : 'department';
+    const viewKey = JSON.stringify([viewKind, activeTab, slideTitle]);
+    if (slide.dataset.vh26ScrollKey !== viewKey) {
+      slide.dataset.vh26ScrollKey = viewKey;
+      requestAnimationFrame(() => {
+        if (!slide.isConnected) return;
+        slide.scrollTop = 0;
+        if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+      });
+    }
+    const weekSelect = document.getElementById('vh26-host-week-select');
+    let preferredWeek = '';
+    try { preferredWeek = sessionStorage.getItem('vh26-presenter-week-preference') || ''; } catch {}
+    if (preferredWeek && weekSelect && weekSelect.value !== preferredWeek && [...weekSelect.options].some(option => option.value === preferredWeek)) {
+      const restoreFor = preferredWeek;
+      if (mode.dataset.vh26WeekRestoreFor !== restoreFor) {
+        mode.dataset.vh26WeekRestoreFor = restoreFor;
+        mode.dataset.vh26WeekRestoreAttempts = '0';
+      }
+      const attempts = Number(mode.dataset.vh26WeekRestoreAttempts || '0');
+      if (attempts < 3) {
+        mode.dataset.vh26WeekRestoreAttempts = String(attempts + 1);
+        weekSelect.value = restoreFor;
+        weekSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    }
     mode.querySelector('#vh26-presenter-all')?.classList.toggle('selected', viewKind === 'all');
 
     if (viewKind === 'all') {
@@ -875,6 +934,7 @@
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
       const context = presenterDepartmentContext(slide, tabs);
+      polishManagedEnvironmentTestCards(slide, departmentName);
       presenterAppendOverview(slide, heading, context);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
@@ -1027,6 +1087,21 @@
     if (!root || root.dataset.autosaveReady) return;
     root.dataset.autosaveReady = 'true';
     const dashboard = document.getElementById('vh26-connected-dashboard');
+    dashboard?.addEventListener('change', event => {
+      const target = event.target;
+      if (!(target instanceof HTMLSelectElement) || target.id !== 'vh26-host-week-select' || !event.isTrusted) return;
+      try { sessionStorage.setItem('vh26-presenter-week-preference', target.value); } catch {}
+      const presenter = document.getElementById('vh26-presenter-mode');
+      if (presenter) {
+        delete presenter.dataset.vh26WeekRestoreFor;
+        delete presenter.dataset.vh26WeekRestoreAttempts;
+      }
+    }, true);
+    dashboard?.addEventListener('click', event => {
+      if (event.target instanceof Element && event.target.closest('#vh26-dashboard-signout')) {
+        try { sessionStorage.removeItem('vh26-presenter-week-preference'); } catch {}
+      }
+    }, true);
     dashboard?.addEventListener('click', event => {
       if (navigationReplay) return;
       const target = event.target instanceof Element ? event.target.closest('.vh26-sidebar nav button[data-connected-nav], #vh26-section-tabs button, .vh26-report-step-controls button, #vh26-back-departments') : null;
