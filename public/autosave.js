@@ -4,6 +4,28 @@
   document.head.append(brandFix);
   document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
 
+
+  const pipelineLayout = document.createElement('style');
+  pipelineLayout.id = 'vh26-pipeline-layout';
+  pipelineLayout.textContent = `
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card{box-sizing:border-box!important;padding:18px!important;border:1px solid #e4e9ed!important;border-radius:14px!important;background:#fff!important;box-shadow:0 6px 18px #16364c08!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child{display:grid!important;grid-template-columns:1.2fr 1.2fr .85fr 1fr 1fr!important;align-items:end!important;gap:10px!important;width:100%!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child>label{display:grid!important;grid-template-rows:auto 1fr!important;gap:7px!important;min-width:0!important;flex:none!important;margin:0!important;color:#263d50!important;font:500 13px/1.35 Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:46px!important;padding:12px 14px!important;border:1px solid #cdd7df!important;border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input:focus{outline:3px solid #004d7126!important;border-color:#004d71!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin-top:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button{width:100%!important;min-height:46px!important;padding:11px 18px!important;border:1px solid #cbd6de!important;border-radius:12px!important;background:#fff!important;color:#004d71!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:first-child{border-color:#004d71!important;background:#004d71!important;color:#fff!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:hover:not(:disabled){filter:brightness(.96)}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:disabled{opacity:.48;cursor:not-allowed}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace #vh26-pipeline-add{min-height:46px!important;margin-top:12px!important;padding:11px 20px!important;border:1px solid #ff6b00!important;border-radius:12px!important;background:#ff6b00!important;color:#173448!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>span{display:block!important;width:100%!important;margin:8px 0 0!important;color:#607183!important;font-size:12px!important}
+    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+    @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{grid-template-columns:1fr!important}}
+    @media(max-width:380px){#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child{grid-template-columns:1fr!important}}
+  `;
+  document.head.append(pipelineLayout);
+
   function polishFinanceHistory() {
     const panel = document.getElementById('vh26-finance-review');
     const list = document.getElementById('vh26-finance-review-list');
