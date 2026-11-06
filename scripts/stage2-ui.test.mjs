@@ -24,7 +24,7 @@ test('autosave protects in-progress edits while preserving the Submit report wor
   assert.match(html, /Wait for the saved status before changing section/);
   assert.match(autosave, /reportingDirty = true/);
   assert.match(autosave, /reportingDirty = false/);
-  assert.doesNotMatch(autosave, /\.value\s*=/);
+  assert.match(autosave, /notes\.value = \[existing, \.\.\.additions\]/);
 });
 
 test('department chooser, static week selector, aligned heading and one-column Presenter use Build 050 styling', () => {
@@ -82,7 +82,7 @@ test('department report has one persistent week selector and confirms period cha
 test('department reporting sections share the wider Build 050 form styling', () => {
   assert.match(autosave, /vh26-report-form-consistency/);
   assert.match(autosave, /max-width:1100px!important/);
-  assert.match(autosave, /#vh26-report-workspace #vh26-native-report\{box-sizing:border-box!important;width:100%!important;max-width:976px!important/);
+  assert.match(autosave, /#vh26-report-workspace #vh26-native-report\{box-sizing:border-box!important;width:100%!important;max-width:1066px!important/);
   assert.match(autosave, /grid-template-columns:repeat\(3,minmax\(0,1fr\)\)!important/);
   assert.match(autosave, /\.vh26-entry>button\{justify-self:start!important;align-self:end!important;width:max-content!important;min-width:0!important;min-height:42px/);
   assert.match(autosave, /border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px/);
