@@ -58,6 +58,23 @@
   `;
   document.head.append(reportingFormStyle);
 
+  const stage3Polish = document.createElement('style');
+  stage3Polish.id = 'vh26-stage3-user-facing-polish';
+  stage3Polish.textContent = `
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-native-report #vh26-report-status:empty{display:none!important}
+    #vh26-connected-dashboard.vh26-action-view-active.vh26-workspace-active #vh26-account{display:none!important}
+    #vh26-connected-dashboard.vh26-action-view-active.vh26-workspace-active #vh26-actions-summary:empty{display:none!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{gap:16px!important;margin-top:20px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button{border-color:#cbd6de!important;background:#fff!important;color:#173448!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:first-child{border-color:#cbd6de!important;background:#fff!important;color:#173448!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:hover:not(:disabled){border-color:#004d71!important;background:#f5f9fb!important;filter:none!important}
+    .vh26-presenter-dialog form>div:last-child{display:flex!important;justify-content:flex-end!important;gap:14px!important;margin-top:14px!important}
+    .vh26-presenter-dialog form>div:last-child button{box-sizing:border-box!important;min-width:100px!important;min-height:42px!important;padding:10px 16px!important;border-radius:10px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important;cursor:pointer}
+    .vh26-presenter-dialog form>div:last-child button[type="button"]{border:1px solid #cbd6de!important;background:#fff!important;color:#173448!important}
+    .vh26-presenter-dialog form>div:last-child button[type="submit"]{border:1px solid #ff6b00!important;background:#ff6b00!important;color:#173448!important}
+  `;
+  document.head.append(stage3Polish);
+
   function polishFinanceHistory() {
     const panel = document.getElementById('vh26-finance-review');
     const list = document.getElementById('vh26-finance-review-list');
@@ -297,6 +314,15 @@
     });
   }
 
+  function suppressInternalStatusMessages(root) {
+    const reportStatus = root.querySelector('#vh26-report-status');
+    if (reportStatus && /^Report loaded in [\d.]+s\. Loading pipeline, actions and finance in the background/.test(reportStatus.textContent.trim())) {
+      reportStatus.textContent = '';
+    }
+    const actionsSummary = root.querySelector('#vh26-actions-summary');
+    if (actionsSummary?.textContent.trim() === 'Loading actions...') actionsSummary.textContent = '';
+  }
+
   function installDepartmentChooserStyle() {
     if (document.getElementById('vh26-department-chooser-polish')) return;
     const style = document.createElement('style');
@@ -368,10 +394,12 @@
     const observer = new MutationObserver(() => {
       hideOpportunitySaveButtons(root);
       applyReportingSpellcheck(root);
+      suppressInternalStatusMessages(root);
     });
     observer.observe(root, { childList: true, subtree: true });
     hideOpportunitySaveButtons(root);
     applyReportingSpellcheck(root);
+    suppressInternalStatusMessages(root);
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', install);
