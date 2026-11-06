@@ -33,3 +33,21 @@ test('opportunity action dialog separates and styles Cancel and Save controls', 
   assert.match(autosave, /\.vh26-presenter-dialog form>div:last-child\{display:flex!important;justify-content:flex-end!important;gap:14px!important;margin-top:14px!important\}/);
   assert.match(autosave, /form>div:last-child button\[type="submit"\]\{border:1px solid #ff6b00!important;background:#ff6b00!important;color:#173448!important\}/);
 });
+
+test('report entry textarea sits below evenly sized single-line fields at desktop and mobile widths', () => {
+  assert.match(autosave, /grid-template-areas:"title owner support" "required remove \." "update update update"!important/);
+  assert.match(autosave, /label:has\(textarea\[data-prop="update"\]\)\{grid-area:update!important\}/);
+  assert.match(autosave, /@media\(max-width:850px\)[\s\S]*grid-template-areas:"title owner" "support required" "update update" "remove remove"!important/);
+  assert.match(autosave, /@media\(max-width:560px\)[\s\S]*grid-template-areas:"title" "owner" "support" "required" "update" "remove"!important/);
+  assert.match(autosave, /#vh26-connected-dashboard\.vh26-workspace-active #vh26-add-entry\{margin-top:18px!important\}/);
+});
+
+test('sidebar navigation waits for the current autosave and retries the selected route', () => {
+  assert.match(autosave, /async function flushSectionSave\(\)/);
+  assert.match(autosave, /window\.vhFlushReportingSave = flushSectionSave/);
+  assert.match(autosave, /\.vh26-sidebar nav button\[data-connected-nav\]/);
+  assert.match(autosave, /if \(!target \|\| !reportingDirty\) return/);
+  assert.match(autosave, /event\.stopImmediatePropagation\(\)/);
+  assert.match(autosave, /if \(saved && next\?\.isConnected\) next\.click\(\)/);
+  assert.match(autosave, /Stay on this section and retry after resolving the save issue/);
+});
