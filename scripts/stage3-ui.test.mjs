@@ -53,6 +53,10 @@ test('sidebar navigation waits for the current autosave and retries the selected
   assert.match(autosave, /navigationReplay = true/);
   assert.match(autosave, /savedEditVersion/);
   assert.match(autosave, /Complete the pipeline opportunity or remove it before changing section/);
+  assert.match(autosave, /dashboard\?\.addEventListener\('change'/);
+  assert.match(autosave, /event\.target\.matches\('#vh26-week'\)/);
+  assert.match(autosave, /lastSelectedWeek/);
+  assert.match(autosave, /next\.dispatchEvent\(new Event\('change', \{ bubbles: true \}\)\)/);
 });
 
 test('reporting forms are wider and narrative sections use notes instead of entry cards', () => {
