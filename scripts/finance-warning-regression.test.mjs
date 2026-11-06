@@ -11,10 +11,15 @@ function installFinanceCheckCorrection(result) {
     createElement: () => ({ textContent: '', style: { setProperty() {} } }),
     head: { append() {} },
     querySelectorAll: () => [],
+    documentElement: {},
     readyState: 'loading',
     addEventListener() {}
   };
-  vm.runInNewContext(autosave, { window, document, setTimeout, clearTimeout });
+  class TestMutationObserver {
+    constructor(callback) { this.callback = callback; }
+    observe() {}
+  }
+  vm.runInNewContext(autosave, { window, document, MutationObserver: TestMutationObserver, setTimeout, clearTimeout });
   return window;
 }
 
@@ -81,4 +86,14 @@ test('finance import is ready when nine source-mapped departments have no remain
   assert.equal(reviewed.acceptanceReady, true);
   assert.equal(reviewed.records[0].rv, null);
   assert.equal(reviewed.records[0].revenueInputState, 'blank');
+});
+
+test('finance checks and import history are readable without an inner results scrollbar', () => {
+  assert.match(autosave, /vh26-finance-preview-results\{display:flex!important;flex-direction:column!important;max-height:none!important;overflow:visible!important\}/);
+  assert.match(autosave, /vh26-finance-preview-results \.vh26-finance-warning\{order:0!important/);
+  assert.match(autosave, /function polishFinanceHistory\(\)/);
+  assert.match(autosave, /if \(importId && seen\.has\(importId\)\)/);
+  assert.match(autosave, /Staged finance imports/);
+  assert.match(autosave, /Only approved figures appear in reports/);
+  assert.match(autosave, /They are not approved and are not shown in reports/);
 });
