@@ -67,6 +67,19 @@ test('pipeline fields use a single Build 050 row with coordinated buttons below'
   assert.match(autosave, /@media\\(max-width:560px\\)/);
 });
 
+test('department report has one persistent week selector and confirms period changes', () => {
+  assert.equal((html.match(/id="vh26-week"/g) || []).length, 1);
+  assert.match(autosave, /vh26-reporting-week-guard/);
+  assert.match(autosave, /position:sticky!important/);
+  assert.match(html, /Switch the department report from /);
+  assert.match(html, /The selected week will be used for all further entries and automatic saves/);
+  assert.doesNotMatch(html, /Opportunities for this department/);
+  assert.doesNotMatch(html, /reportMessage\(c\.report\?'Report: '/);
+  assert.match(html, /introEyebrow\.textContent='YOUR WEEKLY REPORT'/);
+  assert.doesNotMatch(html, /YOUR WEEKLY REPORT · /);
+  assert.match(html, /Weekly department report/);
+});
+
 test('finance history list is hidden in preview because it offers no review action', () => {
   assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\\}/);
   assert.match(html, /async function financeReviewRefresh\(\)/);
