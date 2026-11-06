@@ -133,6 +133,8 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
       assert.match(JSON.parse(options.body).messages[0].content,/must never be presented as an approved procedure/);
+      assert.match(JSON.stringify(JSON.parse(options.body)),/practical reminders distinct from discussion questions/);
+      assert.match(JSON.stringify(JSON.parse(options.body)),/must not restate the reminders/);
       return Response.json({message:{content:JSON.stringify(safety)}});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
