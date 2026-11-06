@@ -373,8 +373,247 @@
     document.head.append(style);
   }
 
+  function safetyQuestionIsDuplicate(question, reminders) {
+    const words = value => String(value || '').toLocaleLowerCase('en-GB')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)
+      .filter(word => word.length > 3 && !['what', 'when', 'where', 'which', 'should', 'could', 'would', 'your', 'their', 'about', 'this', 'that', 'from', 'with'].includes(word));
+    const candidate = new Set(words(question));
+    if (!candidate.size) return false;
+    return reminders.some(reminder => {
+      const reference = new Set(words(reminder));
+      if (!reference.size) return false;
+      const shared = [...candidate].filter(word => reference.has(word)).length;
+      return shared / Math.min(candidate.size, reference.size) >= 0.72;
+    });
+  }
+
+  function polishSafetyMoment(root) {
+    const editor = root.querySelector('#vh26-safety-editor');
+    const rename = (name, title, placeholder) => {
+      const field = editor?.querySelector(`[name="${name}"]`);
+      const label = field?.closest('label');
+      if (label?.firstChild?.nodeType === Node.TEXT_NODE) label.firstChild.textContent = title;
+      if (field && placeholder) field.placeholder = placeholder;
+    };
+    rename('points', 'Practical reminders', 'One reminder per line');
+    rename('questions', 'Discussion questions', 'Use only questions that add a different point');
+
+    const source = typeof presenterSafetyDraft === 'object' && presenterSafetyDraft ? presenterSafetyDraft : null;
+    const content = root.querySelector('.vh26-presenter-safety-content');
+    if (content && source && content.dataset.vh50Content !== 'true') {
+      const heading = presenterSafeText('h2', source.topic || 'Safety Moment');
+      const section = (title, text, list = false) => {
+        if (!text || (Array.isArray(text) && !text.length)) return;
+        const h = presenterSafeText('h3', title);
+        content.append(h);
+        if (list) {
+          const ul = document.createElement('ul');
+          for (const value of text) ul.append(presenterSafeText('li', value));
+          content.append(ul);
+        } else content.append(presenterSafeText('p', text));
+      };
+      const reminders = (source.points || []).map(value => String(value || '').trim()).filter(Boolean);
+      const questions = (source.questions || []).map(value => String(value || '').trim()).filter(Boolean)
+        .filter(question => !safetyQuestionIsDuplicate(question, reminders));
+      content.replaceChildren(heading);
+      section('Why it matters', source.why);
+      section('Illustrative scenario', source.scenario);
+      section('Practical reminders', reminders, true);
+      section(questions.length === 1 ? 'Discussion question' : 'Discussion questions', questions, true);
+      section('Takeaway / agreed action', source.takeaway);
+      content.dataset.vh50Content = 'true';
+    }
+  }
+
+  function enhancePresenterSlide() {
+    const mode = document.getElementById('vh26-presenter-mode');
+    const slide = document.getElementById('vh26-presenter-slide');
+    if (!mode || mode.hidden || !slide) return;
+
+    const title = [...slide.children].find(child => child.tagName === 'H1');
+    let heading = slide.querySelector(':scope > .vh26-presenter-heading');
+    if (title && !heading) {
+      heading = document.createElement('header');
+      heading.className = 'vh26-presenter-heading';
+      title.before(heading);
+      heading.append(title);
+      const following = heading.nextElementSibling;
+      if (following?.tagName === 'P' && !following.classList.contains('vh26-presenter-notice')) heading.append(following);
+    }
+
+    if (heading && typeof presenterModeView !== 'undefined' && presenterModeView === 'department') {
+      const department = presenterDepartments?.[presenterDepartmentIndex];
+      const week = hostWeek?.();
+      let meta = heading.querySelector('.vh26-presenter-heading-meta');
+      if (!meta) {
+        meta = document.createElement('p');
+        meta.className = 'vh26-presenter-heading-meta';
+        heading.append(meta);
+      }
+      meta.textContent = `DEPARTMENT ${presenterDepartmentIndex + 1} OF ${presenterDepartments.length} · ${week ? hostWeekLabel(week) : 'Reporting week not available'}`;
+
+      const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
+      const reported = cards.filter(card => !card.querySelector('p.empty')).length;
+      const opportunities = (hostData?.pipeline || []).filter(item => item.department_id === department?.id && item.status !== 'removed');
+      const actions = (typeof presenterActions !== 'undefined' ? presenterActions : [])
+        .filter(action => action.department_id === department?.id && !['completed', 'cancelled', 'closed'].includes(String(action.status || '').toLowerCase()));
+      let metrics = slide.querySelector(':scope > .vh26-presenter-kpis');
+      if (!metrics) {
+        metrics = document.createElement('div');
+        metrics.className = 'vh26-presenter-kpis';
+        heading.after(metrics);
+      }
+      const values = [
+        ['Reporting sections', `${reported} / 5`],
+        ['Pipeline opportunities', String(opportunities.length)],
+        ['Open actions', String(actions.length)],
+        ['Report status', reportStatusLabel(department?.id, week?.id)]
+      ];
+      const metricSignature = JSON.stringify(values);
+      if (metrics.dataset.signature !== metricSignature) {
+        metrics.replaceChildren(...values.map(([label, value]) => {
+          const card = document.createElement('div');
+          card.className = 'vh26-presenter-stat';
+          card.append(presenterSafeText('span', label), presenterSafeText('strong', value));
+          return card;
+        }));
+        metrics.dataset.signature = metricSignature;
+      }
+
+      let actionCard = slide.querySelector(':scope > .vh26-presenter-actions-card');
+      if (!actionCard) {
+        actionCard = document.createElement('section');
+        actionCard.className = 'vh26-presenter-card vh26-presenter-actions-card';
+        slide.append(actionCard);
+      }
+      const actionSignature = JSON.stringify(actions.slice(0, 5).map(action => [action.description, action.owner_text, action.required_by, action.status]));
+      if (actionCard.dataset.signature !== actionSignature) {
+        actionCard.replaceChildren(presenterSafeText('h2', `Outstanding actions (${actions.length})`));
+        if (actions.length) {
+          for (const action of actions.slice(0, 5)) {
+            const row = document.createElement('p');
+            row.append(presenterSafeText('strong', action.description || 'Action description pending'));
+            row.append(document.createElement('br'));
+            row.append(presenterSafeText('span', [action.owner_text || 'Owner not assigned', action.required_by || 'No due date', action.status || 'Open'].join(' · ')));
+            actionCard.append(row);
+          }
+        } else actionCard.append(presenterSafeText('p', 'No open actions'));
+        actionCard.dataset.signature = actionSignature;
+      }
+    }
+
+    if (typeof presenterModeView !== 'undefined' && presenterModeView === 'finance') {
+      let panel = slide.querySelector(':scope > .vh26-presenter-finance-panel');
+      if (!panel) {
+        panel = document.createElement('section');
+        panel.className = 'vh26-presenter-card vh26-presenter-finance-panel';
+        slide.append(panel);
+      }
+      for (const child of [...slide.children]) if (child !== heading && child !== panel) panel.append(child);
+    } else if (typeof presenterModeView !== 'undefined' && presenterModeView === 'safety') {
+      const content = slide.querySelector(':scope > .vh26-presenter-safety-content');
+      let panel = slide.querySelector(':scope > .vh26-presenter-safety-panel');
+      if (!panel) {
+        panel = document.createElement('section');
+        panel.className = 'vh26-presenter-safety-panel';
+        slide.append(panel);
+      }
+      for (const child of [...slide.children]) if (child !== heading && child !== content && child !== panel) panel.append(child);
+      polishSafetyMoment(slide);
+    }
+  }
+
+  function reportStatusLabel(departmentId, weekId) {
+    const report = (hostData?.reports || []).find(item => item.department_id === departmentId && item.reporting_week_id === weekId);
+    if (report?.status === 'submitted') return 'Submitted';
+    return report ? 'Draft' : 'Not started';
+  }
+
+  function installPresenterRestoration() {
+    if (!document.getElementById('vh26-presenter-restoration-style')) {
+      const style = document.createElement('style');
+      style.id = 'vh26-presenter-restoration-style';
+      style.textContent = `
+        #vh26-connected-dashboard #vh26-presenter-mode:not([hidden]){background:#f5f6f8!important;color:#173448!important}
+        #vh26-presenter-mode>header{min-height:94px!important;background:linear-gradient(120deg,#00354e,#075675)!important;border-bottom:3px solid #ff6b00!important;box-shadow:0 5px 20px #00354e14!important}
+        #vh26-presenter-mode .vh26-presenter-brand img{width:112px!important;height:50px!important;object-fit:contain!important}
+        #vh26-presenter-mode .vh26-presenter-brand h2{font-size:23px!important;letter-spacing:-.02em!important}
+        #vh26-presenter-mode .vh26-presenter-brand p{font-size:13px!important;opacity:.9!important}
+        #vh26-presenter-mode .vh26-presenter-tabs{max-width:1250px!important;margin:14px auto 4px!important;padding:8px 22px!important;gap:8px!important;justify-content:flex-start!important}
+        #vh26-presenter-mode .vh26-presenter-tabs button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:999px!important;background:#fff!important;color:#365b70!important;font-size:14px!important;font-weight:600!important;box-shadow:none!important}
+        #vh26-presenter-mode .vh26-presenter-tabs button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
+        #vh26-presenter-mode .vh26-presenter-pager{background:#f5f6f8!important;border-top:1px solid #dce5eb!important;box-shadow:0 -5px 16px #1230440d!important}
+        #vh26-presenter-mode .vh26-presenter-pager button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:10px!important;background:#fff!important;color:#004d71!important;font-size:14px!important}
+        #vh26-presenter-mode #vh26-presenter-slide{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:15px!important;width:calc(100% - 44px)!important;max-width:1250px!important;margin:4px auto 0!important;padding:12px 0 calc(108px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;background:transparent!important}
+        #vh26-presenter-mode #vh26-presenter-slide>h1,#vh26-presenter-mode .vh26-presenter-heading{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 28px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 8px 30px #12304408!important}
+        #vh26-presenter-mode .vh26-presenter-heading h1{margin:0!important;color:#003e5b!important;font-size:clamp(27px,2.8vw,38px)!important;font-weight:650!important;letter-spacing:-.035em!important;line-height:1.2!important}
+        #vh26-presenter-mode .vh26-presenter-heading p{margin:8px 0 0!important;color:#597182!important;font-size:14px!important;line-height:1.5!important}
+        #vh26-presenter-mode .vh26-presenter-heading-meta{margin:0 0 8px!important;color:#587080!important;font-size:11px!important;font-weight:700!important;letter-spacing:.09em!important}
+        #vh26-presenter-mode .vh26-presenter-kpis{display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:14px!important;width:100%!important;margin:0!important}
+        #vh26-presenter-mode .vh26-presenter-stat{display:flex!important;min-width:0!important;flex-direction:column!important;justify-content:space-between!important;gap:10px!important;min-height:86px!important;padding:16px 18px!important;border:1px solid #dce5eb!important;border-radius:16px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
+        #vh26-presenter-mode .vh26-presenter-stat span{color:#597182!important;font-size:13px!important;font-weight:600!important}
+        #vh26-presenter-mode .vh26-presenter-stat strong{color:#004d71!important;font-size:clamp(18px,2vw,25px)!important;font-weight:700!important;letter-spacing:-.025em!important}
+        #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-panel{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 26px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
+        #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card h2,#vh26-presenter-mode .vh26-presenter-safety-content h2{margin:0 0 12px!important;padding:0 0 10px!important;border-bottom:1px solid #e9eef2!important;color:#004d71!important;font-size:19px!important;font-weight:650!important;letter-spacing:-.015em!important}
+        #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card p,#vh26-presenter-mode .vh26-presenter-safety-panel p,#vh26-presenter-mode .vh26-presenter-safety-content p{margin:9px 0!important;color:#29485b!important;font-size:16px!important;line-height:1.65!important;white-space:pre-wrap!important;overflow-wrap:anywhere!important}
+        #vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card p.empty{color:#687c88!important;font-style:italic!important}
+        #vh26-presenter-mode .vh26-presenter-actions-card span{color:#597182!important;font-size:14px!important}
+        #vh26-presenter-mode .vh26-presenter-finance-panel{overflow-x:auto!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table{width:100%!important;min-width:720px!important;border-collapse:collapse!important;background:#fff!important;font-size:14px!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table th{padding:13px 12px!important;border-bottom:1px solid #dce5eb!important;background:#f5f8fa!important;color:#31566d!important;text-align:left!important;font-weight:700!important}
+        #vh26-presenter-mode .vh26-presenter-finance-table td{padding:13px 12px!important;border-bottom:1px solid #e6edf1!important;color:#29485b!important}
+        #vh26-presenter-mode .vh26-presenter-safety-panel{display:flex!important;flex-direction:column!important;gap:14px!important;width:100%!important;padding:20px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
+        #vh26-presenter-mode .vh26-presenter-safety-controls{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:10px!important;margin:0!important;padding:0!important}
+        #vh26-presenter-mode .vh26-presenter-safety-controls select,#vh26-presenter-mode .vh26-presenter-safety-controls button{min-height:44px!important;border-radius:10px!important;font-weight:600!important}
+        #vh26-presenter-mode .vh26-presenter-safety-content{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 26px!important;border:1px solid #dce5eb!important;border-left:4px solid #ff6b00!important;border-radius:16px!important;background:#fff!important;box-shadow:0 5px 22px #12304408!important}
+        #vh26-presenter-mode .vh26-presenter-safety-content h3{margin:18px 0 7px!important;color:#173448!important;font-size:16px!important;font-weight:700!important}
+        #vh26-presenter-mode .vh26-presenter-safety-content ul{margin:0!important;padding-left:22px!important;color:#29485b!important;font-size:16px!important;line-height:1.7!important}
+        #vh26-presenter-mode .vh26-presenter-safety-content li{padding:2px 0!important}
+        #vh26-presenter-mode .vh26-presenter-overview-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important;width:100%!important}
+        #vh26-presenter-mode .vh26-presenter-department-card{display:flex!important;min-height:112px!important;flex-direction:column!important;align-items:flex-start!important;justify-content:space-between!important;gap:14px!important;padding:20px!important;border:1px solid #dce5eb!important;border-radius:16px!important;background:#fff!important;color:#173448!important;text-align:left!important;box-shadow:0 5px 20px #12304408!important}
+        #vh26-presenter-mode .vh26-presenter-department-card strong{font-size:17px!important}
+        #vh26-presenter-mode .vh26-presenter-department-card span{color:#597182!important;font-size:13px!important}
+        @media(max-width:850px){#vh26-presenter-mode .vh26-presenter-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+        @media(max-width:560px){#vh26-presenter-mode #vh26-presenter-slide{width:calc(100% - 28px)!important;padding:10px 0 calc(105px + env(safe-area-inset-bottom))!important}#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-heading,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-content,#vh26-presenter-mode .vh26-presenter-safety-panel{padding:17px!important}#vh26-presenter-mode .vh26-presenter-tabs{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important}#vh26-presenter-mode .vh26-presenter-tabs button{flex:0 0 auto!important}#vh26-presenter-mode .vh26-presenter-kpis,#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:1fr!important}}
+      `;
+      document.head.append(style);
+    }
+
+    const wrap = (name, after) => {
+      const original = window[name];
+      if (typeof original !== 'function' || original.__vh50Restored) return;
+      const restored = function (...args) {
+        const result = original.apply(this, args);
+        after(args[0]);
+        queueMicrotask(() => after(args[0]));
+        return result;
+      };
+      restored.__vh50Restored = true;
+      window[name] = restored;
+    };
+    wrap('presenterRenderSafety', polishSafetyMoment);
+    wrap('renderPresenterSlide', enhancePresenterSlide);
+    const refreshActions = window.presenterRefresh;
+    if (typeof refreshActions === 'function' && !refreshActions.__vh50Restored) {
+      const restoredRefresh = async function (...args) {
+        const result = await refreshActions.apply(this, args);
+        queueMicrotask(enhancePresenterSlide);
+        return result;
+      };
+      restoredRefresh.__vh50Restored = true;
+      window.presenterRefresh = restoredRefresh;
+    }
+    const slide = document.getElementById('vh26-presenter-slide');
+    if (slide && !slide.dataset.vh50Observer) {
+      slide.dataset.vh50Observer = 'true';
+      new MutationObserver(() => queueMicrotask(enhancePresenterSlide)).observe(slide, { childList: true, subtree: true });
+    }
+    enhancePresenterSlide();
+  }
+
   function install() {
     installDepartmentChooserStyle();
+    installPresenterRestoration();
     const root = workspace();
     if (!root || root.dataset.autosaveReady) return;
     root.dataset.autosaveReady = 'true';
