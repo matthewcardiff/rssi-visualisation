@@ -57,6 +57,16 @@ test('report heading aligns with the week selector and keeps the orange section 
   assert.match(autosave, /vh26-workspace-active #vh26-stage-progress-fill\{display:block!important;height:100%;background:#ff6b00/);
 });
 
+test('pipeline fields use a single Build 050 row with coordinated buttons below', () => {
+  assert.match(autosave, /id = 'vh26-pipeline-layout'/);
+  assert.match(autosave, /grid-template-columns:1\\.2fr 1\\.2fr \\.85fr 1fr 1fr/);
+  assert.match(autosave, /\\.vh26-pipeline-actions\\{display:grid!important;grid-template-columns:repeat\\(2,minmax\\(0,1fr)\\)/);
+  assert.match(autosave, /background:#fafbfc!important;color:#163247!important;font:400 15px/);
+  assert.match(autosave, /background:#004d71!important;color:#fff!important/);
+  assert.match(autosave, /background:#ff6b00!important;color:#173448!important;font:600 14px/);
+  assert.match(autosave, /@media\\(max-width:560px\\)/);
+});
+
 test('finance history list is hidden in preview because it offers no review action', () => {
   assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\\}/);
   assert.match(html, /async function financeReviewRefresh\(\)/);
