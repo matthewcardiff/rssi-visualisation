@@ -382,10 +382,12 @@ test('Presenter Mode uses the embedded Build 050 logo and renders authorised dep
   assert.match(html,/presenterDepartments\.forEach\(\(d,i\)=>add/);
   assert.match(html,/No authorised departments were returned for this account/);
 });
-test('Presenter Mode opens directly on Safety Moment while readiness loads, and clears stale department tabs',()=>{
+test('Presenter Mode opens on Finance & Commercial while readiness loads, and clears stale department tabs',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.ok(html.includes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
-  assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
+  assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='finance';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
+  assert.match(html,/add\('Finance & Commercial','finance'\);presenterDepartments\.forEach/);
+  assert.match(html,/const financeDepartments=presenterDepartments/);
   assert.match(html,/presenterDepartments=resolved/);
   assert.match(html,/function presenterDepartmentLabel\(department\)/);
   for(const [source,label] of [['Civils & Construction','Civils'],['Signalling','S&T'],['Track Warning Systems','TWS'],['Midland Metro','MMA']])assert.ok(html.includes(`['${source}','${label}']`));
