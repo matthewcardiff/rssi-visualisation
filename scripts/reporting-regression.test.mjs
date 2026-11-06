@@ -182,7 +182,8 @@ test('finance register exposes only per-import reconciled and publish actions wh
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/item\.can_reconcile&&data\.reconciliation_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
   assert.match(html,/item\.can_publish&&data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
-  assert.match(html,/Reconciliation stays disabled until the workbook warning and formula checks are stored with this import/);
+  assert.match(html,/Ready for finance review\. Confirm the staged values against the approved workbook before reconciling\./);
+  assert.match(html,/Finance review and publication/);
   assert.match(html,/Enter the review rationale \(at least 8 characters\)/);
   assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
 });

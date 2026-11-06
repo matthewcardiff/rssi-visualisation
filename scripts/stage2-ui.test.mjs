@@ -98,10 +98,14 @@ test('spellchecking covers dynamically added UK English text fields only', () =>
   assert.match(autosave, /applyReportingSpellcheck\(root\)/);
 });
 
-test('finance history list is hidden in preview because it offers no review action', () => {
-  assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\}/);
+test('finance review panel is visible in the staging finance view and explains reconciliation and publication', () => {
+  assert.doesNotMatch(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\}/);
+  assert.match(html, /Finance review and publication/);
+  assert.match(html, /Ready for finance review\. Confirm the staged values against the approved workbook before reconciling\./);
   assert.match(html, /async function financeReviewRefresh\(\)/);
   assert.match(html, /dataApi\('finance_review'\)/);
+  assert.match(html, /data\.reconciliation_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
+  assert.match(html, /data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
 });
 
 test('finance upload reads separate budget and lagged revenue calendars and submits validated fields', () => {
