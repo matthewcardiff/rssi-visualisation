@@ -398,9 +398,23 @@
     rename('points', 'Practical reminders', 'One reminder per line');
     rename('questions', 'Discussion questions', 'Use only questions that add a different point');
 
-    const source = typeof presenterSafetyDraft === 'object' && presenterSafetyDraft ? presenterSafetyDraft : null;
     const content = root.querySelector('.vh26-presenter-safety-content');
-    if (content && source && content.dataset.vh50Content !== 'true') {
+    if (content && content.dataset.vh50Content !== 'true') {
+      const values = {};
+      let currentLabel = '';
+      for (const child of [...content.children]) {
+        if (child.tagName === 'H3') currentLabel = child.textContent.trim();
+        else if (child.tagName === 'P' && currentLabel) values[currentLabel] = child.textContent;
+      }
+      const listValue = label => String(values[label] || '').split('\n').map(value => value.trim()).filter(Boolean);
+      const source = {
+        topic: content.querySelector('h2')?.textContent || 'Safety Moment',
+        why: values['Why it matters'] || '',
+        scenario: values['Illustrative scenario'] || '',
+        points: listValue('Discussion points').length ? listValue('Discussion points') : listValue('Practical reminders'),
+        questions: listValue('Discussion questions'),
+        takeaway: values['Takeaway / action'] || ''
+      };
       const heading = presenterSafeText('h2', source.topic || 'Safety Moment');
       const section = (title, text, list = false) => {
         if (!text || (Array.isArray(text) && !text.length)) return;
@@ -430,6 +444,9 @@
     const slide = document.getElementById('vh26-presenter-slide');
     if (!mode || mode.hidden || !slide) return;
 
+    const tabs = mode.querySelector('#vh26-presenter-tabs');
+    const activeTab = tabs?.querySelector('button.selected')?.textContent.trim() || '';
+    const viewKind = activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : activeTab === 'All departments' ? 'all' : 'department';
     const title = [...slide.children].find(child => child.tagName === 'H1');
     let heading = slide.querySelector(':scope > .vh26-presenter-heading');
     if (title && !heading) {
@@ -441,22 +458,24 @@
       if (following?.tagName === 'P' && !following.classList.contains('vh26-presenter-notice')) heading.append(following);
     }
 
-    if (heading && typeof presenterModeView !== 'undefined' && presenterModeView === 'department') {
-      const department = presenterDepartments?.[presenterDepartmentIndex];
-      const week = hostWeek?.();
+    if (heading && viewKind === 'department') {
+      const departmentTabs = [...(tabs?.querySelectorAll('button') || [])].slice(2);
+      const departmentIndex = departmentTabs.findIndex(button => button.classList.contains('selected'));
+      const departmentName = activeTab || title?.textContent || 'Department';
+      const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       let meta = heading.querySelector('.vh26-presenter-heading-meta');
       if (!meta) {
         meta = document.createElement('p');
         meta.className = 'vh26-presenter-heading-meta';
         heading.append(meta);
       }
-      meta.textContent = `DEPARTMENT ${presenterDepartmentIndex + 1} OF ${presenterDepartments.length} · ${week ? hostWeekLabel(week) : 'Reporting week not available'}`;
+      meta.textContent = `DEPARTMENT ${Math.max(0, departmentIndex) + 1} OF ${departmentTabs.length} · ${week}`;
 
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
       const reported = cards.filter(card => !card.querySelector('p.empty')).length;
-      const opportunities = (hostData?.pipeline || []).filter(item => item.department_id === department?.id && item.status !== 'removed');
-      const actions = (typeof presenterActions !== 'undefined' ? presenterActions : [])
-        .filter(action => action.department_id === department?.id && !['completed', 'cancelled', 'closed'].includes(String(action.status || '').toLowerCase()));
+      const pipelineCard = cards.find(card => card.querySelector('h2')?.textContent.trim() === 'Pipeline');
+      const pipelineUpdates = [...(pipelineCard?.querySelectorAll('p') || [])].filter(p => !p.classList.contains('empty')).length;
+      const actionCount = document.getElementById('vh26-host-open-actions')?.textContent.trim();
       let metrics = slide.querySelector(':scope > .vh26-presenter-kpis');
       if (!metrics) {
         metrics = document.createElement('div');
@@ -465,9 +484,9 @@
       }
       const values = [
         ['Reporting sections', `${reported} / 5`],
-        ['Pipeline opportunities', String(opportunities.length)],
-        ['Open actions', String(actions.length)],
-        ['Report status', reportStatusLabel(department?.id, week?.id)]
+        ['Pipeline updates', String(pipelineUpdates)],
+        ['Open actions', actionCount && /^\d+$/.test(actionCount) ? actionCount : 'See Action log'],
+        ['Department', departmentName]
       ];
       const metricSignature = JSON.stringify(values);
       if (metrics.dataset.signature !== metricSignature) {
@@ -486,23 +505,15 @@
         actionCard.className = 'vh26-presenter-card vh26-presenter-actions-card';
         slide.append(actionCard);
       }
-      const actionSignature = JSON.stringify(actions.slice(0, 5).map(action => [action.description, action.owner_text, action.required_by, action.status]));
+      const actionSignature = JSON.stringify([departmentName, actionCount || 'unavailable']);
       if (actionCard.dataset.signature !== actionSignature) {
-        actionCard.replaceChildren(presenterSafeText('h2', `Outstanding actions (${actions.length})`));
-        if (actions.length) {
-          for (const action of actions.slice(0, 5)) {
-            const row = document.createElement('p');
-            row.append(presenterSafeText('strong', action.description || 'Action description pending'));
-            row.append(document.createElement('br'));
-            row.append(presenterSafeText('span', [action.owner_text || 'Owner not assigned', action.required_by || 'No due date', action.status || 'Open'].join(' · ')));
-            actionCard.append(row);
-          }
-        } else actionCard.append(presenterSafeText('p', 'No open actions'));
+        actionCard.replaceChildren(presenterSafeText('h2', 'Outstanding actions'));
+        actionCard.append(presenterSafeText('p', actionCount === '0' ? 'No open actions.' : 'Review current actions in the Action log.'));
         actionCard.dataset.signature = actionSignature;
       }
     }
 
-    if (typeof presenterModeView !== 'undefined' && presenterModeView === 'finance') {
+    if (viewKind === 'finance') {
       let panel = slide.querySelector(':scope > .vh26-presenter-finance-panel');
       if (!panel) {
         panel = document.createElement('section');
@@ -510,7 +521,7 @@
         slide.append(panel);
       }
       for (const child of [...slide.children]) if (child !== heading && child !== panel) panel.append(child);
-    } else if (typeof presenterModeView !== 'undefined' && presenterModeView === 'safety') {
+    } else if (viewKind === 'safety') {
       const content = slide.querySelector(':scope > .vh26-presenter-safety-content');
       let panel = slide.querySelector(':scope > .vh26-presenter-safety-panel');
       if (!panel) {
@@ -521,12 +532,6 @@
       for (const child of [...slide.children]) if (child !== heading && child !== content && child !== panel) panel.append(child);
       polishSafetyMoment(slide);
     }
-  }
-
-  function reportStatusLabel(departmentId, weekId) {
-    const report = (hostData?.reports || []).find(item => item.department_id === departmentId && item.reporting_week_id === weekId);
-    if (report?.status === 'submitted') return 'Submitted';
-    return report ? 'Draft' : 'Not started';
   }
 
   function installPresenterRestoration() {
