@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
+const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 
 function installFinanceCheckCorrection(result) {
   const window = { vhFinanceExtract: async () => structuredClone(result) };
@@ -96,4 +97,13 @@ test('finance checks and import history are readable without an inner results sc
   assert.match(autosave, /Staged finance imports/);
   assert.match(autosave, /Only approved figures appear in reports/);
   assert.match(autosave, /They are not approved and are not shown in reports/);
+});
+
+test('finance import action is described as applying validated figures', () => {
+  assert.match(financeUi, /3 · Apply figures/);
+  assert.match(financeUi, /Apply validated figures/);
+  assert.match(financeUi, /before applying/);
+  assert.match(financeUi, /Apply only the validated department figures/);
+  assert.match(financeUi, /Applying saves the figures for finance review/);
+  assert.doesNotMatch(financeUi, /Stage validated figures|3 · Stage figures/);
 });
