@@ -43,6 +43,7 @@ test('report entry textarea sits below evenly sized single-line fields at deskto
 });
 
 test('sidebar navigation waits for the current autosave and retries the selected route', () => {
+  assert.match(autosave, /let reportingDirty = false;\s*let reportingBusy = false;/);
   assert.match(autosave, /async function flushSectionSave\(\)/);
   assert.match(autosave, /window\.vhFlushReportingSave = flushSectionSave/);
   assert.match(autosave, /\.vh26-sidebar nav button\[data-connected-nav\], #vh26-section-tabs button, \.vh26-report-step-controls button/);
