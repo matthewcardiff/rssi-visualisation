@@ -40,10 +40,16 @@
   reportingFormStyle.id = 'vh26-report-form-consistency';
   reportingFormStyle.textContent = `
     #vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{box-sizing:border-box!important;width:100%!important;max-width:1100px!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-native-report{box-sizing:border-box!important;width:100%!important;max-width:926px!important;margin-left:auto!important;margin-right:auto!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-native-report{box-sizing:border-box!important;width:100%!important;max-width:976px!important;margin-left:auto!important;margin-right:auto!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:26px 30px!important;border:1px solid #dce5e9!important;border-radius:14px!important;background:#fff!important;box-shadow:0 6px 20px #16364c0a!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries{display:grid!important;gap:12px!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;align-items:end!important;gap:12px!important;width:100%!important;margin:0!important;padding:16px!important;border:1px solid #d5e1e8!important;border-radius:12px!important;background:#fff!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-areas:"title owner support" "required remove ." "update update update"!important;align-items:end!important;gap:12px!important;width:100%!important;margin:0!important;padding:16px!important;border:1px solid #d5e1e8!important;border-radius:12px!important;background:#fff!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>label:has(input[data-prop="title"]){grid-area:title!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>label:has(input[data-prop="owner"]){grid-area:owner!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>label:has(input[data-prop="support"]){grid-area:support!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>label:has(input[data-prop="required_by"]){grid-area:required!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>label:has(textarea[data-prop="update"]){grid-area:update!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>button{grid-area:remove!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries label,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields label{display:grid!important;grid-template-rows:auto 1fr!important;gap:7px!important;min-width:0!important;margin:0!important;color:#263d50!important;font:500 13px/1.35 Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries input,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields input,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:46px!important;padding:12px 14px!important;border:1px solid #cdd7df!important;border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea{min-height:100px!important;line-height:1.5!important;resize:vertical!important}
@@ -53,8 +59,8 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields[hidden]{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-ai-review{min-height:42px!important;padding:10px 16px!important;border-radius:12px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
-    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
-    @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:18px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:1fr!important}}
+    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title owner" "support required" "update update" "remove remove"!important}}
+    @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:18px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:1fr!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title" "owner" "support" "required" "update" "remove"!important}}
   `;
   document.head.append(reportingFormStyle);
 
@@ -65,6 +71,7 @@
     #vh26-connected-dashboard.vh26-action-view-active.vh26-workspace-active #vh26-account{display:none!important}
     #vh26-connected-dashboard.vh26-action-view-active.vh26-workspace-active #vh26-actions-summary:empty{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{gap:16px!important;margin-top:20px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry{margin-top:18px!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button{border-color:#cbd6de!important;background:#fff!important;color:#173448!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:first-child{border-color:#cbd6de!important;background:#fff!important;color:#173448!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:hover:not(:disabled){border-color:#004d71!important;background:#f5f9fb!important;filter:none!important}
@@ -191,6 +198,8 @@
   let sectionTimer = 0;
   let sectionSaving = false;
   let sectionSaveQueued = false;
+  let navigationSavePending = false;
+  let requestedNavigation = null;
   const opportunityTimers = new WeakMap();
 
   const workspace = () => document.getElementById('vh26-report-workspace');
@@ -270,6 +279,18 @@
       }
     }
   }
+
+  async function flushSectionSave() {
+    clearTimeout(sectionTimer);
+    while (sectionSaving || reportingBusy) await new Promise(resolve => setTimeout(resolve, 30));
+    if (reportingDirty) {
+      clearTimeout(sectionTimer);
+      await saveSection();
+      while (sectionSaving || reportingBusy) await new Promise(resolve => setTimeout(resolve, 30));
+    }
+    return !reportingDirty;
+  }
+  window.vhFlushReportingSave = flushSectionSave;
 
   function scheduleSectionSave() {
     if (!context().editable) return;
@@ -357,6 +378,28 @@
     const root = workspace();
     if (!root || root.dataset.autosaveReady) return;
     root.dataset.autosaveReady = 'true';
+    const dashboard = document.getElementById('vh26-connected-dashboard');
+    dashboard?.addEventListener('click', event => {
+      const target = event.target instanceof Element ? event.target.closest('.vh26-sidebar nav button[data-connected-nav]') : null;
+      if (!target || !reportingDirty) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      requestedNavigation = target;
+      if (navigationSavePending) return;
+      navigationSavePending = true;
+      status('Saving changes before switching sections…');
+      void flushSectionSave().then(saved => {
+        const next = requestedNavigation;
+        requestedNavigation = null;
+        if (saved && next?.isConnected) next.click();
+        else status('Changes could not be saved. Stay on this section and retry after resolving the save issue.');
+      }).catch(error => {
+        status('Changes could not be saved: ' + error.message);
+      }).finally(() => {
+        navigationSavePending = false;
+      });
+    }, true);
     root.addEventListener('input', event => {
       const el = event.target;
       if (!(el instanceof HTMLElement)) return;
