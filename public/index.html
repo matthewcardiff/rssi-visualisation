@@ -799,98 +799,78 @@ async function vhFinanceExtract(file,selectedWeek){
  const strings=[];
  try{const sh=vhFinParse(await load('xl/sharedStrings.xml'));for(const si of sh.getElementsByTagName('si'))strings.push(Array.from(si.getElementsByTagName('t')).map(x=>x.textContent).join(''))}catch{}
  async function sheet(name){
- const node=sheetNodes.find(x=>x.getAttribute('name')===name);if(!node)throw Error('Missing '+name+' worksheet');
- const rid=node.getAttribute('r:id')||node.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
- let target=links.get(rid);if(!target)throw Error('Missing '+name+' worksheet relationship');
- target=target.replace(/^\/+/,'');if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');
- const doc=vhFinParse(await load(target)),map=new Map();
- for(const c of doc.getElementsByTagName('c')){
- const v=c.getElementsByTagName('v')[0],f=c.getElementsByTagName('f')[0],inline=c.getElementsByTagName('is')[0],type=c.getAttribute('t');
- let value=v&&v.textContent.trim()!==''?v.textContent:null;
- if(type==='s'&&value!==null)value=strings[Number(value)];
- else if(type==='inlineStr'&&inline)value=Array.from(inline.getElementsByTagName('t')).map(x=>x.textContent).join('');
- else if(value!==null&&type!=='str'&&type!=='e'&&type!=='b')value=Number(value);
- map.set(c.getAttribute('r'),{value,formula:f?f.textContent:null,type});
+  const node=sheetNodes.find(x=>String(x.getAttribute('name')||'').toLocaleLowerCase('en-GB')===String(name||'').toLocaleLowerCase('en-GB'));if(!node)throw Error('Missing '+name+' worksheet');
+  const rid=node.getAttribute('r:id')||node.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
+  let target=links.get(rid);if(!target)throw Error('Missing '+name+' worksheet relationship');
+  target=target.replace(/^\/+/, '');if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');
+  const doc=vhFinParse(await load(target)),map=new Map();
+  for(const c of doc.getElementsByTagName('c')){
+   const v=c.getElementsByTagName('v')[0],f=c.getElementsByTagName('f')[0],inline=c.getElementsByTagName('is')[0],type=c.getAttribute('t');
+   let value=v&&v.textContent.trim()!==''?v.textContent:null;
+   if(type==='s'&&value!==null)value=strings[Number(value)];
+   else if(type==='inlineStr'&&inline)value=Array.from(inline.getElementsByTagName('t')).map(x=>x.textContent).join('');
+   else if(value!==null&&type!=='str'&&type!=='e'&&type!=='b')value=Number(value);
+   map.set(c.getAttribute('r'),{value,formula:f?f.textContent:null,type});
+  }
+  return {name:node.getAttribute('name'),map};
  }
- return map;
- }
- const revenue=await sheet('REVENUE'),budget=await sheet('BUDGET');
- const warnings=[],weeks=[];
- const sourceFormulaIssues=[];
- const financePeriod=vhFinancialSourcePeriod(selectedWeek);
+ const revenueSheet=await sheet('REVENUE'),budgetSheet=await sheet('BUDGET'),revenue=revenueSheet.map,budget=budgetSheet.map;
+ const warnings=[],sourceFormulaIssues=[],financePeriod=vhFinancialSourcePeriod(selectedWeek);
  if(!financePeriod)warnings.push('Invalid management reporting week; financial source cannot be selected.');
- if(financePeriod?.requiresPriorCycle)warnings.push('The two-week source period '+financePeriod.sourcePeriodId+' (NRW WK'+financePeriod.sourceWeek+') belongs to the previous rail cycle. The workbook has week-number-only headers, so this import is blocked until its source cycle is explicitly verified.');
- for(let col=1;col<=53;col++){
- const cell=vhFinCol(col)+'5',r=revenue.get(cell),b=budget.get(cell);
- if(r?.value===null&&b?.value===null)continue;
- if(r?.value!==b?.value)warnings.push('Week header mismatch at '+cell);
- if(Number.isInteger(Number(r?.value))&&Number(r?.value)>=1&&Number(r?.value)<=53)weeks.push({week:Number(r.value),col:vhFinCol(col)});
- }
- const weekCounts=new Map();for(const w of weeks)weekCounts.set(w.week,(weekCounts.get(w.week)||0)+1);
- for(const [week,count] of weekCounts)if(count>1)warnings.push('Duplicate reporting week '+week+' appears '+count+' times in workbook headers.');
- const weekMatch=String(selectedWeek).match(/(?:^|[-_])W(?:K)?0?([1-9]|[1-4][0-9]|5[0-3])$/i)||String(selectedWeek).match(/^WK?0?([1-9]|[1-4][0-9]|5[0-3])$/i);
- const selected=financePeriod?.sourceWeek??NaN;
- const matching=Number.isFinite(selected)&&!financePeriod?.requiresPriorCycle?weeks.find(x=>x.week===selected):null;
- if(!matching&&!financePeriod?.requiresPriorCycle)warnings.push('Financial source week for management '+selectedWeek+' (WK'+(Number.isNaN(selected)?'unavailable':selected)+') was not found in workbook headers.');
- // Montel is the ninth reporting department; map directly to source row 14.
- const weeklySheetName=Number.isNaN(selected)?null:'WK'+selected;
- let weekly=null;
- if(weeklySheetName){try{weekly=await sheet(weeklySheetName)}catch(e){/* Dashboard tab is optional; BUDGET/REVENUE source mapping remains authoritative. */}}
- const weeklyColumns={'Managed Environments':'F','Civils':'N','Rail Operations':'V','S&T':'AD','TWS':'AL','Welding':'AT','MMA':'BB','HS2':'BJ'};
- const records=[];
+ if(financePeriod?.requiresPriorCycle)warnings.push('The two-week source period NRW WK'+financePeriod.sourceWeek+' belongs to the previous rail cycle. This workbook identifies weeks by number only, so the source year needs review.');
  const normLabel=x=>String(x||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
- const aliases={'Managed Environments':['MANAGEDENVIRONMENTS','ARB','ARBORICULTURE'],'Civils':['CIVILS','CIVILSCONSTRUCTION'],'Rail Operations':['RAILOPERATIONS','RAILOPS','RAILOPSRESOURCE'],'S&T':['ST','SIGNALLING','SIGNALING'],'TWS':['TWS','TRACKWARNINGSYSTEMS'],'Welding':['WELDING'],'MMA':['MMA','MIDLANDMETRO'],'HS2':['HS2'],'Montel':['MONTEL']};
- const findRow=(map,name)=>{for(let row=6;row<=100;row++){const c=map.get('A'+row);if(c&&(aliases[name]||[normLabel(name)]).includes(normLabel(c.value)))return row}return null};
- if(matching)for(const [name] of vhFinDepartments){
- const budgetRow=findRow(budget,name),row=findRow(revenue,name);
- if(!row||!budgetRow||budgetRow!==row){records.push({name,ref:'',rv:null,bv:null,ytdRevenue:null,ytdBudget:null,issues:['Department not mapped in this workbook. Add a correctly labelled department row or choose the appropriate workbook.'],mappingStatus:'missing-department'});continue}
-
- const budgetWeek=weeks.find(x=>x.week===financePeriod.managementWeek);const ref=matching.col+row,rc=revenue.get(ref),bc=budgetWeek?budget.get(budgetWeek.col+row):null;
- const valid=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
- const revenueBlank=!rc||rc.value===null||rc.value===undefined||rc.value==='';const rv=revenueBlank?0:rc.value,bv=bc?.value;
- // Preserve the workbook's fiscal column order (WK27–WK52, then WK01–WK26).
- const matchingIndex=weeks.findIndex(x=>x.col===matching.col);
- const start=matchingIndex>=0?weeks.slice(0,matchingIndex+1):[];const budgetIndex=weeks.findIndex(x=>x.week===financePeriod.managementWeek);const budgetPeriods=budgetIndex>=0?weeks.slice(0,budgetIndex+1):[];
- const sums=kind=>{if(!(kind==='revenue'?start:budgetPeriods).length)return null;let total=0,hasValue=false;for(const x of (kind==='revenue'?start:budgetPeriods)){const cell=(kind==='revenue'?revenue:budget).get(x.col+row);if(kind==='revenue'&&(!cell||cell.value===null||cell.value===undefined||cell.value===''))continue;if(!cell||!valid(cell.value)||cell.type==='e'||cell.formula)return null;hasValue=true;total+=Number(cell.value)}return hasValue?total:null};
- const issues=[];
- if(!valid(rv)||rc?.type==='e')issues.push('Revenue missing or invalid');if(!valid(bv)||bc?.type==='e')issues.push('Budget missing or invalid');
- if(rc?.formula){issues.push('Revenue formula requires independent recalculation');sourceFormulaIssues.push('REVENUE!'+ref)}
- if(bc?.formula){issues.push('Budget formula requires independent recalculation');sourceFormulaIssues.push('BUDGET!'+ref)}
- const ytdRevenue=sums('revenue'),ytdBudget=sums('budget');
- if(ytdRevenue===null)issues.push('YTD revenue incomplete/unverified');
- if(ytdBudget===null)issues.push('YTD budget incomplete/unverified');
- if(valid(rv)&&Number(rv)<0)issues.push('Negative revenue requires manual review');
- if(valid(bv)&&Number(bv)<0)issues.push('Negative budget requires manual review');
- const weeklyCol=weeklyColumns[name],cachedBudget=weeklyCol?weekly?.get(weeklyCol+'11'):null,cachedRevenue=weeklyCol?weekly?.get(weeklyCol+'12'):null;
- const approx=(a,b)=>a!==null&&a!==undefined&&a!==''&&b!==null&&b!==undefined&&b!==''&&Number.isFinite(Number(a))&&Number.isFinite(Number(b))&&Math.abs(Number(a)-Number(b))<0.005;
- if(weekly&&!weeklyCol)warnings.push('Montel is absent from historical '+weeklySheetName+' department dashboard; verified against finance source rows only');
- if(weekly&&weeklyCol){
- if(!approx(bv,cachedBudget?.value))issues.push(weeklySheetName+'!'+weeklyCol+'11 budget does not match BUDGET!'+ref);
- if(valid(rv)&&!approx(rv,cachedRevenue?.value))issues.push(weeklySheetName+'!'+weeklyCol+'12 revenue does not match REVENUE!'+ref);
- if(!valid(rv)&&approx(cachedRevenue?.value,0))issues.push('Weekly sheet shows calculated £0 from blank revenue source — NOT a confirmed zero');
- const revenueFormula=cachedRevenue?.formula||'';
- if(!revenueFormula.includes('REVENUE!')||!revenueFormula.includes('B'+row+':'))issues.push('Weekly revenue formula source row must be checked: '+weeklyCol+'12');
+ function weekHeaders(map,expectedRow,tab){
+  let row=expectedRow;
+  const validHeader=r=>normLabel(map.get('A'+r)?.value)==='BUSINESSUNIT'&&Array.from({length:52},(_,i)=>map.get(vhFinCol(i+1)+r)?.value).some(v=>Number.isInteger(Number(v))&&Number(v)>=1&&Number(v)<=53);
+  if(!validHeader(row)){row=null;for(let r=1;r<=32;r++)if(validHeader(r)){row=r;break}}
+  if(!row)return {row:null,weeks:[]};
+  const weeks=[];for(let col=2;col<=53;col++){const v=map.get(vhFinCol(col)+row)?.value;if(Number.isInteger(Number(v))&&Number(v)>=1&&Number(v)<=53)weeks.push({week:Number(v),col:vhFinCol(col),index:col-2})}
+  const counts=new Map();for(const w of weeks)counts.set(w.week,(counts.get(w.week)||0)+1);
+  for(const [week,count] of counts)if(count>1)warnings.push('Week '+week+' appears '+count+' times in '+tab+'!'+vhFinCol(2)+row+':'+vhFinCol(53)+row+'.');
+  return {row,weeks};
  }
- records.push({name,ref,rv,bv,ytdRevenue,ytdBudget,revenueInputState:revenueBlank?'blank':'numeric',calculationNotes:revenueBlank?['No revenue entered; calculated total is £0, matching Excel summation.']:[],cachedBudget:cachedBudget?.value,cachedRevenue:cachedRevenue?.value,issues});
+ const budgetCalendar=weekHeaders(budget,5,'BUDGET'),revenueCalendar=weekHeaders(revenue,19,'REVENUE');
+ if(!budgetCalendar.weeks.length)warnings.push('Could not find weekly budget headings in BUDGET.');
+ if(!revenueCalendar.weeks.length)warnings.push('Could not find weekly revenue headings in REVENUE.');
+ const budgetWeek=budgetCalendar.weeks.find(x=>x.week===financePeriod?.managementWeek)||null;
+ const revenueWeek=revenueCalendar.weeks.find(x=>x.week===financePeriod?.sourceWeek)||null;
+ if(!budgetWeek)warnings.push('Budget week NRW WK'+(financePeriod?.managementWeek??'unavailable')+' was not found in BUDGET.');
+ if(!revenueWeek&&!financePeriod?.requiresPriorCycle)warnings.push('Revenue source week NRW WK'+(financePeriod?.sourceWeek??'unavailable')+' was not found in REVENUE.');
+ const aliases={'Managed Environments':['MANAGEDENVIRONMENTS','ARB','ARBORICULTURE'],'Civils':['CIVILS','CIVILSCONSTRUCTION'],'Rail Operations':['RAILOPERATIONS','RAILOPS','RAILOPSRESOURCE'],'S&T':['ST','SIGNALLING','SIGNALING'],'TWS':['TWS','TRACKWARNINGSYSTEMS'],'Welding':['WELDING'],'MMA':['MMA','MIDLANDMETRO'],'HS2':['HS2','HS2FENCING','BIRDDETERRENT','BIRDDETERENT'],'Montel':['MONTEL']};
+ const explicitRows={HS2:{budget:[13,15],revenue:[13,15]}};
+ function rowsFor(map,name){
+  const wanted=aliases[name]||[normLabel(name)];let found=null;
+  for(let row=6;row<=17;row++){const label=map.get('A'+row)?.value;if(wanted.includes(normLabel(label))){found=row;break}}
+  return found?[found]:[];
  }
- if(matching){
-   const sourceCol=matching.col;
-   const reportedTotal=revenue.get(sourceCol+'28')?.value;
-   const allRevenue=records.map(r=>r.ytdRevenue);
-   const correctedTotal=allRevenue.every(v=>v!==null&&v!==undefined&&Number.isFinite(Number(v)))?allRevenue.reduce((a,v)=>a+Number(v),0):null;
-   const totalFormula=revenue.get(sourceCol+'28')?.formula||'';
-   if(/SUM\([A-Z]+19:[A-Z]+26\)/i.test(totalFormula))warnings.push('REVENUE!'+sourceCol+'28 YTD total excludes Montel row 27. Nine-department YTD total: '+(correctedTotal===null?'Not reported (incomplete source data)':correctedTotal.toFixed(2))+'. Source workbook has not been edited.');
-   if(reportedTotal!==null&&correctedTotal!==null&&Math.abs(Number(reportedTotal)-correctedTotal)>0.005)warnings.push('Source YTD total differs from nine-department recalculation by '+(correctedTotal-Number(reportedTotal)).toFixed(2));
+ const isAmount=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+ function readCell(map,ref,tab){const c=map.get(ref);if(!c||c.value===null||c.value===undefined||c.value===''||c.type==='e'||!isAmount(c.value))return {value:null,missing:true};if(c.formula){sourceFormulaIssues.push(tab+'!'+ref);return {value:null,missing:true,formula:true}}return {value:Number(c.value),missing:false}}
+ function addRows(map,rows,col,tab){if(!rows.length||!col)return {value:null,missing:true};let total=0;for(const row of rows){const part=readCell(map,col+row,tab);if(part.missing)return part;total+=part.value}return {value:total,missing:false}}
+ function addPeriods(map,rows,periods,tab){if(!periods.length||!rows.length)return {value:null,missing:true};let total=0;for(const p of periods){const part=addRows(map,rows,p.col,tab);if(part.missing)return part;total+=part.value}return {value:total,missing:false}}
+ const budgetIndex=budgetCalendar.weeks.findIndex(x=>x.week===financePeriod?.managementWeek),revenueIndex=revenueCalendar.weeks.findIndex(x=>x.week===financePeriod?.sourceWeek);
+ const budgetYtdPeriods=budgetIndex>=0?budgetCalendar.weeks.slice(0,budgetIndex+1):[],revenueYtdPeriods=revenueIndex>=0?revenueCalendar.weeks.slice(0,revenueIndex+1):[];
+ const records=[];
+ for(const [name] of vhFinDepartments){
+  const bRows=explicitRows[name]?.budget||rowsFor(budget,name),rRows=explicitRows[name]?.revenue||rowsFor(revenue,name);
+  if(!bRows.length||!rRows.length){records.push({name,ref:'',rv:null,bv:null,ytdRevenue:null,ytdBudget:null,issues:['Department not mapped in this workbook.'],mappingStatus:'missing-department'});continue}
+  const bv=addRows(budget,bRows,budgetWeek?.col,'BUDGET'),rv=addRows(revenue,rRows,revenueWeek?.col,'REVENUE');
+  const ytdBudget=addPeriods(budget,bRows,budgetYtdPeriods,'BUDGET'),ytdRevenue=addPeriods(revenue,rRows,revenueYtdPeriods,'REVENUE');
+  const issues=[];
+  if(bv.missing)issues.push('Weekly budget missing or invalid');
+  if(rv.missing)issues.push('Weekly revenue missing or unverified');
+  if(ytdBudget.missing)issues.push('YTD budget incomplete/unverified');
+  if(ytdRevenue.missing)issues.push('YTD revenue incomplete/unverified');
+  const refs=[...bRows.map(r=>'BUDGET!'+budgetWeek?.col+r),...rRows.map(r=>'REVENUE!'+revenueWeek?.col+r)];
+  records.push({name,ref:refs.join(' + '),rv:rv.value,bv:bv.value,ytdRevenue:ytdRevenue.value,ytdBudget:ytdBudget.value,revenueInputState:rv.missing?'blank':'numeric',calculationNotes:rv.missing?['The source revenue cell is blank or unverified; it remains Not reported.']:[],sourceRows:{budget:bRows,revenue:rRows},issues});
  }
- for(const name of ['REVENUE','BUDGET']){
- const cells=name==='REVENUE'?revenue:budget;
- for(const [ref,c] of cells)if(c.type==='e'||(typeof c.value==='string'&&/^#(REF!|DIV\/0!|VALUE!|N\/A|NAME\?)/.test(c.value)))warnings.push(name+'!'+ref+' contains Excel error '+c.value);
- }
-  let companyOverview=null;
- try{const management=resolveRailWeek(selectedWeek),sheetName='WK'+Number(management.railWeek||management.week||management.nrwWeek);let dashboard;const candidate=sheetNodes.find(n=>n.getAttribute('name')===sheetName);if(candidate)dashboard=await sheet(sheetName);else{const m=String(weekLabel(selectedWeek)).match(/WK0?(\d+)/);if(m)dashboard=await sheet('WK'+Number(m[1]))}
- if(dashboard){const val=ref=>{const c=dashboard.get(ref);return c&&c.type!=='e'&&typeof c.value==='number'&&Number.isFinite(c.value)?c.value:null};const rows=depts.map(name=>{let heading=null;for(const [ref,c] of dashboard){if((aliases[name]||[]).includes(normLabel(c.value))&&/^\D+7$/.test(ref)){heading=ref;break}}const row={name};const col=heading?heading.replace(/\d/g,''):null;let index=0;if(col)for(const ch of col)index=index*26+ch.charCodeAt(0)-64;const valueCol=col?vhFinCol(index+3):null;for(const [field,n] of [['weeklyBudget',11],['weeklyRevenue',12],['ytdBudget',15],['ytdRevenue',16]])row[field]=valueCol?val(valueCol+n):null;return row});const totals={weeklyBudget:val('G2'),weeklyRevenue:val('G3'),ytdBudget:val('J2'),ytdRevenue:val('J3')};const checks=Object.keys(totals).map(f=>({field:f,passes:totals[f]!==null&&rows.every(r=>r[f]!==null)&&Math.abs(rows.reduce((a,r)=>a+r[f],0)-totals[f])<0.01}));companyOverview={week:selectedWeek,sourceFile:file.name,sheet:'WK'+String(weekLabel(selectedWeek).match(/WK0?(\d+)/)?.[1]||''),rows,totals,complete:checks.every(c=>c.passes),checks,sourcePolicy:'Exact selected weekly dashboard cached values; retains that worksheet’s budget and revenue cutoffs.'};}
- }catch(e){warnings.push('Company overview unavailable: '+e.message)}
-return {companyOverview,file:file.name,selectedWeek,financialSourceWeek:financePeriod?.sourceWeek??null,financialSourceYear:financePeriod?.sourceYear??null,financialSourcePeriodId:financePeriod?.sourcePeriodId??null,financialSourceStartDate:financePeriod?.sourceStartDate??null,financialSourceEndDate:financePeriod?.sourceEndDate??null,records,warnings,cautions:financePeriod&&!financePeriod.requiresPriorCycle?['Workbook identifies the finance source by NRW week number only; verify that its data belongs to '+financePeriod.sourceStartDate+'–'+financePeriod.sourceEndDate+'.']:[],sourceFormulaIssues,acceptanceReady:!!matching&&records.length===9&&records.every(x=>x.issues.length===0)&&warnings.length===0,formulaCells:[...revenue.values(),...budget.values()].filter(c=>c.formula).length,weekFound:!!matching};
+ const totalOf=key=>records.every(r=>isAmount(r[key]))?records.reduce((sum,r)=>sum+Number(r[key]),0):null;
+ const totals={weeklyBudget:totalOf('bv'),weeklyRevenue:totalOf('rv'),ytdBudget:totalOf('ytdBudget'),ytdRevenue:totalOf('ytdRevenue')};
+ const management=resolveRailWeek(selectedWeek),dashboardName='WK'+Number(management?.railWeek||management?.week||management?.nrwWeek||management?.weekNumber||financePeriod?.managementWeek||0);
+ let dashboard=null;try{dashboard=await sheet(dashboardName)}catch{/* BUDGET and REVENUE source tabs are enough to calculate the company summary. */}
+ const dashboardTotals=dashboard?Object.fromEntries([['weeklyBudget','G2'],['weeklyRevenue','G3'],['ytdBudget','J2'],['ytdRevenue','J3']].map(([key,ref])=>{const c=dashboard.map.get(ref);return [key,c&&isAmount(c.value)?Number(c.value):null]})):null;
+ const companyOverview={week:selectedWeek,sourceFile:file.name,sheet:dashboard?.name||null,rows:records.map(r=>({name:r.name,weeklyBudget:r.bv,weeklyRevenue:r.rv,ytdBudget:r.ytdBudget,ytdRevenue:r.ytdRevenue})),totals,complete:Object.values(totals).every(isAmount),dashboardTotals,sourcePolicy:'Company totals are calculated from BUDGET through the selected management week and REVENUE through the two-week-lag source week. Blank inputs remain Not reported.'};
+ for(const [tab,cells] of [['REVENUE',revenue],['BUDGET',budget]])for(const [ref,c] of cells)if(c.type==='e'||(typeof c.value==='string'&&/^#(REF!|DIV\/0!|VALUE!|N\/A|NAME\?)/.test(c.value)))warnings.push(tab+'!'+ref+' contains Excel error '+c.value);
+ return {companyOverview,file:file.name,selectedWeek,financialSourceWeek:financePeriod?.sourceWeek??null,financialSourceYear:financePeriod?.sourceYear??null,financialSourcePeriodId:financePeriod?.sourcePeriodId??null,financialSourceStartDate:financePeriod?.sourceStartDate??null,financialSourceEndDate:financePeriod?.sourceEndDate??null,records,warnings,cautions:financePeriod&&!financePeriod.requiresPriorCycle?['Budget: NRW WK'+financePeriod.managementWeek+'. Revenue: NRW WK'+financePeriod.sourceWeek+' (two rail weeks earlier).']:[],sourceFormulaIssues:[...new Set(sourceFormulaIssues)],acceptanceReady:!!budgetWeek&&!!revenueWeek&&records.length===9&&records.every(x=>x.issues.length===0)&&warnings.length===0,formulaCells:[...revenue.values(),...budget.values()].filter(c=>c.formula).length,weekFound:!!budgetWeek&&!!revenueWeek};
 }
 // Export the reader as soon as it is defined, before optional legacy UI hooks run.
 window.vhFinanceExtract=vhFinanceExtract;
@@ -51623,7 +51603,7 @@ Wordlist Command: mk-list --accents=strip en_GB-ise 60
 </style>
 <div class="vh26-ribbon" id="vh26-ribbon"><strong>Build 052 interface preview</strong> Local report editing is not connected to Supabase. <a href="/acceptance.html">Open connected reporting</a><button id="vh26-signout" type="button">Sign out</button></div>
 <section id="vh26-connected-dashboard" hidden style="min-height:100vh;background:#f4f6f8">
-<header class="choose-head"><div style="font-weight:800;color:white">RSS Infrastructure | Visualisation Hub</div><button class="outline" id="vh26-dashboard-signout" type="button">Sign out</button></header>
+<header class="choose-head"><img class="vh26-connected-logo" src="/rssi-logo.png" alt="RSS Infrastructure"><button class="outline" id="vh26-dashboard-signout" type="button">Sign out</button></header>
 <main class="choose-main"><div class="choose-kicker">DEPARTMENT DASHBOARD</div><h1>Choose a department</h1><p id="vh26-account">Authenticated staging account</p><section id="vh26-meeting-host" class="vh26-host-dashboard" hidden aria-label="Meeting host dashboard"><section class="hub-hero vh26-host-welcome" aria-label="Welcome to Visualisation Hub"><div class="hub-hero-copy"><h1>Visualisation <span class="hub-orange-word">Hub</span></h1><p id="vh26-host-readiness-status" class="vh26-sr-only" role="status" aria-live="polite">Loading reporting readiness…</p><div class="hub-hero-actions"><button class="hub-primary" id="vh26-presenter-launch" type="button">▶ Launch Presenter Mode <span aria-hidden="true">→</span></button></div></div><div class="hub-meeting-card"><div class="hub-meeting-label">MONDAY MANAGEMENT MEETING</div><div class="hub-meeting-title">Meeting readiness</div><div class="hub-meeting-week" id="vh26-host-week">Current reporting week</div><label class="vh26-host-week-label" for="vh26-host-week-select">Reporting Rail Week</label><select id="vh26-host-week-select" aria-label="Reporting Rail Week"></select><div class="hub-meeting-metrics"><div><strong id="vh26-host-submitted">—</strong><span>Reports submitted</span></div><div><strong id="vh26-host-awaiting">—</strong><span>Awaiting submission</span></div><div><strong id="vh26-host-open-actions">—</strong><span>Open actions</span></div></div><div class="hub-meeting-note">Monday · 10:00 management review</div></div></section><section id="vh26-host-weeks-view" class="vh26-host-detail-view" hidden aria-label="Reporting weeks"><h2>Reporting weeks</h2><p>Each rail week runs Saturday to Friday. Periods are identified by the NRW week number and full date range.</p><div id="vh26-host-weeks-list"></div></section><section id="vh26-host-settings-view" class="vh26-host-detail-view" hidden aria-label="Meeting host settings"><h2>Settings</h2><p>Authenticated account access details.</p><dl><dt>Account</dt><dd id="vh26-settings-email">—</dd><dt>Roles</dt><dd id="vh26-settings-roles">—</dd><dt>Authorised departments</dt><dd id="vh26-settings-departments">—</dd></dl><hr><h3>Rail calendar</h3><p>Official calendar and reporting-week controls.</p><div id="vh26-host-calendar-controls"></div></section><nav class="vh26-host-nav" aria-label="Meeting host navigation"><button type="button" data-host-view="overview" aria-current="page">Meeting overview</button><button type="button" data-host-view="actions">Action log</button><button type="button" data-host-view="weeks">Reporting weeks</button><button type="button" data-host-view="settings">Settings</button></nav><section id="vh26-presenter-mode" class="vh26-presenter-mode" hidden aria-label="Presenter Mode"><header><div class="vh26-presenter-brand"><img id="vh26-presenter-logo" src="/rssi-logo.png" alt="RSS Infrastructure"><div><h2>Visualisation Hub</h2><p id="vh26-presenter-week"></p></div></div><div class="vh26-presenter-controls"><button id="vh26-presenter-all" type="button">All departments</button><button id="vh26-presenter-fullscreen" type="button" aria-pressed="false">Full screen</button><button id="vh26-presenter-exit" type="button">Exit</button></div></header><nav id="vh26-presenter-tabs" class="vh26-presenter-tabs" aria-label="Presenter sections"></nav><nav class="vh26-presenter-pager" aria-label="Presenter department navigation"><button id="vh26-presenter-prev" type="button">← Previous</button><span id="vh26-presenter-department-label"></span><button id="vh26-presenter-next" type="button">Next →</button></nav><article id="vh26-presenter-slide" aria-live="polite"></article></section></section><section id="vh26-presenter-actions" hidden aria-label="Meeting host action register" style="background:#fff;border:1px solid #d5e1e8;border-radius:10px;padding:20px;margin:22px 0"><div style="display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap"><h2 style="margin:0">Action log · <span id="vh26-presenter-action-title">All departments</span></h2><button id="vh26-presenter-refresh" type="button">Refresh action register</button></div><p>Read-only overview across authorised departments. Open actions carry forward; completed and cancelled actions remain in history.</p><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:end"><label>Department <select id="vh26-presenter-department"></select></label><label>Show <select id="vh26-presenter-status"><option value="outstanding">Outstanding</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option><option value="all">All actions</option></select></label><button id="vh26-presenter-export" type="button">Export CSV</button><button id="vh26-presenter-print" type="button">Print register</button></div><p id="vh26-presenter-summary" role="status"></p><div style="overflow-x:auto"><table id="vh26-presenter-table" style="width:100%;border-collapse:collapse;text-align:left"><thead><tr><th>Department</th><th>Action</th><th>Owner</th><th>Due date</th><th>Status</th><th>Created in</th><th>Completed</th></tr></thead><tbody></tbody></table></div></section><div class="department-cards" id="vh26-department-grid"></div><section id="vh26-report-workspace" hidden aria-label="Native departmental reporting">
 <div class="vh26-workspace-bar"><button type="button" id="vh26-back-departments">Back to departments</button><strong id="vh26-workspace-title">Department reporting</strong></div>
 <div id="vh26-report-loading" class="vh26-report-loading" hidden role="status" aria-live="polite"><span class="vh26-loading-spinner" aria-hidden="true"></span><div><strong id="vh26-report-loading-title">Loading department report</strong><p id="vh26-report-loading-message">Retrieving the reporting period, saved sections and actions.</p></div><button id="vh26-report-loading-retry" type="button" hidden>Retry</button></div><header id="vh26-report-intro"><div class="vh26-report-intro-eyebrow" id="vh26-report-intro-eyebrow">YOUR WEEKLY REPORT</div><div class="vh26-report-intro-row"><div><h2 id="vh26-report-intro-department">Department</h2><p>Complete your update, review it, then submit for the Monday management meeting.</p></div><span id="vh26-report-intro-status" hidden></span></div></header><section id="vh26-bids-workspace" hidden aria-label="Bids and RFQs tracker"><div class="vh26-bids-card"><div class="vh26-host-kicker">BIDS / RFQS</div><h2>Bid Hub tracker</h2><p>Bids/RFQs reporting is managed in the shared Bid Hub tracker. This department does not use a duplicate weekly report.</p><a href="https://rssi-bid-hub-staging2.netlify.app/#/tracker" target="_blank" rel="noopener noreferrer">Open Bid Hub — Bid Tracker</a></div></section><div id="vh26-native-report" style="padding:24px;max-width:1050px;margin:auto">
@@ -52097,6 +52077,13 @@ financeFile.addEventListener('change',()=>{
  financeSetGuide(hasFile?'Workbook selected. Select Review figures to check the budget and revenue values.':'Select the approved Excel workbook to begin.');
  document.getElementById('vh26-finance-preview-status').textContent='';
 });
+const financeDrop=document.getElementById('vh26-finance-drop');
+if(financeDrop){
+ financeDrop.addEventListener('click',event=>{if(event.target!==financeFile&&!event.target.closest('button'))financeFile.click()});
+ for(const eventName of ['dragenter','dragover'])financeDrop.addEventListener(eventName,event=>{event.preventDefault();event.stopPropagation();financeDrop.classList.add('is-dragging')});
+ for(const eventName of ['dragleave','dragend'])financeDrop.addEventListener(eventName,event=>{event.preventDefault();event.stopPropagation();if(!financeDrop.contains(event.relatedTarget))financeDrop.classList.remove('is-dragging')});
+ financeDrop.addEventListener('drop',event=>{event.preventDefault();event.stopPropagation();financeDrop.classList.remove('is-dragging');const file=[...(event.dataTransfer?.files||[])].find(item=>/\.xlsx$/i.test(item.name));if(!file){document.getElementById('vh26-finance-preview-status').textContent='Choose or drop an .xlsx workbook.';return}try{const transfer=new DataTransfer();transfer.items.add(file);financeFile.files=transfer.files;financeFile.dispatchEvent(new Event('change',{bubbles:true}))}catch{document.getElementById('vh26-finance-preview-status').textContent='This browser could not attach the dropped workbook. Use Choose File instead.'}});
+}
 document.getElementById('vh26-week').addEventListener('change',()=>{
  if(!document.getElementById('vh26-connected-dashboard').classList.contains('vh26-finance-view-active'))return;
  validatedFinance=null;financeImportButton.disabled=true;
@@ -52311,6 +52298,21 @@ async function presenterRenderFinance(root){
   for(const label of ['Department','Weekly budget','Weekly revenue','Weekly gap to close','YTD budget','YTD revenue','YTD gap to close'])head.append(presenterSafeText('th',label));
   table.append(head);
   const ordered=[...latest.entries()].sort((a,b)=>presenterDepartments.findIndex(d=>d.id===a[0])-presenterDepartments.findIndex(d=>d.id===b[0]));
+  const presenterNorm=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const financeNames=new Set(['TWS','TRACKWARNINGSYSTEMS','CIVILS','CIVILSCONSTRUCTION','RAILOPERATIONS','WELDING','MANAGEDENVIRONMENTS','MMA','MIDLANDMETRO','ST','SIGNALLING','HS2','MONTEL']);
+  const financeDepartments=presenterDepartments.filter(d=>financeNames.has(presenterNorm(presenterDepartmentLabel(d)))||financeNames.has(presenterNorm(d.code)));
+  const companyAmount=key=>{
+   if(!financeDepartments.length)return null;
+   const amounts=[];
+   for(const d of financeDepartments){const pub=latest.get(d.id);if(!pub)return null;const value=amount(metric(pub.id,key));if(value===null||!Number.isFinite(value))return null;amounts.push(value)}
+   return amounts.reduce((sum,value)=>sum+value,0);
+  };
+  const companyVariance=(revenue,budget)=>revenue===null||budget===null?null:revenue-budget;
+  const overview=document.createElement('section');overview.className='vh26-presenter-company-overview';
+  overview.append(presenterSafeText('h2','Company overview'));
+  const companyMetrics=[['Weekly budget',companyAmount('weekly_budget')],['Weekly revenue',companyAmount('weekly_revenue')],['Weekly gap to close',companyVariance(companyAmount('weekly_revenue'),companyAmount('weekly_budget'))],['YTD budget',companyAmount('ytd_budget')],['YTD revenue',companyAmount('ytd_revenue')],['YTD gap to close',companyVariance(companyAmount('ytd_revenue'),companyAmount('ytd_budget'))]];
+  for(const [label,value] of companyMetrics){const card=document.createElement('article');card.append(presenterSafeText('span',label));let shown=value===null?'Not reported':money(Math.abs(value));if(value!==null&&(label.includes('gap to close')))shown=(value>=0?'↑ ':'↓ ')+shown;const number=presenterSafeText('strong',shown);if(value!==null&&label.includes('gap to close'))number.className='vh26-finance-variance-'+(value>=0?'favourable':'adverse');card.append(number);if(value===null&&label.includes('revenue'))card.append(presenterSafeText('small','At least one department is missing this figure.'));overview.append(card)}
+  root.append(overview);
   for(const [id,pub] of ordered){
    const dep=presenterDepartments.find(d=>d.id===id);if(!dep)continue;
    const tr=document.createElement('tr');tr.append(presenterSafeText('th',dep.display_name||dep.name||dep.code||'Department'));
@@ -52677,4 +52679,48 @@ html:has(#vh26-presenter-mode:not([hidden])),body:has(#vh26-presenter-mode:not([
 #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide>h1{grid-column:1!important}
 .vh26-autosave-message{min-height:18px;margin:8px 0;color:#536879;font-size:12px}
 @media(max-width:760px){#vh26-connected-dashboard main.choose-main{padding:22px 16px 36px}#vh26-connected-dashboard #vh26-department-grid{grid-template-columns:1fr}}
-</style><script defer src="/autosave.js"></script></body></html>
+</style><script defer src="/autosave.js"></script><style id="vh26-width-scroll-type-and-hero-fixes">
+/* Match the report cards to their centered navigation width; keep vertical scrolling at page/presenter level. */
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{box-sizing:border-box!important;width:min(1100px,100%)!important;max-width:1100px!important;margin-left:auto!important;margin-right:auto!important}
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace{overflow:visible!important}
+#vh26-connected-dashboard.vh26-workspace-active #vh26-finance-preview-results{max-height:none!important;overflow:visible!important}
+#vh26-finance-drop{cursor:pointer;transition:border-color .15s,background .15s}
+#vh26-finance-drop.is-dragging{border-color:#ff6b00!important;background:#fff5ec!important;box-shadow:0 0 0 3px #ff6b0026}
+#vh26-connected-dashboard.vh26-host-layout-active{display:block!important;min-height:100vh!important;grid-template-columns:minmax(0,1fr)!important}
+#vh26-connected-dashboard.vh26-host-layout-active .choose-head{display:flex!important;position:fixed!important;inset:0 0 auto 0!important;width:100%!important;height:58px!important;align-items:center!important;justify-content:space-between!important;gap:16px!important;padding:8px clamp(16px,3vw,38px)!important;background:#fff!important;border-bottom:1px solid #dce5eb!important}
+#vh26-connected-dashboard.vh26-host-layout-active .choose-head .vh26-connected-logo{display:block!important;width:116px!important;height:40px!important;object-fit:contain!important;object-position:left center!important}
+#vh26-connected-dashboard.vh26-host-layout-active .choose-head #vh26-dashboard-signout{margin-left:auto!important}
+#vh26-connected-dashboard.vh26-host-layout-active .choose-main{display:flex!important;grid-column:1!important;width:100%!important;max-width:none!important;flex-direction:column!important;align-items:center!important;margin:0!important;padding:82px clamp(18px,3.5vw,48px) 48px!important}
+#vh26-connected-dashboard.vh26-host-layout-active .vh26-host-dashboard{box-sizing:border-box!important;width:min(900px,100%)!important;max-width:900px!important;margin-left:auto!important;margin-right:auto!important}
+#vh26-connected-dashboard.vh26-host-layout-active .vh26-host-welcome{width:100%!important;margin-left:auto!important;margin-right:auto!important}
+/* Presenter content uses the viewport's single vertical scrollbar, not a second scrollbar inside the report. */
+#vh26-connected-dashboard #vh26-presenter-mode:not([hidden]){overflow-y:auto!important;overflow-x:hidden!important}
+#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide{box-sizing:border-box!important;width:min(1100px,calc(100% - 36px))!important;max-width:1100px!important;height:auto!important;max-height:none!important;min-height:0!important;flex:0 0 auto!important;margin:4px auto 0!important;overflow:visible!important}
+#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide>*{max-height:none!important;overflow-y:visible!important}
+#vh26-connected-dashboard.vh26-finance-view-active #vh26-finance-preview-results{max-height:none!important;overflow:visible!important}
+/* Use a lighter regular weight throughout reporting cards and finance tables. */
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace h2,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace h3,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace label,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace strong,
+#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace th{font-weight:500!important}
+#vh26-connected-dashboard #vh26-presenter-slide h1,
+#vh26-connected-dashboard #vh26-presenter-slide h2,
+#vh26-connected-dashboard #vh26-presenter-slide h3,
+#vh26-connected-dashboard #vh26-presenter-slide th,
+#vh26-connected-dashboard #vh26-presenter-slide strong{font-weight:500!important}
+#vh26-connected-dashboard #vh26-presenter-slide .vh26-finance-variance-favourable,
+#vh26-connected-dashboard #vh26-presenter-slide .vh26-finance-variance-adverse{font-weight:500!important}
+.vh26-presenter-company-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:8px 0 16px;padding:16px;border:1px solid #dce5eb;border-radius:12px;background:#fff}
+.vh26-presenter-company-overview h2{grid-column:1/-1;margin:0 0 3px;font-size:18px;font-weight:500}
+.vh26-presenter-company-overview article{min-width:0;padding:10px 12px;border:1px solid #e2e9ee;border-radius:8px;background:#f8fafb}
+.vh26-presenter-company-overview article span{display:block;color:#536879;font-size:12px}
+.vh26-presenter-company-overview article strong{display:block;margin-top:5px;color:#173448;font-size:17px;font-variant-numeric:tabular-nums;font-weight:500}
+.vh26-presenter-company-overview article small{display:block;margin-top:4px;color:#718594;font-size:10px}
+@media(max-width:700px){.vh26-presenter-company-overview{grid-template-columns:repeat(2,minmax(0,1fr))}#vh26-connected-dashboard.vh26-host-layout-active .vh26-host-welcome{height:auto!important;min-height:0!important;grid-template-columns:1fr!important;padding:26px 20px!important;gap:20px!important}#vh26-connected-dashboard.vh26-host-layout-active .vh26-host-welcome .hub-hero-copy h1{white-space:normal!important}}
+</style>
+</body></html>

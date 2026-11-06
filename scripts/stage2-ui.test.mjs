@@ -104,9 +104,16 @@ test('finance history list is hidden in preview because it offers no review acti
   assert.match(html, /dataApi\('finance_review'\)/);
 });
 
-test('finance upload retains the Build 050 weekly-budget reader and submits its extracted budget field', () => {
+test('finance upload reads separate budget and lagged revenue calendars and submits validated fields', () => {
   assert.match(html, /async function vhFinanceExtract\(file,selectedWeek\)/);
-  assert.match(html, /const budgetWeek=weeks\.find\(x=>x\.week===financePeriod\.managementWeek\)/);
+  assert.match(html, /weekHeaders\(budget,5,'BUDGET'\)/);
+  assert.match(html, /weekHeaders\(revenue,19,'REVENUE'\)/);
+  assert.match(html, /x\.week===financePeriod\?\.managementWeek/);
+  assert.match(html, /x\.week===financePeriod\?\.sourceWeek/);
+  assert.match(html, /sourceRows:\{budget:bRows,revenue:rRows\}/);
   assert.match(html, /\['weekly_budget',record\.bv\]/);
+  assert.match(html, /\['weekly_revenue',record\.rv\]/);
+  assert.match(html, /\['ytd_budget',record\.ytdBudget\]/);
+  assert.match(html, /\['ytd_revenue',record\.ytdRevenue\]/);
   assert.match(html, /const financeReader=window\.vhFinanceExtract/);
 });

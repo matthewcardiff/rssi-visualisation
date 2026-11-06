@@ -304,7 +304,13 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/workbookWarnings\.length>0/);
   assert.match(html,/if\(!v\.acknowledged\)/);
   assert.match(html,/amount=blank\?null:Number\(value\),input_state=blank\?'missing'/);
-  assert.match(html,/hasValue\?total:null/);
+  assert.match(html,/const budgetCalendar=weekHeaders\(budget,5,'BUDGET'\),revenueCalendar=weekHeaders\(revenue,19,'REVENUE'\)/);
+  assert.match(html,/const budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.managementWeek\)/);
+  assert.match(html,/const revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
+  assert.match(html,/const explicitRows=\{HS2:\{budget:\[13,15\],revenue:\[13,15\]\}\}/);
+  assert.match(html,/if\(c\.formula\)\{sourceFormulaIssues\.push\(tab\+'!'\+ref\);return \{value:null,missing:true,formula:true\}\}/);
+  assert.match(html,/const totalOf=key=>records\.every\(r=>isAmount\(r\[key\]\)\)/);
+  assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/4 · Finance review/);
   assert.match(html,/Departments with finance figures/);
