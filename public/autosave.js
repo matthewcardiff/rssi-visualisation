@@ -26,6 +26,18 @@
   `;
   document.head.append(pipelineLayout);
 
+
+  const reportingWeekGuard = document.createElement('style');
+  reportingWeekGuard.id = 'vh26-reporting-week-guard';
+  reportingWeekGuard.textContent = `
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-native-report>div:first-child{position:sticky!important;top:8px!important;z-index:25!important;align-items:center!important;gap:14px!important;padding:12px 14px!important;border:1px solid #d7e2e9!important;border-radius:12px!important;background:#fff!important;box-shadow:0 5px 16px #17344812!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-native-report>div:first-child label{color:#263d50!important;font:600 13px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-week{min-height:44px!important;padding:10px 14px!important;border:1px solid #cbd6de!important;border-radius:10px!important;background:#fafbfc!important;color:#163247!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-week:focus-visible{outline:3px solid #004d7126!important;border-color:#004d71!important}
+    @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report>div:first-child{top:4px!important;gap:8px!important;padding:10px!important;flex-wrap:wrap!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-week{max-width:min(100%,320px)!important}}
+  `;
+  document.head.append(reportingWeekGuard);
+
   function polishFinanceHistory() {
     const panel = document.getElementById('vh26-finance-review');
     const list = document.getElementById('vh26-finance-review-list');
