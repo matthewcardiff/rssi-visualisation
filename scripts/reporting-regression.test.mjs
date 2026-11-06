@@ -286,6 +286,13 @@ test('published finance has its own view while import controls remain role-gated
   assert.ok(html.includes("[data-connected-nav=\"finance\"]')?.addEventListener"));
 });
 
+test('meeting host header uses the brand background so the white RSSI logo is visible',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/<header class="choose-head"><img class="vh26-connected-logo" src="\/rssi-logo\.png" alt="RSS Infrastructure"><button class="outline" id="vh26-dashboard-signout"/);
+  assert.match(html,/#vh26-connected-dashboard\.vh26-host-layout-active \.choose-head\{[^}]*background:#004d71!important;color:#fff!important/);
+  assert.match(html,/#vh26-connected-dashboard\.vh26-host-layout-active \.choose-head #vh26-dashboard-signout\{[^}]*background:#fff!important;color:#004d71!important/);
+});
+
 test('Build 052 finance workbook layout stages XLSX through the authenticated finance API',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/Excel financial workbook/);
