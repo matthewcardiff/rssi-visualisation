@@ -373,6 +373,12 @@
     document.head.append(style);
   }
 
+  function presenterTextElement(tag, text) {
+    const element = document.createElement(tag);
+    element.textContent = String(text ?? '');
+    return element;
+  }
+
   function safetyQuestionIsDuplicate(question, reminders) {
     const words = value => String(value || '').toLocaleLowerCase('en-GB')
       .replace(/[^\p{L}\p{N}\s]/gu, ' ').split(/\s+/)
@@ -415,16 +421,16 @@
         questions: listValue('Discussion questions'),
         takeaway: values['Takeaway / action'] || ''
       };
-      const heading = presenterSafeText('h2', source.topic || 'Safety Moment');
+      const heading = presenterTextElement('h2', source.topic || 'Safety Moment');
       const section = (title, text, list = false) => {
         if (!text || (Array.isArray(text) && !text.length)) return;
-        const h = presenterSafeText('h3', title);
+        const h = presenterTextElement('h3', title);
         content.append(h);
         if (list) {
           const ul = document.createElement('ul');
-          for (const value of text) ul.append(presenterSafeText('li', value));
+          for (const value of text) ul.append(presenterTextElement('li', value));
           content.append(ul);
-        } else content.append(presenterSafeText('p', text));
+        } else content.append(presenterTextElement('p', text));
       };
       const reminders = (source.points || []).map(value => String(value || '').trim()).filter(Boolean);
       const questions = (source.questions || []).map(value => String(value || '').trim()).filter(Boolean)
@@ -485,7 +491,7 @@
       const values = [
         ['Reporting sections', `${reported} / 5`],
         ['Pipeline updates', String(pipelineUpdates)],
-        ['Open actions', actionCount && /^\d+$/.test(actionCount) ? actionCount : 'See Action log'],
+        ['Open actions · all departments', actionCount && /^\d+$/.test(actionCount) ? actionCount : 'See Action log'],
         ['Department', departmentName]
       ];
       const metricSignature = JSON.stringify(values);
@@ -493,7 +499,7 @@
         metrics.replaceChildren(...values.map(([label, value]) => {
           const card = document.createElement('div');
           card.className = 'vh26-presenter-stat';
-          card.append(presenterSafeText('span', label), presenterSafeText('strong', value));
+          card.append(presenterTextElement('span', label), presenterTextElement('strong', value));
           return card;
         }));
         metrics.dataset.signature = metricSignature;
@@ -507,8 +513,8 @@
       }
       const actionSignature = JSON.stringify([departmentName, actionCount || 'unavailable']);
       if (actionCard.dataset.signature !== actionSignature) {
-        actionCard.replaceChildren(presenterSafeText('h2', 'Outstanding actions'));
-        actionCard.append(presenterSafeText('p', actionCount === '0' ? 'No open actions.' : 'Review current actions in the Action log.'));
+        actionCard.replaceChildren(presenterTextElement('h2', 'Outstanding actions'));
+        actionCard.append(presenterTextElement('p', 'Use the Action log to review actions for this department.'));
         actionCard.dataset.signature = actionSignature;
       }
     }
