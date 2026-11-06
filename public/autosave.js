@@ -655,7 +655,7 @@
 
   function presenterDepartmentContext(slide, tabs) {
     const departmentName = slide.querySelector(':scope > .vh26-presenter-heading h1')?.textContent.trim() || '';
-    const selected = [...(tabs?.querySelectorAll('button') || [])].slice(2).findIndex(button => button.classList.contains('selected'));
+    const selected = [...(tabs?.querySelectorAll('button') || [])].slice(1,-1).findIndex(button => button.classList.contains('selected'));
     const count = Math.max(1, [...(tabs?.querySelectorAll('button') || [])].length - 2);
     const weekLabel = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
     const weekId = document.getElementById('vh26-host-week-select')?.value || '';
