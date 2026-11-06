@@ -1,3 +1,6 @@
+Warning: truncated output (original token count: 10717)
+Total output lines: 556
+
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -206,141 +209,7 @@ test('native submit control enables reopened manager reports and locks submitted
     const make=()=>({hidden:false,disabled:false,value:'',textContent:'',style:{},classList:{contains(){return false},toggle(){}},querySelector(){return null},replaceChildren(){},querySelectorAll(){return []},append(){},setAttribute(){},addEventListener(){}});
     const document={getElementById(id){if(!nodes.has(id))nodes.set(id,make());return nodes.get(id)},querySelector(){return make()},querySelectorAll(){return []},createElement:make};
     const source=html.slice(fn,end).replace(/function renderHsqeFields\([\s\S]*?\n(?=function renderSection)/,'');
-    vm.runInNewContext(source+';renderSection();',{document,selectedDepartment:{id:'dept',code:'department',display_name:'Department'},selectedSection:'delivery',selectedWeek:'week',nativeData:{sections:[],weeks:[],reports:[]},context:()=>({report:{id:'report',status},editable}),canManage:()=>manager,currentReportKeys:()=>['pipeline','delivery','programme','risks','resources','review'],currentReportLabels:()=>['Pipeline','Delivery','Programme','Risks','Resources','Review & submit'],renderPipeline(){},renderReview(){},reportSectionComplete:()=>true,reportComplete:()=>true,reportMessage(){},addEntry(){},confirmReportingLeave:()=>true});
-    assert.equal(nodes.get('vh26-submit-report').disabled,disabled,`${status}, manager=${manager}`);
-  }
-});
-test('connected Action Log uses a dedicated view and the Build 052 table layout',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const nav=html.indexOf("side.querySelector('[data-connected-nav=\"actions\"]')");
-  const navEnd=html.indexOf("side.querySelector('[data-connected-nav=\"finance\"]')",nav);
-  assert.ok(nav>0&&navEnd>nav);
-  const handler=html.slice(nav,navEnd);
-  assert.match(handler,/vh26-action-view-active/);
-  assert.doesNotMatch(handler,/scrollIntoView/);
-  const renderer=html.slice(html.indexOf('function renderActions(){'),html.indexOf('\nasync function loadActions'));
-  for(const heading of ['Department','Action','Owner','Due date','Status','Created in','Completed'])assert.ok(renderer.includes(heading));
-  assert.match(html,/vh26-visual-restoration-routes/);
-  assert.match(html,/vh26-workspace-active:not\(\.vh26-action-view-active\):not\(\.vh26-finance-view-active\).*#vh26-finance-preview/);
-});
-test('department report reveals core content before background finance and action loads finish',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const load=html.slice(html.indexOf('async function loadNative(){'),html.indexOf('\nfunction openDepartment('));
-  assert.ok(load.indexOf('renderSection();')<load.indexOf('loading.hidden=true'));
-  assert.ok(load.indexOf('loading.hidden=true')<load.indexOf('Promise.allSettled(secondary)'));
-  assert.match(load,/reportLoadGeneration/);
-});
-test('manager Action Log shares Presenter Mode controls and navigation has one active route',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/vh26-action-view-active #vh26-actions-workspace\{display:block!important;max-width:1100px/);
-  assert.match(html,/vh26-action-view-active \.vh26-integration-notice\{display:none!important/);
-  assert.match(html,/vh26-action-view-active\.vh26-workspace-active #vh26-native-report\{box-sizing:border-box;width:100%;max-width:1100px!important/);
-  assert.match(html,/button\[aria-current="page"\]/);
-  assert.match(html,/setConnectedNavActive=route=>/);
-  assert.match(html,/vh26-action-view-active \.vh26-sidebar nav button\[data-connected-nav="report"\]\{background:transparent!important/);
-  assert.match(html,/#vh26-connected-dashboard \.vh26-brand img\{display:none!important\}/);
-  assert.match(html,/id="vh26-presenter-logo" src="\/rssi-logo\.png"/);
-});
-test('shared calendar upload remains host-gated and appends only via the atomic calendar RPC',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
-  const sql=readFileSync(new URL('../database/rail_calendar_import.sql',import.meta.url),'utf8');
-  assert.match(html,/Upload official rail calendar CSV/);
-  assert.match(html,/Validate and add future weeks/);
-  assert.match(api,/calendar_import/);
-  assert.match(api,/rpc\/vh_import_rail_calendar/);
-  assert.match(sql,/SECURITY DEFINER/);
-  assert.match(sql,/existing periods are preserved/i);
-  assert.match(sql,/role IN \('meeting_host', 'administrator'\)/);
-});
-test('published finance has its own view while import controls remain role-gated',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/pending reconciliation is staged only and will not appear/);
-  assert.match(html,/intentional two-week reporting lag/);
-  assert.match(html,/const financeRole=roles\.some\(r=>\['finance','finance_admin','administrator'\]\.includes\(r\.role\)\)/);
-  assert.ok(html.includes('<button type="button" data-connected-nav="finance">£ Finance</button>'));
-  assert.match(html,/vh26-finance-preview'\)\.hidden=!roles\.some/);
-  assert.match(html,/vh26-finance-review'\)\.hidden=!financeRole/);
-  assert.ok(html.includes("[data-connected-nav=\"finance\"]')?.addEventListener"));
-});
-
-test('Build 052 finance workbook layout stages XLSX through the authenticated finance API',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/Excel financial workbook/);
-  assert.match(html,/accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
-  assert.match(html,/window\.vhFinanceExtract=vhFinanceExtract;\s*function vhFinancePreview/);
-  assert.match(html,/const financeReader=window\.vhFinanceExtract;if\(typeof financeReader!==\x27function\x27\)/);
-  assert.match(html,/await financeReader\(file,sourceWeek\.id\)/);
-  assert.match(html,/window\.vhFinDepartments=vhFinDepartments/);
-  assert.match(html,/window\.vhFinDepartments\|\|\[\[\x27TWS\x27\]/);
-  assert.match(html,/nativeData=\{weeks,periods:response\.periods\|\|\[\],reports:\[\],sections:\[\],departments:verifiedIdentity\?\.departments\|\|\[\]\}/);
-  assert.match(html,/nativeData\?\.periods\|\|\[\]/);
-  assert.match(html,/input_state,source_period_id/);
-  assert.match(html,/dataApi\('finance_preview',\{rows\}\)/);
-  assert.match(html,/dataApi\('finance_import',\{rows:v\.rows,file_name:v\.file_name\}\)/);
-  assert.match(html,/vh26-finance-review-table/);
-  assert.match(html,/workbookWarnings\.length>0/);
-  assert.match(html,/if\(!v\.acknowledged\)/);
-  assert.match(html,/amount=blank\?null:Number\(value\),input_state=blank\?'missing'/);
-  assert.match(html,/hasValue\?total:null/);
-  assert.match(html,/finance publication stays server-gated|finance_publish/);
-  assert.match(html,/Approval &amp; publication/);
-  assert.match(html,/Departments with finance figures/);
-  assert.match(html,/byDepartment\.length===9&&byDepartment\.every\(x=>x\.values\[metric\]!==null\)/);
-  assert.match(html,/vh26-finance-department-list/);
-});
-
-test('Build 050 Presenter Mode restores Safety Moment, finance and department tabs with rounded controls',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  for(const text of ['Safety Moment','Finance & Commercial','vh26-presenter-all','vh26-presenter-tabs','Generate Safety Moment','Write a Safety Moment','Save for this meeting','Create action'])assert.ok(html.includes(text),`Missing presenter control: ${text}`);
-  assert.match(html,/function presenterRenderSafety\(root\)/);
-  assert.match(html,/fetch\('\/.netlify\/functions\/safety-moment'/);
-  assert.match(html,/dataApi\('finance_published'\)/);
-  assert.match(html,/border-radius:999px/);
-  assert.match(html,/vh26-presenter-mode:fullscreen/);
-  assert.match(html,/id="vh26-session-loading"[\s\S]{0,500}Loading current workspace/);
-  assert.match(html,/async function enterConnected\(session\)\{const loader=document\.getElementById\('vh26-session-loading'\)/);
-});
-test('Presenter reads separate pipeline opportunities and omits false status and duplicate department headings',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/\['weeks','reports','sections','pipeline'\]/);
-  const renderer=html.slice(html.indexOf('function renderPresenterSlide(){'),html.indexOf('function openPresenterMode()'));
-  assert.match(renderer,/hostData\?\.pipeline/);assert.match(renderer,/item\.customer/);assert.doesNotMatch(renderer,/Report status:/);
-  assert.match(renderer,/const labels=\[\['pipeline','Pipeline'\],\['delivery','Delivery'\],\['programme','Programme'\],\['risks','Risks'\],\['resources','Resources'\]\]/);
-  assert.match(renderer,/Not reported for this week/);assert.match(renderer,/vh26-presenter-card/);
-  assert.match(html,/vh26-presenter-pager\{position:fixed!important/);assert.match(html,/vh26-presenter-slide\{display:grid!important/);
-  assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
-});
-test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/function reportComplete\(\)\{return currentReportKeys\(\)\.slice\(0,-1\)\.every\(reportSectionComplete\)\}/);
-  assert.match(html,/Complete and save every required section before submission/);
-  assert.match(html,/textContent='Create action'/);assert.match(html,/textContent='Support \('\+supportCount\+' outstanding\)'/);
-  assert.match(html,/vh26-reopen-report/);assert.match(html,/function enable\(\).*message\(''\)/);
-});
-test('departmental AI Review preserves original text and spellchecks dynamic textareas',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/new MutationObserver\(markSpellcheck\)/);
-  assert.match(html,/t\.spellcheck=true;t\.lang='en-GB'/);
-  assert.match(html,/const original=field\?\.value\?\.trim\(\)/);
-  assert.match(html,/Review ready\. Suggestions are optional; no report text has changed\./);
-  assert.match(html,/window\.vhGetAIReviewToken=async\(\)=>activeSession\(\)\?\.access_token\|\|null/);
-  assert.match(html,/getElementById\('vh26-report-intro-department'\)\?\.textContent\?\.trim\(\)/);
-  assert.match(html,/querySelector\('#vh26-week option:checked'\)\?\.textContent\?\.trim\(\)/);
-});
-test('Presenter Mode uses the embedded Build 050 logo and renders authorised departments before opening',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  const logo=readFileSync(new URL('../public/rssi-logo.png',import.meta.url));
-  assert.equal(logo.subarray(0,8).toString('hex'),'89504e470d0a1a0a');
-  assert.match(html,/id="vh26-presenter-logo" src="\/rssi-logo\.png"/);
-  assert.match(html,/function syncPresenterDepartments\(\)/);
-  assert.match(html,/syncPresenterDepartments\(\);const tabs=document\.getElementById\('vh26-presenter-tabs'\)/);
-  assert.match(html,/presenterDepartments\.forEach\(\(d,i\)=>add/);
-  assert.match(html,/No authorised departments were returned for this account/);
-});
-test('Presenter Mode opens directly on Safety Moment while readiness loads, and clears stale department tabs',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.ok(html.includes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
+    vm.runIn…2717 tokens truncated…udes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
   assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
   assert.match(html,/presenterDepartments=resolved/);
   assert.match(html,/function presenterDepartmentLabel\(department\)/);
