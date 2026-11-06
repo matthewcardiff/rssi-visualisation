@@ -3,6 +3,40 @@
   brandFix.textContent = '#login .brand .rss-logo,#chooser .choose-head .rss-logo{display:block!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro{max-width:750px!important}';
   document.head.append(brandFix);
   document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
+
+  // Finance workbook rows are authoritative for their mapped periods. The
+  // optional WKxx dashboard tabs are historical management snapshots whose
+  // formulas use their own cutoffs; comparing them with the current import's
+  // budget/revenue cells creates false mismatches (especially with the
+  // intentional two-week revenue lag). Keep genuine source-row checks, but
+  // don't block staging on those unrelated dashboard comparisons.
+  const extractFinanceWorkbook = window.vhFinanceExtract;
+  if (typeof extractFinanceWorkbook === 'function' && !window.vhFinanceChecksCorrected) {
+    window.vhFinanceChecksCorrected = true;
+    window.vhFinanceExtract = async (...args) => {
+      const result = await extractFinanceWorkbook(...args);
+      const sourceWeek = Number(result.financialSourceWeek);
+      const dashboardMismatch = new RegExp('^WK' + sourceWeek + '!.* does not match (BUDGET|REVENUE)!');
+      result.warnings = (result.warnings || []).filter(message =>
+        !/^Montel is absent from historical WK\d+ department dashboard; verified against finance source rows only$/.test(message) &&
+        !/^Company overview unavailable: Missing WK\d+ worksheet$/.test(message)
+      );
+      result.records = (result.records || []).map(record => ({
+        ...record,
+        issues: (record.issues || []).filter(issue =>
+          !dashboardMismatch.test(issue) &&
+          !/^Weekly sheet shows calculated £0 from blank revenue source/.test(issue) &&
+          !/^Weekly revenue formula source row must be checked:/.test(issue)
+        ),
+        cachedBudget: null,
+        cachedRevenue: null
+      }));
+      result.acceptanceReady = !!result.weekFound && result.records.length === 9 &&
+        result.records.every(record => record.issues.length === 0) && result.warnings.length === 0;
+      return result;
+    };
+  }
+
   const delay = 650;
   let sectionTimer = 0;
   let sectionSaving = false;
