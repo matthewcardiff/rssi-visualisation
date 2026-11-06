@@ -699,7 +699,7 @@
       slide.append(panel);
     }
     const signature = JSON.stringify([context.departmentName, context.weekId]);
-    if (panel.dataset.signature === signature) return;
+    if (panel.dataset.signature === signature) return panel;
     panel.dataset.signature = signature;
     panel.replaceChildren();
     panel.append(presenterTextElement('div', 'REVENUE'));
