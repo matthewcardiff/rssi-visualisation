@@ -112,7 +112,7 @@ test('finance upload reads separate budget and lagged revenue calendars and subm
   assert.match(html, /async function vhFinanceExtract\(file,selectedWeek\)/);
   assert.match(html, /weekHeaders\(budget,5,'BUDGET'\)/);
   assert.match(html, /weekHeaders\(revenue,19,'REVENUE'\)/);
-  assert.match(html, /x\.week===financePeriod\?\.managementWeek/);
+  assert.match(html, /x\.week===financePeriod\?\.sourceWeek/);
   assert.match(html, /x\.week===financePeriod\?\.sourceWeek/);
   assert.match(html, /sourceRows:\{budget:bRows,revenue:rRows\}/);
   assert.match(html, /\['weekly_budget',record\.bv\]/);

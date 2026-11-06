@@ -100,6 +100,17 @@ test('finance import is ready when nine source-mapped departments have no remain
   assert.equal(reviewed.records[0].revenueInputState, 'blank');
 });
 
+test('finance extraction applies the workbook two-week cutoff to budget, revenue and YTD', () => {
+  const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
+  assert.match(extractor, /weekly and YTD formulas use management week - 2/);
+  assert.match(extractor, /budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
+  assert.match(extractor, /revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
+  assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
+  assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
+  assert.match(extractor, /YTD values run through that same source week/);
+  assert.doesNotMatch(extractor, /blank inputs sum to £0/);
+});
+
 test('finance checks and import history are readable without an inner results scrollbar', () => {
   assert.match(autosave, /vh26-finance-preview-results\{display:flex!important;flex-direction:column!important;max-height:none!important;overflow:visible!important\}/);
   assert.match(autosave, /vh26-finance-preview-results \.vh26-finance-warning\{order:0!important/);
@@ -134,6 +145,19 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(autosave, /function presenterVariance\(revenue, budget\)/);
   assert.match(autosave, /variance = Number\(revenue\) - Number\(budget\)/);
   assert.match(autosave, /presenterFinanceCard\(slide, context\)/);
+});
+
+test('finance Presenter shows all departments, partial company totals and refreshes after publication', () => {
+  const presenter = financeUi.slice(financeUi.indexOf('async function presenterRenderFinance(root)'), financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide'));
+  assert.match(presenter, /textContent='Refresh figures'/);
+  assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
+  assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
+  assert.match(presenter, /for\(const dep of financeDepartments\)/);
+  assert.match(presenter, /const companyAggregate=key=>/);
+  assert.match(presenter, /Partial total · \$\{result\.reported\} of \$\{result\.total\} departments reported/);
+  assert.match(presenter, /const companyVariance=\(revenueKey,budgetKey\)=>/);
+  assert.match(autosave, /window\.vhInvalidatePresenterFinanceCache = \(\) => presenterApiCache\.finance\.clear\(\)/);
+  assert.match(financeUi, /window\.vhInvalidatePresenterFinanceCache\?\.\(\)/);
 });
 
 test('finance flow shows one next action and advances to Apply after checks are acknowledged', () => {
