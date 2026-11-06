@@ -10,19 +10,22 @@
     if (!panel || !list) return;
 
     const heading = panel.querySelector('h2');
-    if (heading) heading.textContent = 'Staged finance imports';
+    if (heading && heading.textContent !== 'Staged finance imports') heading.textContent = 'Staged finance imports';
     const intro = heading?.nextElementSibling;
     if (intro?.tagName === 'P') {
-      intro.textContent = 'This list shows finance files saved for review. Only approved figures appear in reports. Approval and publication are switched off in this preview.';
+      const plainIntro = 'This list shows finance files saved for review. Only approved figures appear in reports. Approval and publication are switched off in this preview.';
+      if (intro.textContent !== plainIntro) intro.textContent = plainIntro;
     }
     const refresh = document.getElementById('vh26-finance-review-refresh');
-    if (refresh) refresh.textContent = 'Refresh list';
+    if (refresh && refresh.textContent !== 'Refresh list') refresh.textContent = 'Refresh list';
 
     const status = document.getElementById('vh26-finance-review-status');
     if (status?.textContent) {
       const count = status.textContent.match(/(\d+) imports? found/i)?.[1];
-      if (count) status.textContent = `${count} staged finance file${count === '1' ? '' : 's'}. They are not published.`;
-      else if (/loading finance import register/i.test(status.textContent)) status.textContent = 'Loading staged finance files…';
+      if (count) {
+        const plainStatus = `${count} staged finance file${count === '1' ? '' : 's'}. They are not published.`;
+        if (status.textContent !== plainStatus) status.textContent = plainStatus;
+      } else if (/loading finance import register/i.test(status.textContent)) status.textContent = 'Loading staged finance files…';
     }
 
     const seen = new Set();
