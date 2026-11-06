@@ -200,8 +200,14 @@
   let sectionTimer = 0;
   let sectionSaving = false;
   let sectionSaveQueued = false;
+  let reportingDirty = false;
+  let reportingEditVersion = 0;
+  let appDirtyNeedsClearing = false;
   let navigationSavePending = false;
   let requestedNavigation = null;
+  let navigationReplay = false;
+  let lastSelectedWeek = '';
+  const pendingOpportunityCards = new Set();
   const opportunityTimers = new WeakMap();
 
   const workspace = () => document.getElementById('vh26-report-workspace');
@@ -240,6 +246,7 @@
     }
     const sectionKey = selectedSection;
     const departmentCode = selectedDepartment?.code;
+    const savedEditVersion = reportingEditVersion;
     sectionSaving = true;
     reportingBusy = true;
     status('Saving changes to Supabase…');
@@ -265,9 +272,12 @@
         content = { ...old, notes: document.getElementById('vh26-section-notes').value, entries };
       }
       await dataApi('save_section', { report_id: id, section_key: sectionKey, content });
-      reportingDirty = false;
-      await loadNative();
-      status('Saved automatically to Supabase');
+      reportingDirty = reportingEditVersion !== savedEditVersion;
+      if (reportingDirty) status('A newer change is still saving…');
+      else {
+        await loadNative();
+        status('Saved automatically to Supabase');
+      }
     } catch (error) {
       reportingDirty = true;
       status('Automatic save failed: ' + error.message);
@@ -296,6 +306,7 @@
 
   function scheduleSectionSave() {
     if (!context().editable) return;
+    reportingEditVersion++;
     reportingDirty = true;
     status('Changes will save automatically…');
     clearTimeout(sectionTimer);
@@ -334,6 +345,137 @@
     root.querySelectorAll('textarea, input:not([type]), input[type="text"]').forEach(field => {
       field.setAttribute('spellcheck', 'true');
       field.setAttribute('lang', 'en-GB');
+    });
+  }
+
+  function navigationIntent(target) {
+    if (target.matches('#vh26-week')) return { kind: 'week', value: target.value };
+    if (target.matches('.vh26-sidebar nav button[data-connected-nav]')) return { kind: 'sidebar', key: target.dataset.connectedNav };
+    if (target.matches('#vh26-section-tabs button')) return { kind: 'tab', label: target.textContent.trim() };
+    if (target.matches('.vh26-report-step-controls button')) return { kind: 'step', label: target.textContent.trim() };
+    if (target.matches('#vh26-back-departments')) return { kind: 'back-departments' };
+    return null;
+  }
+
+  function resolveNavigation(intent, root) {
+    const dashboard = document.getElementById('vh26-connected-dashboard') || root;
+    if (intent.kind === 'week') return dashboard.querySelector('#vh26-week');
+    if (intent.kind === 'sidebar') return dashboard.querySelector(`.vh26-sidebar nav button[data-connected-nav="${CSS.escape(intent.key)}"]`);
+    if (intent.kind === 'back-departments') return dashboard.querySelector('#vh26-back-departments');
+    if (intent.kind === 'tab') return [...dashboard.querySelectorAll('#vh26-section-tabs button')].find(button => button.textContent.trim() === intent.label);
+    return [...dashboard.querySelectorAll('.vh26-report-step-controls button')].find(button => button.textContent.trim() === intent.label && button.getClientRects().length);
+  }
+
+  async function waitForStatus(successPattern, failurePattern, beforeText) {
+    const node = document.getElementById('vh26-report-status');
+    if (!node) return false;
+    const started = Date.now();
+    while (Date.now() - started < 20000) {
+      const message = node.textContent.trim();
+      if (successPattern.test(message) && message !== beforeText) return true;
+      if (failurePattern.test(message) && message !== beforeText) return false;
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+    return false;
+  }
+
+  async function saveCurrentSectionForNavigation(root) {
+    const pipeline = root.querySelector('#vh26-pipeline-workspace');
+    if (pipeline && !pipeline.hidden) {
+      const notes = root.querySelector('#vh26-pipeline-notes');
+      const notesValue = notes?.value || '';
+      const pendingCards = [...pendingOpportunityCards].filter(card => card.isConnected);
+      for (const card of pendingCards) clearTimeout(opportunityTimers.get(card));
+      const pendingRows = pendingCards.map(card =>
+        Object.fromEntries([...card.querySelectorAll('[data-pipeline-prop]')].map(field => [field.dataset.pipelineProp, field.value.trim()]))
+      );
+      for (const values of pendingRows) {
+        const populated = Object.values(values).some(Boolean);
+        if (!populated) continue;
+        const complete = values.customer && values.project && values.owner_text && /^\d{4}-\d{2}-\d{2}$/.test(values.required_by) && Number.isFinite(Number(values.estimated_value)) && Number(values.estimated_value) >= 0;
+        if (!complete) {
+          status('Complete the pipeline opportunity or remove it before changing section.');
+          return false;
+        }
+        const card = [...root.querySelectorAll('.vh26-pipeline-card')].find(candidate => {
+          const fields = Object.fromEntries([...candidate.querySelectorAll('[data-pipeline-prop]')].map(field => [field.dataset.pipelineProp, field.value.trim()]));
+          return fields.customer === values.customer && fields.project === values.project;
+        });
+        if (!card) continue;
+        const save = card.querySelector(':scope > button:first-of-type');
+        if (!save) return false;
+        const messageNode = document.getElementById('vh26-pipeline-message');
+        if (messageNode) messageNode.textContent = 'Saving opportunity…';
+        save.click();
+        const started = Date.now();
+        let saved = false;
+        while (Date.now() - started < 20000) {
+          const message = document.getElementById('vh26-pipeline-message')?.textContent.trim() || '';
+          if (/Opportunity saved to Supabase/i.test(message)) { saved = true; break; }
+          if (/Pipeline unavailable|Save failed|Complete every field/i.test(card.textContent || '')) break;
+          await new Promise(resolve => setTimeout(resolve, 40));
+        }
+        if (!saved) { status('The pipeline opportunity could not be saved. Stay here and retry.'); return false; }
+      }
+      pendingOpportunityCards.clear();
+      const saveNotes = root.querySelector('#vh26-pipeline-save-notes');
+      if (saveNotes && !saveNotes.disabled) {
+        const latestNotes = root.querySelector('#vh26-pipeline-notes');
+        if (latestNotes) latestNotes.value = notesValue;
+        const reportStatus = document.getElementById('vh26-report-status');
+        if (reportStatus) reportStatus.textContent = 'Saving pipeline notes…';
+        saveNotes.click();
+        if (!await waitForStatus(/^Pipeline section saved$/i, /could not be saved/i, 'Saving pipeline notes…')) {
+          status('Pipeline notes could not be saved. Stay here and retry.');
+          return false;
+        }
+      }
+      appDirtyNeedsClearing = false;
+      reportingDirty = false;
+      return true;
+    }
+
+    if (!await flushSectionSave()) return false;
+    if (!appDirtyNeedsClearing) return true;
+
+    const saveDraft = root.querySelector('#vh26-save-section');
+    if (!saveDraft || saveDraft.disabled) return false;
+    const before = document.getElementById('vh26-report-status')?.textContent.trim() || '';
+    saveDraft.click();
+    if (!await waitForStatus(/^Draft saved to Supabase$/i, /Save failed:/i, before)) {
+      status('The section could not be saved. Stay here and retry.');
+      return false;
+    }
+    appDirtyNeedsClearing = false;
+    reportingDirty = false;
+    return true;
+  }
+
+  function runNavigation(intent, root) {
+    requestedNavigation = intent;
+    if (navigationSavePending) return;
+    navigationSavePending = true;
+    status('Saving this section before moving…');
+    void saveCurrentSectionForNavigation(root).then(saved => {
+      const nextIntent = requestedNavigation;
+      requestedNavigation = null;
+      if (!saved) return;
+      const next = resolveNavigation(nextIntent, root);
+      if (!next || !next.isConnected || next.disabled) {
+        status('This section is not available yet. Complete the required earlier sections first.');
+        return;
+      }
+      navigationReplay = true;
+      if (nextIntent.kind === 'week') {
+        next.value = nextIntent.value;
+        next.dispatchEvent(new Event('change', { bubbles: true }));
+        lastSelectedWeek = next.value;
+      } else next.click();
+    }).catch(error => {
+      status('Could not save this section: ' + error.message);
+    }).finally(() => {
+      navigationReplay = false;
+      navigationSavePending = false;
     });
   }
 
@@ -669,37 +811,48 @@
     root.dataset.autosaveReady = 'true';
     const dashboard = document.getElementById('vh26-connected-dashboard');
     dashboard?.addEventListener('click', event => {
-      const target = event.target instanceof Element ? event.target.closest('.vh26-sidebar nav button[data-connected-nav]') : null;
-      if (!target || !reportingDirty) return;
+      if (navigationReplay) return;
+      const target = event.target instanceof Element ? event.target.closest('.vh26-sidebar nav button[data-connected-nav], #vh26-section-tabs button, .vh26-report-step-controls button, #vh26-back-departments') : null;
+      if (!target || !(reportingDirty || reportingBusy || appDirtyNeedsClearing)) return;
+      const intent = navigationIntent(target);
+      if (!intent) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
-      requestedNavigation = target;
-      if (navigationSavePending) return;
-      navigationSavePending = true;
-      status('Saving changes before switching sections…');
-      void flushSectionSave().then(saved => {
-        const next = requestedNavigation;
-        requestedNavigation = null;
-        if (saved && next?.isConnected) next.click();
-        else status('Changes could not be saved. Stay on this section and retry after resolving the save issue.');
-      }).catch(error => {
-        status('Changes could not be saved: ' + error.message);
-      }).finally(() => {
-        navigationSavePending = false;
-      });
+      runNavigation(intent, root);
+    }, true);
+    const weekSelect = root.querySelector('#vh26-week');
+    lastSelectedWeek = weekSelect?.value || '';
+    dashboard?.addEventListener('change', event => {
+      if (!(event.target instanceof HTMLSelectElement) || !event.target.matches('#vh26-week')) return;
+      const target = event.target;
+      if (navigationReplay) { queueMicrotask(() => { lastSelectedWeek = target.value; }); return; }
+      if (reportingDirty || reportingBusy || appDirtyNeedsClearing) {
+        const requestedWeek = target.value;
+        target.value = lastSelectedWeek;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        runNavigation({ kind: 'week', value: requestedWeek }, root);
+        return;
+      }
+      queueMicrotask(() => { lastSelectedWeek = target.value; });
     }, true);
     root.addEventListener('input', event => {
       const el = event.target;
       if (!(el instanceof HTMLElement)) return;
       if (el.matches('#vh26-section-notes, #vh26-entries [data-prop], #vh26-hsqe-fields [data-hsqe-field], #vh26-pipeline-notes')) {
-        markReportingDirty();
+        appDirtyNeedsClearing = true;
         scheduleSectionSave();
         return;
       }
       const card = el.closest('.vh26-pipeline-card');
       if (card && el.matches('[data-pipeline-prop]')) {
-        markReportingDirty();
+        appDirtyNeedsClearing = true;
+        pendingOpportunityCards.add(card);
+        reportingDirty = true;
+        reportingEditVersion++;
+        status('Changes will save automatically…');
         scheduleOpportunitySave(card);
       }
     });
