@@ -7,6 +7,16 @@ const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url),
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
+test('finance import, reconciliation and publication are enabled only on the named staging branch', () => {
+  const netlifyConfig = readFileSync(new URL('../netlify.toml', import.meta.url), 'utf8');
+  assert.match(netlifyConfig, /\[context\."build052-visual-restoration"\.environment\]/);
+  for (const flag of ['VH_FINANCE_STAGING_WRITES', 'VH_FINANCE_RECONCILIATION_ENABLED', 'VH_FINANCE_PUBLICATION_ENABLED']) {
+    assert.match(netlifyConfig, new RegExp(`${flag} = "enabled"`));
+  }
+  assert.doesNotMatch(netlifyConfig, /\[context\.production\.environment\]/);
+  assert.doesNotMatch(netlifyConfig, /\[context\.deploy-preview\.environment\]/);
+});
+
 function installFinanceCheckCorrection(result) {
   const window = { vhFinanceExtract: async () => structuredClone(result) };
   const document = {
