@@ -40,7 +40,7 @@
   reportingFormStyle.id = 'vh26-report-form-consistency';
   reportingFormStyle.textContent = `
     #vh26-connected-dashboard.vh26-workspace-active #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-native-report,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{box-sizing:border-box!important;width:100%!important;max-width:1100px!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-native-report{box-sizing:border-box!important;width:100%!important;max-width:976px!important;margin-left:auto!important;margin-right:auto!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-report-intro,#vh26-connected-dashboard.vh26-workspace-active #vh26-report-workspace #vh26-native-report{box-sizing:border-box!important;width:100%!important;max-width:1066px!important;margin-left:auto!important;margin-right:auto!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:26px 30px!important;border:1px solid #dce5e9!important;border-radius:14px!important;background:#fff!important;box-shadow:0 6px 20px #16364c0a!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries{display:grid!important;gap:12px!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{box-sizing:border-box!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;grid-template-areas:"title owner support" "required remove ." "update update update"!important;align-items:end!important;gap:12px!important;width:100%!important;margin:0!important;padding:16px!important;border:1px solid #d5e1e8!important;border-radius:12px!important;background:#fff!important}
@@ -59,6 +59,8 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields[hidden]{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-ai-review{min-height:42px!important;padding:10px 16px!important;border-radius:12px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-entries .vh26-entry,
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-add-entry{display:none!important}
     @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title owner" "support required" "update update" "remove remove"!important}}
     @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:18px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:1fr!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title" "owner" "support" "required" "update" "remove"!important}}
   `;
@@ -333,6 +335,32 @@
       field.setAttribute('spellcheck', 'true');
       field.setAttribute('lang', 'en-GB');
     });
+  }
+
+  function simplifyNarrativeEntries(root) {
+    const sectionEditor = root.querySelector('#vh26-section-editor');
+    const pipeline = root.querySelector('#vh26-pipeline-workspace');
+    const generic = root.querySelector('#vh26-generic-section-editor');
+    const hsqe = root.querySelector('#vh26-hsqe-fields');
+    const notes = root.querySelector('#vh26-section-notes');
+    const entries = root.querySelector('#vh26-entries');
+    if (!sectionEditor || sectionEditor.hidden || !generic || generic.hidden || !hsqe?.hidden || !pipeline?.hidden || !notes || !entries) return;
+
+    const cards = [...entries.querySelectorAll('.vh26-entry')];
+    if (!cards.length) return;
+    const legacyLines = cards.map(card => {
+      const values = Object.fromEntries([...card.querySelectorAll('[data-prop]')].map(field => [field.dataset.prop, field.value.trim()]));
+      const heading = values.title || values.update || 'Update';
+      const details = [values.title && values.update && values.title !== values.update ? values.update : '', values.owner && `Owner: ${values.owner}`, values.support && `Support: ${values.support}`, values.required_by && `Required by: ${values.required_by}`].filter(Boolean);
+      return details.length ? `${heading} — ${details.join(' · ')}` : heading;
+    }).filter(Boolean);
+    const existing = notes.value.trim();
+    const additions = legacyLines.filter(line => !existing.includes(line));
+    if (additions.length) {
+      notes.value = [existing, ...additions].filter(Boolean).join('\n');
+      notes.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    entries.replaceChildren();
   }
 
   function suppressInternalStatusMessages(root) {
@@ -698,11 +726,13 @@
     const observer = new MutationObserver(() => {
       hideOpportunitySaveButtons(root);
       applyReportingSpellcheck(root);
+      simplifyNarrativeEntries(root);
       suppressInternalStatusMessages(root);
     });
     observer.observe(root, { childList: true, subtree: true });
     hideOpportunitySaveButtons(root);
     applyReportingSpellcheck(root);
+    simplifyNarrativeEntries(root);
     suppressInternalStatusMessages(root);
   }
 
