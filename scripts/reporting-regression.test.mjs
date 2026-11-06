@@ -137,7 +137,7 @@ test('finance Apply requires acknowledgement and sends workbook findings to the 
     assert.equal(applied.status,200);
     const rpc=applied.calls.at(-1),body=JSON.parse(rpc.options.body);
     assert.match(rpc.url,/\/rpc\/vh_finance_stage_import$/);assert.equal(body.p_file_name,'week32.xlsx');assert.equal(body.p_reporting_week_id,period);
-    assert.deepEqual(body.p_findings,['HS2: YTD revenue incomplete/unverified']);assert.equal(body.p_metrics.length,4);
+    assert.deepEqual(body.p_findings,['HS2: YTD revenue incomplete/unverified']);assert.equal(body.p_findings_acknowledged,true);assert.equal(body.p_metrics.length,4);
     assert.equal(body.p_metrics.find(row=>row.metric_key==='weekly_revenue').input_state,'missing');assert.equal(body.p_metrics.find(row=>row.metric_key==='weekly_revenue').amount,null);
     assert.equal(rpc.options.headers.authorization,'Bearer '+token);
   }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior}
@@ -186,6 +186,21 @@ test('finance register exposes only per-import reconciled and publish actions wh
   assert.match(html,/Finance review and publication/);
   assert.match(html,/Enter the review rationale \(at least 8 characters\)/);
   assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
+});
+test('finance review allows only acknowledged missing-value warnings through to separate reconciliation',async()=>{
+  const period='44444444-4444-4444-8444-444444444444',source='55555555-5555-4555-8555-555555555555',department='66666666-6666-4666-8666-666666666666';
+  const importId='88888888-8888-4888-8888-888888888888';
+  const metricRows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({finance_import_id:importId,department_id:department,reporting_week_id:period,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source,mapping_status:'pending',issues:[]}));
+  const out=await request('finance_review',{},[
+    {body:{id}},{body:[{role:'administrator'}]},
+    {body:[{id:importId,file_name:'week32.xlsx',reporting_week_id:period,reconciliation_status:'pending',findings:['HS2: Weekly revenue missing or unverified','HS2: YTD revenue incomplete/unverified'],findings_acknowledged_by:id,findings_acknowledged_at:'2026-11-06T12:00:00Z'}]},
+    {body:metricRows},{body:[]},
+    {body:[{id:period,rail_period_id:'77777777-7777-4777-8777-777777777777'}]},
+    {body:[{id:source,rail_week:30,start_date:'2026-10-10'},{id:'99999999-9999-4999-8999-999999999999',rail_week:31,start_date:'2026-10-24'},{id:'77777777-7777-4777-8777-777777777777',rail_week:32,start_date:'2026-11-07'}]},
+    {body:[{id:department,display_name:'HS2'}]},{body:[]}
+  ]);
+  assert.equal(out.status,200);assert.equal(out.body.imports[0].can_reconcile,true);
+  assert.deepEqual(out.body.imports[0].warnings,['HS2: Weekly revenue missing or unverified','HS2: YTD revenue incomplete/unverified']);
 });
 test('enabled finance publication requires finance role, rationale and database RPC approval',async()=>{
   const prior=process.env.VH_FINANCE_PUBLICATION_ENABLED;process.env.VH_FINANCE_PUBLICATION_ENABLED='enabled';

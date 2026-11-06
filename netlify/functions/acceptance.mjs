@@ -218,13 +218,15 @@ export default async (request)=>{
       const roles=await roleRes.json();
       if(!roles.some(r=>['finance','finance_admin','administrator'].includes(r.role)))return json(403,{error:'Finance reconciliation review restricted'});
       const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Finance review data unavailable');return r.json()};
-      const imports=await get('finance_imports?select=id,file_name,file_sha256,reporting_week_id,reconciliation_status,findings,imported_at&order=imported_at.desc&limit=100');
+      const imports=await get('finance_imports?select=id,file_name,file_sha256,reporting_week_id,reconciliation_status,findings,findings_acknowledged_by,findings_acknowledged_at,imported_at&order=imported_at.desc&limit=100');
       const ids=imports.map(x=>x.id).filter(x=>/^[0-9a-f-]{36}$/i.test(x));
       const metrics=ids.length?await get('finance_metric_values?select=finance_import_id,department_id,reporting_week_id,metric_key,amount,input_state,source_period_id,mapping_status,issues&finance_import_id=in.('+ids.join(',')+')&limit=12000'):[];
       const publications=await get('finance_publications?select=id,source_import_id,reporting_week_id,department_id,status,publication_version&order=publication_version.desc&limit=1000');
-      const [weeks,periods]=await Promise.all([
+      const [weeks,periods,departments,reconciliationEvents]=await Promise.all([
         get('reporting_weeks?select=id,rail_period_id&limit=500'),
-        get('rail_calendar_periods?select=id,rail_week,start_date&order=start_date.asc&limit=500')
+        get('rail_calendar_periods?select=id,rail_week,start_date&order=start_date.asc&limit=500'),
+        get('departments?select=id,display_name&limit=100'),
+        ids.length?get('finance_reconciliation_events?select=finance_import_id,accepted_findings&finance_import_id=in.('+ids.join(',')+')&limit=100'):Promise.resolve([])
       ]);
       const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=2?periods[i-2].id:null]}));
       const groups=imports.map(imp=>{
@@ -242,8 +244,17 @@ export default async (request)=>{
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
         if(rows.some(r=>!['missing','zero','value'].includes(r.input_state)))problems.push('Unrecognised input state');
-        if(!Array.isArray(imp.findings))problems.push('Import findings could not be verified');
-        else if(imp.findings.length)problems.push('Import-level findings require resolution');
+        const findings=Array.isArray(imp.findings)?imp.findings:null;
+        const acknowledged=Boolean(imp.findings_acknowledged_by&&imp.findings_acknowledged_at);
+        const acceptedWarnings=findings?.map(finding=>{
+          const match=/^(.+): (Weekly revenue missing or unverified|YTD revenue incomplete\/unverified)$/.exec(finding);
+          if(!match||!acknowledged)return null;
+          const department=departments.find(d=>d.display_name===match[1]);
+          const metric=match[2].startsWith('Weekly')?'weekly_revenue':'ytd_revenue';
+          return department&&rows.some(r=>r.department_id===department.id&&r.metric_key===metric&&r.input_state==='missing')?finding:null;
+        })||[];
+        if(!findings)problems.push('Import findings could not be verified');
+        else if(findings.length&&acceptedWarnings.some(w=>!w))problems.push('Import-level findings require resolution');
         if(rows.some(r=>Array.isArray(r.issues)&&r.issues.length))problems.push('Metric-level issues recorded');
         for(const [k,group] of byDepartment){if(group.length!==4||new Set(group.map(r=>r.metric_key)).size!==4||!['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].every(m=>group.some(r=>r.metric_key===m)))problems.push('Incomplete or duplicate metric group: '+k)}
         if(rows.some(r=>r.department_id===null||r.reporting_week_id===null))problems.push('Metric has no department or reporting week');
@@ -251,7 +262,9 @@ export default async (request)=>{
         if(!['pending','reconciled'].includes(imp.reconciliation_status))problems.push('Import is not in a reviewable state');
         if(linked.length)problems.push('Import already has publication history');
         const ready=problems.length===0;
-        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:ready,can_reconcile:ready&&imp.reconciliation_status==='pending',can_publish:ready&&imp.reconciliation_status==='reconciled',metric_count:rows.length,department_count:byDepartment.size,issues:problems,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
+        const reconciliation=reconciliationEvents.find(e=>e.finance_import_id===imp.id);
+        const warnings=findings?.length?findings:(Array.isArray(reconciliation?.accepted_findings)?reconciliation.accepted_findings:[]);
+        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:ready,can_reconcile:ready&&imp.reconciliation_status==='pending',can_publish:ready&&imp.reconciliation_status==='reconciled',metric_count:rows.length,department_count:byDepartment.size,issues:problems,warnings,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
       });
       const approvalEnabled=process.env.VH_FINANCE_STAGING_WRITES==='enabled';
       const reconciliationEnabled=approvalEnabled&&process.env.VH_FINANCE_RECONCILIATION_ENABLED==='enabled';
@@ -323,7 +336,8 @@ export default async (request)=>{
         method:'POST',headers:{...headers,prefer:'return=representation'},
         body:JSON.stringify({p_file_name:data.file_name,p_file_sha256:hash,
           p_reporting_week_id:weeksInImport[0],
-          p_metrics:normalized.map(({source_rail_week,...row})=>row),p_findings:findings.map(x=>x.trim())}),
+          p_metrics:normalized.map(({source_rail_week,...row})=>row),p_findings:findings.map(x=>x.trim()),
+          p_findings_acknowledged:data.findings_acknowledged===true}),
         signal:AbortSignal.timeout(20000)
       });
       if(!response.ok){
