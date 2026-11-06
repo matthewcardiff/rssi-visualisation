@@ -51,6 +51,18 @@ test('department chooser uses the modern RSSI card layout at desktop and mobile 
   assert.match(autosave, /prefers-reduced-motion:reduce/);
 });
 
+test('report heading aligns with the week selector and keeps the orange section progress bar visible', () => {
+  assert.match(autosave, /vh26-workspace-active #vh26-report-intro\\{width:100%!important;max-width:1000px!important;margin-left:auto!important;margin-right:auto!important;padding-left:0!important/);
+  assert.match(html, /class="vh26-stage-progress"/);
+  assert.match(autosave, /vh26-workspace-active #vh26-stage-progress-fill\\{display:block!important;height:100%;background:#ff6b00/);
+});
+
+test('finance history list is hidden in preview because it offers no review action', () => {
+  assert.match(autosave, /vh26-finance-view-active #vh26-finance-review\\{display:none!important\\}/);
+  assert.match(html, /async function financeReviewRefresh\\(\\)/);
+  assert.match(html, /dataApi\\('finance_review'\\)/);
+});
+
 test('finance upload retains the Build 050 weekly-budget reader and submits its extracted budget field', () => {
   assert.match(html, /async function vhFinanceExtract\(file,selectedWeek\)/);
   assert.match(html, /const budgetWeek=weeks\.find\(x=>x\.week===financePeriod\.managementWeek\)/);
