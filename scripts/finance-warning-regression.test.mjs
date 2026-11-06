@@ -116,6 +116,7 @@ test('finance flow shows one next action and advances to Apply after checks are 
   assert.match(financeFlow, /function financeSetStep\(step\)/);
   assert.match(financeFlow, /financeSetStep\(check\.checked\?3:2\)/);
   assert.match(financeFlow, /financeSetActions\('apply'\)/);
+  assert.match(financeFlow, /Reporting week changed\. Review the workbook again before applying/);
   assert.match(financeFlow, /no weekly revenue recorded in source NRW WK/);
   assert.doesNotMatch(financeFlow, /if\(!confirm\(/);
 });
