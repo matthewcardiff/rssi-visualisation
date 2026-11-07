@@ -870,40 +870,25 @@
     }
   }
 
-  function polishManagedEnvironmentTestCards(slide, departmentName) {
+  function suppressSyntheticManagedEnvironmentPresenterCards(slide, departmentName) {
     if (departmentName !== 'Managed Environments') return;
-    const setLines = (card, lines) => {
-      let paragraphs = [...card.querySelectorAll('p')];
-      while (paragraphs.length < lines.length) {
-        const paragraph = document.createElement('p');
-        card.append(paragraph);
-        paragraphs = [...card.querySelectorAll('p')];
-      }
-      paragraphs.forEach((paragraph, index) => {
-        if (index < lines.length) paragraph.textContent = lines[index];
-        else paragraph.remove();
-      });
-    };
     const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
+    const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User/i;
+    const reportSections = new Set(['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources']);
     for (const card of cards) {
       const title = card.querySelector('h2')?.textContent.trim();
-      const content = card.textContent || '';
-      if (!/QA TEST DATA|QA TEST — Fictional|Fictional scenario/i.test(content)) continue;
-      if (title === 'Pipeline') {
-        setLines(card, [
-          'Illustrative staging examples · Synthetic test data only.',
-          'Lineside vegetation survey — £12,345 · Test owner: QA Test User · Required by 13 November 2026.',
-          'Ecology constraints review — £1,111 · Test owner: QA Test User · Required by 20 November 2026.'
-        ]);
-      } else if (title === 'Delivery') {
-        setLines(card, [
-          'Illustrative staging scenario · Synthetic test data only.',
-          'Vegetation clearance quality checks: 18 of 20 complete across two sample work fronts. Two follow-up inspections are due by 13 November 2026. Test owner: QA Test User.'
-        ]);
+      if (!reportSections.has(title) || !syntheticContent.test(card.textContent || '')) continue;
+      const paragraphs = [...card.querySelectorAll('p')];
+      if (paragraphs.length) {
+        paragraphs[0].textContent = 'Not reported for this week.';
+        paragraphs.slice(1).forEach(paragraph => paragraph.remove());
+      } else {
+        const paragraph = document.createElement('p');
+        paragraph.textContent = 'Not reported for this week.';
+        card.append(paragraph);
       }
     }
   }
-
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -985,7 +970,7 @@
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
       const context = presenterDepartmentContext(slide, tabs);
-      polishManagedEnvironmentTestCards(slide, departmentName);
+      suppressSyntheticManagedEnvironmentPresenterCards(slide, departmentName);
       presenterAppendOverview(slide, heading, context);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
