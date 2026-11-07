@@ -627,10 +627,20 @@
       presenterApiCache.finance.clear();
       presenterApiCache.actions.clear();
     }
-    const response = await fetch('/api/acceptance', {
+    let response;
+    try {
+      response = await fetch('/api/acceptance', {
       method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
-      body: JSON.stringify({ op, access_token: token, ...extra })
-    });
+      body: JSON.stringify({ op, access_token: token, ...extra }), signal: AbortSignal.timeout(20000)
+      });
+    } catch (error) {
+      if (error?.name === 'TimeoutError' || error?.name === 'AbortError') {
+        if (op === 'finance_published') presenterApiCache.finance.clear();
+        if (op === 'actions') presenterApiCache.actions.clear();
+        throw new Error('Presenter request timed out. Use Refresh to try again.');
+      }
+      throw error;
+    }
     let body;
     try { body = await response.json(); } catch { throw new Error('The presenter could not load meeting data.'); }
     if (!response.ok) throw new Error(body.error || 'The presenter could not load meeting data.');
