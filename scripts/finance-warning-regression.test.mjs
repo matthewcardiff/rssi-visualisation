@@ -108,7 +108,31 @@ test('finance extraction applies the workbook two-week cutoff to budget, revenue
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /YTD values run through that same source week/);
+  assert.match(extractor, /for\(let col=1;col<=52;col\+\+\).*index:col-1/);
+  assert.match(extractor, /vhFinCol\(1\)\+row\+':'\+vhFinCol\(52\)\+row/);
   assert.doesNotMatch(extractor, /blank inputs sum to £0/);
+});
+
+test('weekly finance header scan includes the first source-week column', () => {
+  const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
+  const headerSource = extractor.slice(extractor.indexOf('function weekHeaders(map,expectedRow,tab)'), extractor.indexOf('const budgetCalendar=weekHeaders'));
+  const warnings = [];
+  const normLabel = value => String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  function vhFinCol(n) { let result = ''; for (n++; n; n = Math.floor((n - 1) / 26)) result = String.fromCharCode(65 + (n - 1) % 26) + result; return result; }
+  const weekHeaders = vm.runInNewContext(`${headerSource}; weekHeaders`, { warnings, normLabel, vhFinCol });
+  const map = new Map([
+    ['A5', { value: 'BUSINESS UNIT' }],
+    ['B5', { value: 27 }], ['C5', { value: 28 }], ['D5', { value: 29 }], ['E5', { value: 30 }]
+  ]);
+  const result = weekHeaders(map, 5, 'BUDGET');
+  assert.deepEqual(Array.from(result.weeks, ({ week, col, index }) => ({ week, col, index })), [
+    { week: 27, col: 'B', index: 0 },
+    { week: 28, col: 'C', index: 1 },
+    { week: 29, col: 'D', index: 2 },
+    { week: 30, col: 'E', index: 3 }
+  ]);
+  const sourceIndex = result.weeks.findIndex(period => period.week === 29);
+  assert.deepEqual(Array.from(result.weeks.slice(0, sourceIndex + 1), period => period.week), [27, 28, 29]);
 });
 
 test('finance checks and import history are readable without an inner results scrollbar', () => {
