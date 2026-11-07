@@ -52287,9 +52287,7 @@ async function presenterRenderFinance(root){
  try{
   if(presenterPublishedFinanceWeekId!==week?.id){presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null}
   if(!presenterPublishedFinance){
-   const cached=window.vhGetPresenterFinanceCache?.(week?.id);
-   if(cached){try{presenterPublishedFinance=await cached}catch{presenterPublishedFinance=null}}
-   if(!presenterPublishedFinance)presenterPublishedFinance=await dataApi('finance_published');
+   presenterPublishedFinance=await dataApi('finance_published');
    presenterPublishedFinanceWeekId=week?.id;
   }
   if(root.querySelector(':scope > h1')?.textContent.trim()!=='Finance & Commercial'||document.querySelector('#vh26-presenter-tabs button.selected')?.textContent.trim()!=='Finance & Commercial')return;
