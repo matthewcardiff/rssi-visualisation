@@ -370,6 +370,18 @@ test('Presenter reads separate pipeline opportunities and omits false status and
   assert.match(html,/vh26-presenter-pager\{position:fixed!important/);assert.match(html,/vh26-presenter-slide\{display:grid!important/);
   assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
 });
+test('Managed Environments Presenter suppresses synthetic report cards without inventing replacement figures',()=>{
+  const renderer=readFileSync(new URL('../public/vh26-reporting.js',import.meta.url),'utf8');
+  const start=renderer.indexOf('function suppressSyntheticManagedEnvironmentPresenterCards');
+  const end=renderer.indexOf('function enhancePresenterSlide',start);
+  assert.ok(start>=0&&end>start);
+  const cleanup=renderer.slice(start,end);
+  assert.match(cleanup,/QA TEST DATA\|QA TEST — Fictional\|Fictional scenario\|Illustrative staging\|Synthetic test data only\|Test owner: QA Test User/);
+  assert.match(cleanup,/new Set\(\['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources'\]\)/);
+  assert.match(cleanup,/paragraphs\[0\]\.textContent = 'Not reported for this week\.'/);
+  assert.doesNotMatch(cleanup,/Lineside vegetation survey|Ecology constraints review|Vegetation clearance quality checks/);
+  assert.match(renderer,/suppressSyntheticManagedEnvironmentPresenterCards\(slide, departmentName\)/);
+});
 test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/function reportComplete\(\)\{return currentReportKeys\(\)\.slice\(0,-1\)\.every\(reportSectionComplete\)\}/);
