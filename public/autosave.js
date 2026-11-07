@@ -638,6 +638,7 @@
   }
 
   window.vhInvalidatePresenterFinanceCache = () => presenterApiCache.finance.clear();
+  window.vhGetPresenterFinanceCache = weekId => presenterApiCache.finance.get(weekId) || null;
 
   function presenterMoney(value) {
     if (value === null || value === undefined || value === '' || !Number.isFinite(Number(value))) return 'Not reported';

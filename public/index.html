@@ -51969,7 +51969,7 @@ function presenterRows(){
  document.getElementById('vh26-presenter-summary').textContent=data.length+' matching actions | '+presenterActions.filter(a=>presenterDepartments.some(d=>d.id===a.department_id)&&!['completed','cancelled'].includes(a.status)).length+' outstanding across authorised departments';
 }
 async function presenterRefresh(){
- window.vhInvalidatePresenterFinanceCache?.();
+ window.vhInvalidatePresenterFinanceCache?.();presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;
  const summary=document.getElementById('vh26-presenter-summary');summary.textContent='Loading action register...';
  try{const result=await dataApi('actions');presenterActions=result.items||[];presenterRows();renderHostReadiness()}catch(e){presenterActions=[];presenterRows();summary.textContent='Unable to load action register: '+e.message;renderHostReadiness()}
 }
@@ -52196,7 +52196,7 @@ async function financeReviewRefresh(){
    const title=document.createElement('strong');title.textContent=(item.file_name||'Finance workbook')+' | '+(item.reconciliation_status||'unknown');section.append(title);
    const meta=document.createElement('p');meta.textContent='Import ID: '+item.id+' | Metrics: '+item.metric_count+' | Departments: '+item.department_count+' | Published records: '+item.published_count;section.append(meta);
    const detail=document.createElement('p');const warningText=item.warnings?.length?'Acknowledged missing values remain “Not reported”: '+item.warnings.join('; ')+'. Confirm these against the approved workbook before reconciling. ':'';detail.textContent=item.issues?.length?'Not ready: '+item.issues.join('; '):warningText+(item.reconciliation_status==='pending'?'Ready for finance review. Confirm the staged values against the approved workbook before reconciling.':'Reconciled; ready for publication after the finance review.');section.append(detail);
-   const action=(label,op)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',async()=>{if(op==='finance_reconcile'&&!confirm('Reconcile the validated figures in this import? This will mark the import as reconciled.'))return;if(op==='finance_publish'&&!confirm('Publish this finance import to department reports and Presenter Mode?'))return;const rationale=prompt('Enter the review rationale (at least 8 characters):');if(typeof rationale!=='string'||rationale.trim().length<8)return;button.disabled=true;status.textContent=op==='finance_reconcile'?'Reconciling finance import...':'Publishing finance import...';try{await dataApi(op,{import_id:item.id,confirm:true,comment:rationale.trim()});status.textContent=op==='finance_reconcile'?'Import reconciled. Refreshing register...':'Finance import published. Refreshing figures...';if(op==='finance_publish'){await loadPublishedFinance();window.vhInvalidatePresenterFinanceCache?.()}await financeReviewRefresh()}catch(e){status.textContent=(op==='finance_reconcile'?'Reconciliation':'Publication')+' was not completed: '+e.message;button.disabled=false}});section.append(button)};
+   const action=(label,op)=>{const button=document.createElement('button');button.type='button';button.textContent=label;button.addEventListener('click',async()=>{if(op==='finance_reconcile'&&!confirm('Reconcile the validated figures in this import? This will mark the import as reconciled.'))return;if(op==='finance_publish'&&!confirm('Publish this finance import to department reports and Presenter Mode?'))return;const rationale=prompt('Enter the review rationale (at least 8 characters):');if(typeof rationale!=='string'||rationale.trim().length<8)return;button.disabled=true;status.textContent=op==='finance_reconcile'?'Reconciling finance import...':'Publishing finance import...';try{await dataApi(op,{import_id:item.id,confirm:true,comment:rationale.trim()});status.textContent=op==='finance_reconcile'?'Import reconciled. Refreshing register...':'Finance import published. Refreshing figures...';if(op==='finance_publish'){await loadPublishedFinance();window.vhInvalidatePresenterFinanceCache?.();presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null}await financeReviewRefresh()}catch(e){status.textContent=(op==='finance_reconcile'?'Reconciliation':'Publication')+' was not completed: '+e.message;button.disabled=false}});section.append(button)};
    if(item.can_reconcile&&data.reconciliation_enabled)action('Reconcile validated import','finance_reconcile');
    if(item.can_publish&&data.publication_enabled)action('Publish finance figures','finance_publish');
    list.append(section);
@@ -52267,7 +52267,7 @@ presenterRows=function(){
 presenterDept.addEventListener('change',presenterRows);presenterStatus.addEventListener('change',presenterRows);
 const renderPresenterSlideWithData=renderPresenterSlide;
 renderPresenterSlide=function(){renderPresenterSlideWithData();const errors=hostData?.errors||{},root=document.getElementById('vh26-presenter-slide');if(errors.reports){root.querySelectorAll('p').forEach(p=>{if(p.textContent.startsWith('No report submitted'))p.remove()});const message=document.createElement('p');message.className='vh26-presenter-status';message.textContent='Report status is temporarily unavailable.';root.prepend(message)}if(errors.sections){root.querySelectorAll('p').forEach(p=>{if(p.textContent.startsWith('No saved report sections'))p.remove()});const message=document.createElement('p');message.textContent='Saved report sections could not be loaded.';root.append(message)}};
-let presenterModeView='finance',presenterSafetyDraft=null,presenterPublishedFinance=null;
+let presenterModeView='finance',presenterSafetyDraft=null,presenterPublishedFinance=null,presenterPublishedFinanceWeekId=null;
 function presenterSafetyKey(){return 'weeklyportal-safety-moment:'+String(hostWeek()?.id||'')}
 function presenterSafeText(tag,text){const el=document.createElement(tag);el.textContent=text;return el}
 function presenterSetView(view,index=presenterDepartmentIndex){presenterModeView=view;presenterDepartmentIndex=Math.max(0,Math.min(index,Math.max(0,presenterDepartments.length-1)));renderPresenterTabs();renderPresenterSlide()}
@@ -52282,10 +52282,16 @@ async function presenterRenderFinance(root){
  root.append(presenterSafeText('p','Finance figures · '+(week?hostWeekLabel(week):'No reporting week available')));
  const notice=presenterSafeText('p','Green ↑ means revenue is above budget; red ↓ means it is below. Gap to close follows the workbook calculation: revenue minus budget. Missing values stay “Not reported”.');
  notice.className='vh26-presenter-notice';root.append(notice);
- const refresh=document.createElement('button');refresh.type='button';refresh.className='vh26-presenter-secondary';refresh.textContent='Refresh figures';refresh.addEventListener('click',()=>renderPresenterSlide());root.append(refresh);
+ const refresh=document.createElement('button');refresh.type='button';refresh.className='vh26-presenter-secondary';refresh.textContent='Refresh figures';refresh.addEventListener('click',()=>{presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;window.vhInvalidatePresenterFinanceCache?.();renderPresenterSlide()});root.append(refresh);
  const status=presenterSafeText('p','Loading published finance figures…');root.append(status);
  try{
-  presenterPublishedFinance=await dataApi('finance_published');
+  if(presenterPublishedFinanceWeekId!==week?.id){presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null}
+  if(!presenterPublishedFinance){
+   const cached=window.vhGetPresenterFinanceCache?.(week?.id);
+   if(cached){try{presenterPublishedFinance=await cached}catch{presenterPublishedFinance=null}}
+   if(!presenterPublishedFinance)presenterPublishedFinance=await dataApi('finance_published');
+   presenterPublishedFinanceWeekId=week?.id;
+  }
   if(root.querySelector(':scope > h1')?.textContent.trim()!=='Finance & Commercial'||document.querySelector('#vh26-presenter-tabs button.selected')?.textContent.trim()!=='Finance & Commercial')return;
   const financePeriods=(presenterPublishedFinance.periods||[]).slice().sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date)));
   const managementPeriodIndex=financePeriods.findIndex(p=>p.id===week?.rail_period_id||(week?.rail_calendar_periods?.start_date&&p.start_date===week.rail_calendar_periods.start_date));

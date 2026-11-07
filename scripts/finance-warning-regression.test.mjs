@@ -184,6 +184,10 @@ test('Safety Moment endpoint failures expose HTTP and content-type diagnostics i
 test('finance Presenter shows all departments, partial company totals and refreshes after publication', () => {
   const presenter = financeUi.slice(financeUi.indexOf('async function presenterRenderFinance(root)'), financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide'));
   assert.match(presenter, /textContent='Refresh figures'/);
+  assert.match(presenter, /presenterPublishedFinance=await cached/);
+  assert.match(presenter, /vhGetPresenterFinanceCache\?\.\(week\?\.id\)/);
+  assert.match(presenter, /presenterPublishedFinanceWeekId=week\?\.id/);
+  assert.match(presenter, /presenterPublishedFinanceWeekId=null;window\.vhInvalidatePresenterFinanceCache\?\.\(\);renderPresenterSlide\(\)/);
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
@@ -201,7 +205,7 @@ test('a late finance response cannot overwrite a department Presenter slide', ()
   const end = financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', start);
   assert.ok(start >= 0 && end > start);
   const presenter = financeUi.slice(start, end);
-  assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\);\s*if\(root\.querySelector\(':scope > h1'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\|\|document\.querySelector\('#vh26-presenter-tabs button\.selected'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\)return;/);
+  assert.match(presenter, /if\(!presenterPublishedFinance\)\{[\s\S]*?presenterPublishedFinance=await dataApi\('finance_published'\);[\s\S]*?if\(root\.querySelector\(':scope > h1'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\|\|document\.querySelector\('#vh26-presenter-tabs button\.selected'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\)return;/);
 });
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
   assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);
