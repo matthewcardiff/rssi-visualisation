@@ -145,6 +145,16 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(autosave, /function presenterVariance\(revenue, budget\)/);
   assert.match(autosave, /variance = Number\(revenue\) - Number\(budget\)/);
   assert.match(autosave, /presenterFinanceCard\(slide, context\)/);
+  assert.match(autosave, /DEPARTMENT FINANCIAL OVERVIEW/);
+  assert.match(autosave, /No published finance figures are available for this department and week/);
+  assert.match(autosave, /Finance source NRW WK/);
+});
+
+test('Safety Moment endpoint failures expose HTTP and content-type diagnostics in Presenter Mode',()=>{
+  assert.match(autosave,/function installSafetyMomentDiagnostics\(\)/);
+  assert.match(autosave,/Safety Moment function returned HTTP/);
+  assert.match(autosave,/Safety Moment function returned an invalid response/);
+  assert.match(autosave,/installSafetyMomentDiagnostics\(\);/);
 });
 
 test('finance Presenter shows all departments, partial company totals and refreshes after publication', () => {
