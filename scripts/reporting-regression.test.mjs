@@ -600,3 +600,14 @@ test('absence reporting includes the complete departmental list',()=>{
   const declaration=html.slice(start,end);
   for(const department of ['Managed Environments','Civils','Rail Operations','S&T','TWS','Welding','MMA','HS2','Montel','HSQE','Bids/RFQs'])assert.ok(declaration.includes(`'${department}'`),department+' is available');
 });
+
+test('planned reporting weeks lock Pipeline controls and reject save attempts in the UI',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function renderPipeline()');
+  const end=html.indexOf('async function loadPipeline()',start);
+  const pipeline=html.slice(start,end);
+  assert.match(pipeline,/const c=context\(\),editable=c\.editable/);
+  assert.match(pipeline,/const c=context\(\);if\(!c\.editable\)return/);
+  assert.match(pipeline,/c\.week\?\.status==='planned'\?'This reporting week is planned/);
+  assert.match(html,/document\.getElementById\('vh26-pipeline-add'\)\.addEventListener\('click',\(\)=>\{if\(!context\(\)\.editable\)return;/);
+});
