@@ -870,10 +870,9 @@
     }
   }
 
-  function suppressSyntheticManagedEnvironmentPresenterCards(slide, departmentName) {
-    if (departmentName !== 'Managed Environments') return;
+  function suppressSyntheticPresenterCards(slide, departmentName) {
     const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
-    const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User/i;
+    const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User|QA staging test only|synthetic data/i;
     const reportSections = new Set(['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources']);
     for (const card of cards) {
       const title = card.querySelector('h2')?.textContent.trim();
@@ -970,7 +969,7 @@
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
       const context = presenterDepartmentContext(slide, tabs);
-      suppressSyntheticManagedEnvironmentPresenterCards(slide, departmentName);
+      suppressSyntheticPresenterCards(slide, departmentName);
       presenterAppendOverview(slide, heading, context);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
