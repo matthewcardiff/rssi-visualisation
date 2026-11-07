@@ -51861,7 +51861,8 @@ async function loadPublishedFinance(){
   const summary=document.getElementById('vh26-finance-summary');
   if(summary){
    const normalise=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-   const financeDepartments=(window.vhFinDepartments||[['TWS'],['Civils'],['Rail Operations'],['Welding'],['Managed Environments'],['MMA'],['S&T'],['HS2'],['Montel']]).map(([name])=>({name,department:(nativeData?.departments||[]).find(d=>normalise(d.display_name)===normalise(name)||normalise(d.code)===normalise(name)||normalise(d.name)===normalise(name))})).filter(x=>x.department);
+   const financeAliases={TWS:['TRACKWARNINGSYSTEMS'],'MMA':['MIDLANDMETRO'],'S&T':['SIGNALLING']};
+   const financeDepartments=(window.vhFinDepartments||[['TWS'],['Civils'],['Rail Operations'],['Welding'],['Managed Environments'],['MMA'],['S&T'],['HS2'],['Montel']]).map(([name])=>{const wanted=[normalise(name),...(financeAliases[name]||[])];return {name,department:(nativeData?.departments||[]).find(d=>[d.display_name,d.code,d.name].some(value=>wanted.includes(normalise(value))))}}).filter(x=>x.department);
    const byDepartment=financeDepartments.map(({name,department})=>{
     const publication=(feed.publications||[]).filter(x=>x.reporting_week_id===selectedWeek&&x.department_id===department.id).sort((a,b)=>(b.publication_version||0)-(a.publication_version||0))[0];
     const rows=publication?(feed.values||[]).filter(v=>v.publication_id===publication.id):[];
