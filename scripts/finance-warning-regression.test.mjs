@@ -196,6 +196,13 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(financeUi, /window\.vhInvalidatePresenterFinanceCache\?\.\(\)/);
 });
 
+test('a late finance response cannot overwrite a department Presenter slide', () => {
+  const start = financeUi.indexOf('async function presenterRenderFinance(root)');
+  const end = financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', start);
+  assert.ok(start >= 0 && end > start);
+  const presenter = financeUi.slice(start, end);
+  assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\);\s*if\(root\.querySelector\(':scope > h1'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\|\|document\.querySelector\('#vh26-presenter-tabs button\.selected'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\)return;/);
+});
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
   assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);
   assert.match(financeUi,/\[d\.display_name,d\.code,d\.name\]\.some\(value=>wanted\.includes\(normalise\(value\)\)\)/);
