@@ -825,9 +825,9 @@ async function vhFinanceExtract(file,selectedWeek){
   const validHeader=r=>normLabel(map.get('A'+r)?.value)==='BUSINESSUNIT'&&Array.from({length:52},(_,i)=>map.get(vhFinCol(i+1)+r)?.value).some(v=>Number.isInteger(Number(v))&&Number(v)>=1&&Number(v)<=53);
   if(!validHeader(row)){row=null;for(let r=1;r<=32;r++)if(validHeader(r)){row=r;break}}
   if(!row)return {row:null,weeks:[]};
-  const weeks=[];for(let col=2;col<=53;col++){const v=map.get(vhFinCol(col)+row)?.value;if(Number.isInteger(Number(v))&&Number(v)>=1&&Number(v)<=53)weeks.push({week:Number(v),col:vhFinCol(col),index:col-2})}
+  const weeks=[];for(let col=1;col<=52;col++){const v=map.get(vhFinCol(col)+row)?.value;if(Number.isInteger(Number(v))&&Number(v)>=1&&Number(v)<=53)weeks.push({week:Number(v),col:vhFinCol(col),index:col-1})}
   const counts=new Map();for(const w of weeks)counts.set(w.week,(counts.get(w.week)||0)+1);
-  for(const [week,count] of counts)if(count>1)warnings.push('Week '+week+' appears '+count+' times in '+tab+'!'+vhFinCol(2)+row+':'+vhFinCol(53)+row+'.');
+  for(const [week,count] of counts)if(count>1)warnings.push('Week '+week+' appears '+count+' times in '+tab+'!'+vhFinCol(1)+row+':'+vhFinCol(52)+row+'.');
   return {row,weeks};
  }
  const budgetCalendar=weekHeaders(budget,5,'BUDGET'),revenueCalendar=weekHeaders(revenue,19,'REVENUE');
