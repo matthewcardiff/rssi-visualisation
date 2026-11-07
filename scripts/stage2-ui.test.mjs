@@ -12,6 +12,8 @@ test('department report autosaves through the existing authenticated Supabase op
   assert.match(autosave, /reportingBridge\(\)\.createReport/);
   assert.match(autosave, /Saved automatically to Supabase/);
   assert.match(autosave, /Automatic save failed:/);
+  assert.match(html, /#vh26-pipeline-save-notes[^\n]*\{display:inline-flex!important/);
+  assert.match(html, /Unsaved changes\. Save this section before changing section\./);
   assert.match(autosave, /#vh26-section-notes/);
   assert.match(autosave, /#vh26-entries \[data-prop\]/);
   assert.match(autosave, /#vh26-hsqe-fields \[data-hsqe-field\]/);
@@ -21,7 +23,7 @@ test('department report autosaves through the existing authenticated Supabase op
 test('autosave protects in-progress edits while preserving the Submit report workflow', () => {
   assert.match(html, /id="vh26-submit-report"/);
   assert.match(html, /dataApi\('submit_report'/);
-  assert.match(html, /Wait for the saved status before changing section/);
+  assert.match(html, /Unsaved changes\. Save this section before changing section\./);
   assert.match(autosave, /reportingDirty = true/);
   assert.match(autosave, /reportingDirty = false/);
   assert.match(autosave, /notes\.value = \[existing, \.\.\.additions\]/);

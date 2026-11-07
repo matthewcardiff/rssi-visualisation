@@ -51769,7 +51769,7 @@ let reportingDirty=false,reportingBusy=false,reportLoadGeneration=0;
 let pipelineRowsNative=[];
 let actionFilter='outstanding';
 function markReportingDirty(){reportingDirty=true;reportMessage('Unsaved changes - save before leaving this section');}
-function confirmReportingLeave(){if(!reportingDirty)return true;reportMessage('Your changes are saving automatically. Wait for the saved status before changing section.');return false}
+function confirmReportingLeave(){if(!reportingDirty)return true;reportMessage('Unsaved changes. Save this section before changing section.');return false}
 window.addEventListener('beforeunload',e=>{if(reportingDirty){e.preventDefault();e.returnValue='';}});
 function reportMessage(msg){document.getElementById('vh26-report-status').textContent=msg}
 function activeSession(){return JSON.parse(sessionStorage.getItem(key)||'null')}
@@ -52682,7 +52682,7 @@ html:has(#vh26-presenter-mode:not([hidden])),body:has(#vh26-presenter-mode:not([
 #vh26-connected-dashboard.vh26-workspace-active #vh26-native-report>div:first-child>label{font-size:13px;color:#536879}
 #vh26-connected-dashboard.vh26-workspace-active #vh26-native-report>div:first-child select{min-height:42px;padding:9px 12px;border:1px solid #cbd8df;border-radius:8px;background:#fff;color:#173448}
 #vh26-connected-dashboard #vh26-section-editor,#vh26-connected-dashboard #vh26-pipeline-workspace,#vh26-connected-dashboard #vh26-review-workspace{max-width:1000px!important}
-#vh26-connected-dashboard #vh26-section-editor #vh26-save-section,#vh26-connected-dashboard #vh26-pipeline-workspace #vh26-pipeline-save-notes,#vh26-connected-dashboard .vh26-pipeline-card>button:first-of-type{display:none!important}
+#vh26-connected-dashboard #vh26-section-editor #vh26-save-section,#vh26-connected-dashboard #vh26-pipeline-workspace #vh26-pipeline-save-notes,#vh26-connected-dashboard .vh26-pipeline-card>button:first-of-type{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:42px!important;padding:10px 16px!important;border:1px solid #004d71!important;border-radius:9px!important;background:#004d71!important;color:#fff!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important;cursor:pointer!important}#vh26-connected-dashboard #vh26-section-editor #vh26-save-section:disabled,#vh26-connected-dashboard #vh26-pipeline-workspace #vh26-pipeline-save-notes:disabled,#vh26-connected-dashboard .vh26-pipeline-card>button:first-of-type:disabled{opacity:.5!important;cursor:not-allowed!important}
 #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide{grid-template-columns:minmax(0,1fr)!important}
 #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide>h1{grid-column:1!important}
 .vh26-autosave-message{min-height:18px;margin:8px 0;color:#536879;font-size:12px}
