@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
+const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 
 test('department report does not show background-load diagnostics after the report is ready', () => {
   assert.match(html, /Report loaded in '\+\(\(performance\.now\(\)-startedAt\)\/1000\)/);

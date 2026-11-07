@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import {readFileSync, existsSync} from 'node:fs';
 
 const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
-const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
+const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 
 test('department report autosaves through the existing authenticated Supabase operation', () => {
-  assert.match(html, /<script defer src="\/autosave\.js"><\/script>/);
-  assert.match(autosave, /context\(\)\.editable/);
-  assert.match(autosave, /dataApi\('save_section'/);
-  assert.match(autosave, /dataApi\('create_report'/);
+  assert.match(html, /<script defer src="\/vh26-reporting\.js"><\/script>/);
+  assert.match(autosave, /reportContext\(\)\.editable/);
+  assert.match(autosave, /reportingBridge\(\)\.saveSection/);
+  assert.match(autosave, /reportingBridge\(\)\.createReport/);
   assert.match(autosave, /Saved automatically to Supabase/);
   assert.match(autosave, /Automatic save failed:/);
   assert.match(autosave, /#vh26-section-notes/);

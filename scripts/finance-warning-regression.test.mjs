@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
 
-const autosave = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
+const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
