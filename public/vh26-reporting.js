@@ -905,10 +905,12 @@
       const paragraphs = [...card.querySelectorAll('p')];
       if (paragraphs.length) {
         paragraphs[0].textContent = 'Not reported for this week.';
+        paragraphs[0].classList.add('empty');
         paragraphs.slice(1).forEach(paragraph => paragraph.remove());
       } else {
         const paragraph = document.createElement('p');
         paragraph.textContent = 'Not reported for this week.';
+        paragraph.className = 'empty';
         card.append(paragraph);
       }
     }
@@ -993,8 +995,8 @@
       const departmentName = activeTab || title?.textContent || 'Department';
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
-      const context = presenterDepartmentContext(slide, tabs);
       suppressSyntheticPresenterCards(slide, departmentName);
+      const context = presenterDepartmentContext(slide, tabs);
       presenterAppendOverview(slide, heading, context);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);

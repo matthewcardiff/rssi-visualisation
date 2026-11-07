@@ -379,6 +379,9 @@ test('Presenter suppresses QA-marked report cards in every department without in
   assert.match(cleanup,/QA TEST DATA\|QA TEST — Fictional\|Fictional scenario\|Illustrative staging\|Synthetic test data only\|Test owner: QA Test User\|QA staging test only\|synthetic data/);
   assert.match(cleanup,/new Set\(\['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources'\]\)/);
   assert.match(cleanup,/paragraphs\[0\]\.textContent = 'Not reported for this week\.'/);
+  assert.match(cleanup,/paragraphs\[0\]\.classList\.add\('empty'\)/);
+  assert.match(cleanup,/paragraph\.className = 'empty'/);
+  assert.match(renderer,/suppressSyntheticPresenterCards\(slide, departmentName\);\s*const context = presenterDepartmentContext\(slide, tabs\)/);
   assert.doesNotMatch(cleanup,/Lineside vegetation survey|Ecology constraints review|Vegetation clearance quality checks/);
   assert.match(renderer,/suppressSyntheticPresenterCards\(slide, departmentName\)/);
   assert.doesNotMatch(cleanup,/departmentName !== 'Managed Environments'/);
