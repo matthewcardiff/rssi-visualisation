@@ -192,7 +192,7 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter, /presenterPublishedFinance=await cached/);
   assert.match(presenter, /vhGetPresenterFinanceCache\?\.\(week\?\.id\)/);
   assert.match(presenter, /presenterPublishedFinanceWeekId=week\?\.id/);
-  assert.match(presenter, /textContent='Refresh figures';refresh\.addEventListener\('click',\(\)=>renderPresenterSlide\(\)\)/);
+  assert.match(presenter, /refresh\.addEventListener\('click',\(\)=>\{window\.vhInvalidatePresenterFinanceCache\?\.\(\);presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;renderPresenterSlide\(\)\}\)/);
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
@@ -203,6 +203,9 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter, /const companyVariance=\(revenueKey,budgetKey\)=>/);
   assert.match(autosave, /window\.vhInvalidatePresenterFinanceCache = \(\) => presenterApiCache\.finance\.clear\(\)/);
   assert.match(financeUi, /window\.vhInvalidatePresenterFinanceCache\?\.\(\)/);
+  assert.match(autosave, /signal: AbortSignal\.timeout\(20000\)/);
+  assert.match(autosave, /Presenter request timed out\. Use Refresh to try again\./);
+  assert.match(autosave, /if \(op === 'finance_published'\) presenterApiCache\.finance\.clear\(\)/);
 });
 
 test('a late finance response cannot overwrite a department Presenter slide', () => {
