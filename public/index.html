@@ -52286,6 +52286,11 @@ async function presenterRenderFinance(root){
  const status=presenterSafeText('p','Loading published finance figures…');root.append(status);
  try{
   presenterPublishedFinance=await dataApi('finance_published');
+  const financePeriods=(presenterPublishedFinance.periods||[]).slice().sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date)));
+  const managementPeriodIndex=financePeriods.findIndex(p=>p.id===week?.rail_period_id||(week?.rail_calendar_periods?.start_date&&p.start_date===week.rail_calendar_periods.start_date));
+  const financeSourcePeriod=managementPeriodIndex>=2?financePeriods[managementPeriodIndex-2]:null;
+  const sourceWeekLabel=financeSourcePeriod?'Finance source week: NRW WK'+financeSourcePeriod.rail_week+' · '+financeSourcePeriod.start_date+'–'+financeSourcePeriod.end_date+' · two-rail-week lag':'Finance source week could not be verified against the rail calendar.';
+  const sourceNote=presenterSafeText('p',sourceWeekLabel);sourceNote.className='vh26-presenter-notice';root.append(sourceNote);
   const pubs=(presenterPublishedFinance.publications||[]).filter(p=>p.reporting_week_id===week?.id);
   if(!pubs.length)status.textContent='No finance figures have been published for this reporting week. Applied figures appear here after finance review and publication.';
   else status.remove();
@@ -52332,8 +52337,7 @@ async function presenterRenderFinance(root){
    tr.append(varianceCell(yr,yb));table.append(tr);
   }
   const wrap=document.createElement('div');wrap.className='vh26-presenter-finance-scroll';wrap.append(table);root.append(wrap);
-  const sourceId=values.find(v=>v.source_period_id)?.source_period_id,source=(presenterPublishedFinance.periods||[]).find(p=>p.id===sourceId);
-  if(source)root.append(presenterSafeText('p','Finance source period: NRW WK'+source.rail_week+' · '+source.start_date+'–'+source.end_date+' · two-rail-week lag'));
+
  }catch(e){status.textContent='Published finance figures unavailable: '+e.message}
 }
 const renderConnectedPresenterDepartment=renderPresenterSlide;renderPresenterSlide=function(){const root=document.getElementById('vh26-presenter-slide');root.replaceChildren();const week=hostWeek();document.getElementById('vh26-presenter-week').textContent=week?hostWeekLabel(week):'Reporting week not available';const dept=presenterDepartments[presenterDepartmentIndex];document.getElementById('vh26-presenter-department-label').textContent=dept?.display_name||'Department';renderPresenterTabs();if(presenterModeView==='all'){renderPresenterOverview(root);return}if(presenterModeView==='safety'){presenterRenderSafety(root);return}if(presenterModeView==='finance'){presenterRenderFinance(root);return}renderConnectedPresenterDepartment()};
