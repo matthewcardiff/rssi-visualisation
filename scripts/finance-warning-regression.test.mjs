@@ -187,10 +187,13 @@ test('Safety Moment endpoint failures expose HTTP and content-type diagnostics i
 });
 
 test('finance Presenter shows all departments, partial company totals and refreshes after publication', () => {
-  const presenter = financeUi.slice(financeUi.indexOf('async function presenterRenderFinance(root)'), financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide'));
+  const presenterStart = financeUi.indexOf('async function presenterRenderFinance(root');
+  const presenter = financeUi.slice(presenterStart, financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', presenterStart));
   assert.match(presenter, /textContent='Refresh figures'/);
   assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\)/);
   assert.doesNotMatch(presenter, /vhGetPresenterFinanceCache/);
+  assert.match(financeUi, /const generation=\+\+presenterSlideRenderGeneration,week=hostWeek\(\)/);
+  assert.match(presenter, /renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id/);
   assert.match(presenter, /presenterPublishedFinanceWeekId=week\?\.id/);
   assert.match(presenter, /refresh\.addEventListener\('click',\(\)=>\{window\.vhInvalidatePresenterFinanceCache\?\.\(\);presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;renderPresenterSlide\(\)\}\)/);
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
