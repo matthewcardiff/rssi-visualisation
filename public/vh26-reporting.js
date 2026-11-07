@@ -716,7 +716,7 @@
         const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
         const report = (reports.items || []).find(r => r.department_id === department?.id && r.reporting_week_id === context.weekId);
         const state = String(report?.status || 'unsubmitted').toLowerCase();
-        status = state === 'reopened' ? 'Report Reopened' : 'Report ' + (state.charAt(0).toUpperCase() + state.slice(1));
+        status = state === 'reopened' ? 'Report Reopened' : state === 'submitted' && context.hiddenSyntheticSections ? 'Report Submitted · synthetic content hidden' : 'Report ' + (state.charAt(0).toUpperCase() + state.slice(1));
         meta.textContent = 'DEPARTMENT ' + context.departmentNumber + ' OF ' + context.departmentCount + ' · ' + context.populated + '/6 sections populated · ' + status;
       } catch { /* Keep the meeting week and section summary visible if status lookup is unavailable. */ }
     })();
@@ -899,9 +899,11 @@
     const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
     const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User|QA staging test only|synthetic data/i;
     const reportSections = new Set(['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources']);
+    let suppressed = 0;
     for (const card of cards) {
       const title = card.querySelector('h2')?.textContent.trim();
       if (!reportSections.has(title) || !syntheticContent.test(card.textContent || '')) continue;
+      suppressed += 1;
       const paragraphs = [...card.querySelectorAll('p')];
       if (paragraphs.length) {
         paragraphs[0].textContent = 'Not reported for this week.';
@@ -914,6 +916,7 @@
         card.append(paragraph);
       }
     }
+    return suppressed;
   }
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
@@ -995,8 +998,9 @@
       const departmentName = activeTab || title?.textContent || 'Department';
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
-      suppressSyntheticPresenterCards(slide, departmentName);
+      const hiddenSyntheticSections = suppressSyntheticPresenterCards(slide, departmentName);
       const context = presenterDepartmentContext(slide, tabs);
+      context.hiddenSyntheticSections = hiddenSyntheticSections;
       presenterAppendOverview(slide, heading, context);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
