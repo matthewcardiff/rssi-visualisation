@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -24,6 +24,52 @@ export default async (request)=>{
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
     const user=await userResponse.json();
+    if(data.op==='reopen_report'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
+      const r=await fetch(url+'/rest/v1/department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=eq.submitted',{method:'PATCH',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({status:'reopened',submitted_by:null,submitted_at:null}),signal:AbortSignal.timeout(15000)});
+      const result=await r.json().catch(()=>[]);
+      if(!r.ok)return json(r.status===403?403:409,{error:'Report could not be reopened. Check that it is incomplete and that you have an active meeting host, administrator or executive role'});
+      if(!result.length)return json(409,{error:'Report is no longer submitted or is not available to your role'});
+      return json(200,{items:result});
+    }
+    if(data.op==='create_week'){
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may create a reporting week'});
+      const [weeksResponse,periodsResponse]=await Promise.all([
+        fetch(url+'/rest/v1/reporting_weeks?select=id,rail_period_id&limit=500',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/rail_calendar_periods?select=id,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
+      ]);
+      if(!weeksResponse.ok||!periodsResponse.ok)return json(502,{error:'Calendar references could not be loaded'});
+      const [weeks,periods]=await Promise.all([weeksResponse.json(),periodsResponse.json()]);
+      const ordered=[...periods].sort((a,b)=>String(a.start_date).localeCompare(String(b.start_date)));
+      const created=new Set(weeks.map(w=>w.rail_period_id));
+      const latest=ordered.filter(p=>created.has(p.id)).at(-1);
+      const nextIndex=latest?ordered.findIndex(p=>p.id===latest.id)+1:-1;
+      const next=ordered[nextIndex];
+      if(!next)return json(409,{error:'The supplied rail calendar has no later period. Load the next official calendar before creating a reporting week.'});
+      if(created.has(next.id))return json(409,{error:'A reporting week already exists for this rail period'});
+      const insert=await fetch(url+'/rest/v1/reporting_weeks',{method:'POST',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({rail_period_id:next.id,status:'open',creation_method:'manual'}),signal:AbortSignal.timeout(12000)});
+      const result=await insert.json().catch(()=>[]);
+      if(!insert.ok)return json(insert.status===403?403:409,{error:'Reporting week creation was rejected. Refresh to check whether it was created by another host.'});
+      if(!Array.isArray(result)||result.length!==1)return json(409,{error:'Reporting week creation returned no record. Refresh before retrying.'});
+      return json(200,{items:result});
+    }
+    if(data.op==='calendar_import'){
+      if(!Array.isArray(data.periods)||data.periods.length<1||data.periods.length>300)return json(400,{error:'Upload 1–300 rail calendar periods'});
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=in.(meeting_host,administrator)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only an authorised meeting host or administrator may update the rail calendar'});
+      const periods=[];
+      for(const [index,row] of data.periods.entries()){
+        const week=Number(row?.week_number),start=typeof row?.start_date==='string'?row.start_date:'',end=typeof row?.end_date==='string'?row.end_date:'';
+        if(!Number.isInteger(week)||week<1||week>53||!/^\d{4}-\d{2}-\d{2}$/.test(start)||!/^\d{4}-\d{2}-\d{2}$/.test(end))return json(400,{error:'Calendar row '+(index+1)+' has an invalid week number or date'});
+        periods.push({week_number:week,start_date:start,end_date:end});
+      }
+      const rpc=await fetch(url+'/rest/v1/rpc/vh_import_rail_calendar',{method:'POST',headers,body:JSON.stringify({p_periods:periods}),signal:AbortSignal.timeout(20000)});
+      const result=await rpc.json().catch(()=>null);
+      if(!rpc.ok)return json(rpc.status===401||rpc.status===403?403:409,{error:result?.message||result?.hint||'Calendar import rejected; existing calendar and reporting history were left unchanged'});
+      return json(200,{result,updated:true});
+    }
     // All mutations use the caller's JWT; Supabase RLS remains the authority.
     if(['create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
@@ -59,22 +105,40 @@ export default async (request)=>{
         if(!existing.ok)return json(502,{error:'Section lookup failed'});
         const rows=await existing.json();
         const out=rows.length?await send('report_sections?id=eq.'+rows[0].id,'PATCH',{content,updated_by:user.id}):await send('report_sections','POST',{report_id:data.report_id,section_key:data.section_key,content,updated_by:user.id});
-        return out.error?json(out.status===403?403:409,{error:'Draft save denied; verify department membership and open reporting week'}):json(200,out);
+        if(out.error)return json(out.status===403?403:409,{error:'Draft save denied; verify department membership and open reporting week'});
+        if(!Array.isArray(out.items)||out.items.length!==1)return json(409,{error:'Section was not saved. Refresh to check report status and permissions before retrying.'});
+        return json(200,out);
       }
       if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
-      // Submission is independent of finance uploads. Existing RLS + trigger govern transitions.
-      const out=await send('department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=eq.draft','PATCH',{status:'submitted',submitted_by:user.id,submitted_at:new Date().toISOString()});
+      // Submission is independent of finance uploads, but every reporting section must contain saved information.
+      const reportResponse=await fetch(url+'/rest/v1/department_reports?select=id,department_id,status,departments(code)&id=eq.'+encodeURIComponent(data.report_id)+'&status=in.(draft,reopened)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!reportResponse.ok)return json(reportResponse.status===403?403:502,{error:'Report permissions could not be checked'});
+      const reports=await reportResponse.json();if(!reports.length)return json(409,{error:'Report is not an editable draft or reopened report, or is outside your permissions'});
+      const sectionResponse=await fetch(url+'/rest/v1/report_sections?select=section_key,content&report_id=eq.'+encodeURIComponent(data.report_id)+'&limit=20',{headers,signal:AbortSignal.timeout(12000)});
+      if(!sectionResponse.ok)return json(sectionResponse.status===403?403:502,{error:'Saved report sections could not be checked'});
+      const sections=await sectionResponse.json(),departmentCode=reports[0].departments?.code;
+      const required=departmentCode==='hsqe'?['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents']:['pipeline','delivery','programme','risks','resources'];
+      let hasPipelineOpportunity=false;
+      if(required.includes('pipeline')){const pipelineResponse=await fetch(url+'/rest/v1/pipeline_opportunities?select=id&department_id=eq.'+encodeURIComponent(reports[0].department_id)+'&status=neq.removed&limit=1',{headers,signal:AbortSignal.timeout(12000)});if(!pipelineResponse.ok)return json(pipelineResponse.status===403?403:502,{error:'Pipeline details could not be checked'});hasPipelineOpportunity=(await pipelineResponse.json()).length>0}
+      const complete=(key,content)=>{if(!content||typeof content!=='object')return false;if(key==='pipeline')return hasPipelineOpportunity||!!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>Object.values(e||{}).some(v=>String(v||'').trim())));if(departmentCode==='hsqe')return Object.values(content.fields||{}).some(v=>String(v??'').trim().length>0);return !!String(content.notes||'').trim()||(Array.isArray(content.entries)&&content.entries.some(e=>['title','update','owner','support','required_by'].some(k=>String(e?.[k]||'').trim())))};
+      const saved=new Map(sections.map(section=>[section.section_key,section.content]));
+      const missing=required.filter(key=>!complete(key,saved.get(key)));
+      if(missing.length)return json(422,{error:'Complete and save every required report section before submission',missing_sections:missing});
+      const out=await send('department_reports?id=eq.'+encodeURIComponent(data.report_id)+'&status=in.(draft,reopened)','PATCH',{status:'submitted',submitted_by:user.id,submitted_at:new Date().toISOString()});
       if(out.error)return json(out.status===403?403:409,{error:'Submission denied; check role and reporting week'});
-      if(!out.items.length)return json(409,{error:'Report is not an editable draft or is outside your permissions'});
+      if(!out.items.length)return json(409,{error:'Report is not an editable draft or reopened report, or is outside your permissions'});
       return json(200,out);
     }
     if(['create_action','update_action'].includes(data.op)){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       const date=x=>typeof x==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(x)&&!Number.isNaN(Date.parse(x));
       const validText=(x,max)=>typeof x==='string'&&x.trim().length>0&&x.length<=max;
-      // Meeting-host authority is enforced by existing Supabase RLS policies.
-      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
-      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may manage meeting actions'});
+      // Hosts and administrators manage the shared register; department managers can create and update actions within their own department.
+      if(!uuid(data.department_id))return json(400,{error:'Valid department required'});
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=in.(meeting_host,administrator,executive)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok)return json(502,{error:'Action role lookup failed'});
+      const privileged=(await rolesResponse.json()).length>0;
+      if(!privileged){const membership=await fetch(url+'/rest/v1/department_memberships?select=department_id&user_id=eq.'+encodeURIComponent(user.id)+'&department_id=eq.'+encodeURIComponent(data.department_id)+'&membership_role=eq.manager&active=eq.true',{headers,signal:AbortSignal.timeout(12000)});if(!membership.ok||!(await membership.json()).length)return json(403,{error:'A department manager or meeting administrator is required'});}
       if(data.op==='create_action'){
         if(!uuid(data.department_id)||!uuid(data.reporting_week_id)||!validText(data.description,3000)||!validText(data.owner_text,200)||!date(data.required_by)||typeof data.support_text!=='string'||data.support_text.length>1000)return json(400,{error:'Description, owner, reporting week and required-by date are required'});
         const body={department_id:data.department_id,created_in_reporting_week_id:data.reporting_week_id,description:data.description.trim(),owner_text:data.owner_text.trim(),support_text:data.support_text.trim(),required_by:data.required_by,status:'open'};
@@ -115,19 +179,21 @@ export default async (request)=>{
         return send('hsqe_workforce_counts?on_conflict=department_id,effective_on','POST',{department_id:data.department_id,effective_on:data.effective_on,operative_count:data.operative_count});
       }
     }
-    // Deployment safety: write RPCs remain disabled until database migration,
-    // RLS, transaction rollback and role isolation pass authenticated acceptance.
-    // This gate is deliberately independent of any client-provided flags.
-    if(['finance_import','finance_reconcile','finance_publish'].includes(data.op) &&
-       process.env.VH_FINANCE_WRITES_ACCEPTED !== 'staging-verified-26c19') {
-      return json(503,{error:'Finance writes are disabled pending database security acceptance',code:'FINANCE_SECURITY_GATE'});
-    }
+    // Finance publication has two independent gates: this deployment flag and
+    // the database publication_gate row. The database RPC is the final
+    // authority and revalidates every row in its transaction.
+    if(data.op==='finance_publish' && process.env.VH_FINANCE_PUBLICATION_ENABLED !== 'enabled')
+      return json(503,{error:'Finance publication is disabled for this deployment',code:'FINANCE_PUBLICATION_DISABLED'});
+    if(data.op==='finance_reconcile' && process.env.VH_FINANCE_RECONCILIATION_ENABLED !== 'enabled')
+      return json(503,{error:'Finance reconciliation is disabled until workbook review findings are persisted',code:'FINANCE_RECONCILIATION_DISABLED'});
+    if(['finance_import','finance_reconcile'].includes(data.op) && process.env.VH_FINANCE_STAGING_WRITES !== 'enabled')
+      return json(503,{error:'Finance figure saving is not enabled for this preview. No figures were saved.',code:'FINANCE_STAGING_WRITES_DISABLED',committed:false});
     if(data.op==='finance_reconcile'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
         return json(400,{error:'Valid import, explicit confirmation and reconciliation comment (minimum 8 characters) required'});
       const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
-      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
+      if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','finance_admin','administrator'].includes(r.role)))
         return json(403,{error:'Reconciliation requires authorised finance or administrator role'});
       const response=await fetch(url+'/rest/v1/rpc/vh_finance_reconcile',{
         method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
@@ -136,14 +202,14 @@ export default async (request)=>{
     }
     if(data.op==='finance_publish'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
-      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.length>2000)
-        return json(400,{error:'Valid import, explicit confirmation and review comment required'});
+      if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
+        return json(400,{error:'Valid import, explicit publication confirmation and rationale (minimum 8 characters) required'});
       const roleRes=await fetch(url+'/rest/v1/user_roles?select=role',{headers,signal:AbortSignal.timeout(12000)});
       if(!roleRes.ok||!(await roleRes.json()).some(r=>['finance','administrator'].includes(r.role)))
-        return json(403,{error:'Finance publication requires authorised finance or administrator role'});
+        return json(403,{error:'Finance publication requires an authorised finance or administrator role'});
       const response=await fetch(url+'/rest/v1/rpc/vh_finance_publish',{
-        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment}),signal:AbortSignal.timeout(20000)});
-      if(!response.ok)return json(response.status===403?403:409,{error:'Atomic finance publication rejected; no publication committed',status:response.status});
+        method:'POST',headers,body:JSON.stringify({p_import_id:data.import_id,p_comment:data.comment.trim()}),signal:AbortSignal.timeout(20000)});
+      if(!response.ok)return json(response.status===403?403:409,{error:'Finance publication rejected; no publication committed',status:response.status});
       return json(200,{result:await response.json(),published:true});
     }
     if(data.op==='finance_review'){
@@ -152,13 +218,15 @@ export default async (request)=>{
       const roles=await roleRes.json();
       if(!roles.some(r=>['finance','finance_admin','administrator'].includes(r.role)))return json(403,{error:'Finance reconciliation review restricted'});
       const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Finance review data unavailable');return r.json()};
-      const imports=await get('finance_imports?select=id,file_name,file_sha256,reporting_week_id,reconciliation_status,findings,imported_at&order=imported_at.desc&limit=100');
+      const imports=await get('finance_imports?select=id,file_name,file_sha256,reporting_week_id,reconciliation_status,findings,findings_acknowledged_by,findings_acknowledged_at,imported_at&order=imported_at.desc&limit=100');
       const ids=imports.map(x=>x.id).filter(x=>/^[0-9a-f-]{36}$/i.test(x));
       const metrics=ids.length?await get('finance_metric_values?select=finance_import_id,department_id,reporting_week_id,metric_key,amount,input_state,source_period_id,mapping_status,issues&finance_import_id=in.('+ids.join(',')+')&limit=12000'):[];
       const publications=await get('finance_publications?select=id,source_import_id,reporting_week_id,department_id,status,publication_version&order=publication_version.desc&limit=1000');
-      const [weeks,periods]=await Promise.all([
+      const [weeks,periods,departments,reconciliationEvents]=await Promise.all([
         get('reporting_weeks?select=id,rail_period_id&limit=500'),
-        get('rail_calendar_periods?select=id,rail_week,start_date&order=start_date.asc&limit=500')
+        get('rail_calendar_periods?select=id,rail_week,start_date&order=start_date.asc&limit=500'),
+        get('departments?select=id,display_name&limit=100'),
+        ids.length?get('finance_reconciliation_events?select=finance_import_id,accepted_findings&finance_import_id=in.('+ids.join(',')+')&limit=100'):Promise.resolve([])
       ]);
       const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=2?periods[i-2].id:null]}));
       const groups=imports.map(imp=>{
@@ -168,22 +236,41 @@ export default async (request)=>{
         const problems=[];
         if(!rows.length)problems.push('No metric rows saved');
         if(rows.some(r=>r.reporting_week_id!==imp.reporting_week_id))problems.push('Management week mismatch');
-        if(rows.some(r=>r.mapping_status!=='reconciled'))problems.push('Metrics not marked reconciled');
+        const expectedMapping=imp.reconciliation_status==='pending'?'pending':'reconciled';
+        if(rows.some(r=>r.mapping_status!==expectedMapping))problems.push('Metric reconciliation state does not match the import');
         if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
         if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source week differs from management week minus two rail periods');
         if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
         if(rows.some(r=>!['missing','zero','value'].includes(r.input_state)))problems.push('Unrecognised input state');
-        if(Array.isArray(imp.findings)&&imp.findings.length)problems.push('Import-level findings require resolution');
+        const findings=Array.isArray(imp.findings)?imp.findings:null;
+        const acknowledged=Boolean(imp.findings_acknowledged_by&&imp.findings_acknowledged_at);
+        const acceptedWarnings=findings?.map(finding=>{
+          const match=/^(.+): (Weekly revenue missing or unverified|YTD revenue incomplete\/unverified)$/.exec(finding);
+          if(!match||!acknowledged)return null;
+          const department=departments.find(d=>d.display_name===match[1]);
+          const metric=match[2].startsWith('Weekly')?'weekly_revenue':'ytd_revenue';
+          return department&&rows.some(r=>r.department_id===department.id&&r.metric_key===metric&&r.input_state==='missing')?finding:null;
+        })||[];
+        if(!findings)problems.push('Import findings could not be verified');
+        else if(findings.length&&acceptedWarnings.some(w=>!w))problems.push('Import-level findings require resolution');
         if(rows.some(r=>Array.isArray(r.issues)&&r.issues.length))problems.push('Metric-level issues recorded');
         for(const [k,group] of byDepartment){if(group.length!==4||new Set(group.map(r=>r.metric_key)).size!==4||!['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].every(m=>group.some(r=>r.metric_key===m)))problems.push('Incomplete or duplicate metric group: '+k)}
         if(rows.some(r=>r.department_id===null||r.reporting_week_id===null))problems.push('Metric has no department or reporting week');
-        if(imp.reconciliation_status!=='reconciled')problems.push('Import reconciliation not approved');
         const linked=publications.filter(pub=>pub.source_import_id===imp.id);
-        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:problems.length===0,metric_count:rows.length,department_count:byDepartment.size,issues:problems,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
+        if(!['pending','reconciled'].includes(imp.reconciliation_status))problems.push('Import is not in a reviewable state');
+        if(linked.length)problems.push('Import already has publication history');
+        const ready=problems.length===0;
+        const reconciliation=reconciliationEvents.find(e=>e.finance_import_id===imp.id);
+        const warnings=findings?.length?findings:(Array.isArray(reconciliation?.accepted_findings)?reconciliation.accepted_findings:[]);
+        return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:ready,can_reconcile:ready&&imp.reconciliation_status==='pending',can_publish:ready&&imp.reconciliation_status==='reconciled',metric_count:rows.length,department_count:byDepartment.size,issues:problems,warnings,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
       });
-      return json(200,{imports:groups,approval_enabled:false,publication_enabled:false,notice:'Approval and publication are disabled until a transactional, database-authorised workflow is installed and tested.'});
+      const approvalEnabled=process.env.VH_FINANCE_STAGING_WRITES==='enabled';
+      const reconciliationEnabled=approvalEnabled&&process.env.VH_FINANCE_RECONCILIATION_ENABLED==='enabled';
+      const publicationEnabled=process.env.VH_FINANCE_PUBLICATION_ENABLED==='enabled';
+      const notice=(reconciliationEnabled?'Reconciliation requires a separate review confirmation.':'Reconciliation is disabled until workbook review findings are persisted.')+(publicationEnabled?'':' Publication is disabled for this deployment.');
+      return json(200,{imports:groups,approval_enabled:approvalEnabled,reconciliation_enabled:reconciliationEnabled,publication_enabled:publicationEnabled,notice});
     }
     if(['finance_preview','finance_import'].includes(data.op)){
       // Finance-only validation; no import is committed and no service-role credentials are used.
@@ -234,7 +321,10 @@ export default async (request)=>{
       if(data.op==='finance_preview')return json(200,{valid:errors.length===0,accepted_rows:normalized.length,errors,preview:normalized,committed:false});
       // Explicit, validated, one-week staging import. No approval or publication.
       if(errors.length)return json(422,{error:'Resolve reconciliation errors before importing',errors,committed:false});
-      if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.csv$/i.test(data.file_name))return json(400,{error:'Valid CSV file name required'});
+      if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
+      const findings=Array.isArray(data.findings)?data.findings:[];
+      if(findings.length>100||findings.some(x=>typeof x!=='string'||!x.trim()||x.length>1000))return json(400,{error:'Workbook checks are invalid; review the workbook again',committed:false});
+      if(findings.length&&data.findings_acknowledged!==true)return json(422,{error:'Review and acknowledge the workbook checks before applying figures',committed:false});
       const weeksInImport=[...new Set(normalized.map(r=>r.reporting_week_id))];
       if(weeksInImport.length!==1)return json(422,{error:'Import one management reporting week at a time'});
       if(normalized.length>300)return json(422,{error:'Import exceeds the row limit'});
@@ -246,13 +336,15 @@ export default async (request)=>{
         method:'POST',headers:{...headers,prefer:'return=representation'},
         body:JSON.stringify({p_file_name:data.file_name,p_file_sha256:hash,
           p_reporting_week_id:weeksInImport[0],
-          p_metrics:normalized.map(({source_rail_week,...row})=>row)}),
+          p_metrics:normalized.map(({source_rail_week,...row})=>row),p_findings:findings.map(x=>x.trim()),
+          p_findings_acknowledged:data.findings_acknowledged===true}),
         signal:AbortSignal.timeout(20000)
       });
       if(!response.ok){
         const detail=await response.json().catch(()=>({}));
-        if(response.status===404||detail.code==='PGRST202')return json(503,{error:'Atomic finance import is not installed; import disabled',committed:false});
-        return json(response.status===409?409:422,{error:'Atomic finance import rejected; no partial import committed',detail:detail.message||'Database validation or permissions failed',committed:false});
+        if(response.status===404||detail.code==='PGRST202')return json(503,{error:'Finance saving is unavailable because the secure import function is not installed. No figures were saved.',code:'FINANCE_ATOMIC_IMPORT_UNAVAILABLE',committed:false});
+        if(response.status===409&&detail.code==='23505')return json(409,{error:'These figures were already saved. Refresh finance history before trying again.',code:'FINANCE_DUPLICATE_IMPORT',committed:true});
+        return json(response.status===403||detail.code==='42501'?403:response.status===409?409:422,{error:'Finance figures were not saved.',code:'FINANCE_IMPORT_REJECTED',detail:detail.message||'Database validation or permissions failed',committed:false});
       }
       const result=await response.json();
       return json(200,result);
@@ -286,14 +378,22 @@ export default async (request)=>{
     if(data.op==='whoami'){
       const paths=['profiles?select=id,display_name,active','user_roles?select=role,organisation_id','department_memberships?select=department_id,membership_role,active','departments?select=id,code,display_name'];
       const results=await Promise.all(paths.map(p=>fetch(url+'/rest/v1/'+p,{headers,signal:AbortSignal.timeout(12000)})));
-      if(results.some(r=>!r.ok))return json(502,{error:'Permission lookup failed',statuses:results.map(r=>r.status)});
+      if(results.some(r=>!r.ok)){
+        console.warn('[acceptance] whoami lookup failed',JSON.stringify({statuses:results.map(r=>r.status)}));
+        return json(502,{error:'Permission lookup failed',statuses:results.map(r=>r.status)});
+      }
       const [profiles,roles,memberships,departments]=await Promise.all(results.map(r=>r.json()));
+      console.info('[acceptance] whoami lookup counts',JSON.stringify({profiles:profiles.length,roles:roles.length,memberships:memberships.length,departments:departments.length}));
       return json(200,{user:{id:user.id,email:user.email},profiles,roles,memberships,departments});
     }
     if(data.op==='weeks'){
-      const r=await fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)});
-      if(!r.ok)return json(502,{error:'Reporting week lookup failed',status:r.status});
-      return json(200,{items:await r.json()});
+      const [weeksResponse,periodsResponse]=await Promise.all([
+        fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/rail_calendar_periods?select=id,rail_year,rail_week,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
+      ]);
+      if(!weeksResponse.ok||!periodsResponse.ok)return json(502,{error:'Reporting week and calendar lookup failed',status:!weeksResponse.ok?weeksResponse.status:periodsResponse.status});
+      const [items,periods]=await Promise.all([weeksResponse.json(),periodsResponse.json()]);
+      return json(200,{items,periods});
     }
     if(['sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline'].includes(data.op)){
       const paths={sections:'report_sections?select=id,report_id,section_key,content,revision&limit=200',items:'report_items?select=id,report_id,section_key,item_type,payload,owner_text,support_text,required_by,status,position&limit=200',pipeline:'pipeline_opportunities?select=*&limit=200'};

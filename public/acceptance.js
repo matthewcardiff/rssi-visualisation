@@ -64,7 +64,7 @@ function renderDashboard(){
   panel('Outstanding actions',as.filter(a=>a.status!=='completed').map(a=>`${label(a.department_id)} · ${a.description} · ${a.status} · due ${a.required_by||'not set'}`));
   panel('Completed actions',as.filter(a=>a.status==='completed').map(a=>`${label(a.department_id)} · ${a.description}`));
  }
- renderEditor();renderPipelineEditor();renderSpecialDepartments();
+ renderEditor();renderPipelineEditor();renderSpecialDepartments();renderActionManager();
 }
 $('department-shortcuts').addEventListener('click',e=>{const b=e.target.closest('[data-department]');if(!b||!snapshot)return;const dep=$('department-filter');if(![...dep.options].some(o=>o.value===b.dataset.department))return;dep.value=b.dataset.department;activeView='reports';renderDashboard()});
 $('department-filter').addEventListener('change',renderDashboard);$('week-filter').addEventListener('change',renderDashboard);
@@ -89,7 +89,11 @@ function renderEditor(){
  $('save-draft').disabled=!writable||(!c.report&&c.member.membership_role!=='manager');
  $('save-draft').textContent=c.report?'Save section':'Create draft and save section';
  $('editor-status').textContent=c.report?.status==='submitted'?'This report has been submitted and is read-only. Contact an authorised administrator to request reopening.':(c.report?'':'No draft exists. Save will create a draft first for a department manager.');
- $('submit-report').disabled=!writable||!c.report||c.member.membership_role!=='manager';
+ const complete=reportCompletion(c);
+ $('section-progress-fill').style.width=complete.percent+'%';
+ $('section-progress-text').textContent=complete.count+' of '+complete.total+' sections complete';
+ $('submit-report').hidden=!(complete.count===complete.total&&writable&&c.report&&c.member.membership_role==='manager');
+ $('submit-report').disabled=complete.count!==complete.total||!writable||!c.report||c.member.membership_role!=='manager';
  $('save-draft').title=!writable?'Submitted or closed reports cannot be edited.':'';
  $('submit-report').title=!writable?'This report is read-only.':'';
  const sec=snapshot.sections.find(s=>s.report_id===c.report?.id&&s.section_key===$('section-select').value);
@@ -112,8 +116,8 @@ function renderStructuredEntries(entries,writable){
   if(writable){const edit=document.createElement('button');edit.type='button';edit.textContent='Edit';edit.addEventListener('click',()=>populate(entry,i));card.append(edit);const del=document.createElement('button');del.type='button';del.textContent='Remove';del.addEventListener('click',()=>{workingEntries.splice(i,1);draw();$('editor-status').textContent='Unsaved change: select Save section to persist.'});card.append(del)}list.append(card)
  });if(!workingEntries.length){const p=document.createElement('p');p.textContent='No structured entries for this section.';list.append(p)}};
  const form=$('structured-form');form.hidden=!writable;form.reset();$('structured-index').value='';
- function populate(entry,i){$('structured-index').value=String(i);for(const key of ['title','detail','owner_text','support_text','required_by'])form.elements.namedItem(key).value=entry[key]||'';form.scrollIntoView({block:'nearest'});}
- form.onsubmit=e=>{e.preventDefault();if(!writable)return;const f=new FormData(form);const entry={};for(const key of ['title','detail','owner_text','support_text','required_by'])entry[key]=String(f.get(key)||'').trim();if(!entry.title||!entry.owner_text||!entry.required_by){$('editor-status').textContent='Title, owner and required-by date are mandatory.';return}const idx=$('structured-index').value;if(idx==='')workingEntries.push(entry);else workingEntries[Number(idx)]=entry;form.reset();$('structured-index').value='';draw();$('editor-status').textContent='Entry staged. Select Save section to persist to Supabase.'};
+ function populate(entry,i){$('structured-index').value=String(i);for(const key of ['title','detail','owner_text','support_text','required_by'])form.elements.namedItem(key).value=entry[key]||'';form.elements.namedItem('create_action').checked=!!entry.create_action;form.scrollIntoView({block:'nearest'});}
+ form.onsubmit=e=>{e.preventDefault();if(!writable)return;const f=new FormData(form);const entry={create_action:f.get('create_action')==='on'};for(const key of ['title','detail','owner_text','support_text','required_by'])entry[key]=String(f.get(key)||'').trim();if(!entry.title||!entry.owner_text||!entry.required_by){$('editor-status').textContent='Title, owner and required-by date are mandatory.';return}const idx=$('structured-index').value;if(idx==='')workingEntries.push(entry);else workingEntries[Number(idx)]=entry;form.reset();$('structured-index').value='';draw();$('editor-status').textContent='Entry staged. Select Save section to persist to Supabase.'};
  $('structured-cancel').onclick=()=>{form.reset();$('structured-index').value=''};draw();
 }
 const sectionNames={pipeline:'Pipeline',delivery:'Delivery',programme:'Major project status / next 2-4 week milestone / delay / dependency',risks:'New risks / customer concerns / cross-functional issue or opportunity / management support',resources:'Resources'};
@@ -160,6 +164,8 @@ $('save-draft').addEventListener('click',async()=>{
   $('editor-status').textContent='Saving section to Supabase…';
   const existing=snapshot.sections.find(x=>x.report_id===reportId&&x.section_key===section_key)?.content||{};
   await api('save_section',{access_token:session.access_token,report_id:reportId,section_key,content:{...existing,notes,entries}});
+  const prior=Array.isArray(existing.entries)?existing.entries:[];
+  for(let i=0;i<entries.length;i++){const entry=entries[i];if(entry.create_action&&!prior[i]?.create_action){await api('create_action',{access_token:session.access_token,department_id:c.dep,reporting_week_id:c.week,description:entry.title+' — '+entry.detail,owner_text:entry.owner_text,support_text:entry.support_text||'',required_by:entry.required_by});}}
   if(run!==generation)return;
   await load();
   $('section-select').value=section_key;
@@ -167,7 +173,7 @@ $('save-draft').addEventListener('click',async()=>{
   $('editor-status').textContent='Section saved to Supabase. Refresh the page to verify persistence.';
  }catch(e){$('editor-status').textContent='Save failed: '+e.message;$('section-notes').value=notes;$('save-draft').disabled=false;}
 });
-$('submit-report').addEventListener('click',()=>{const c=editorContext();if(c?.member?.membership_role==='manager'&&c.report?.status==='draft'&&c.w?.status==='open'&&confirm('Submit this departmental report? Editing will be locked.'))mutate('submit_report',{report_id:c.report.id})});
+$('submit-report').addEventListener('click',()=>{const c=editorContext();if(c?.member?.membership_role==='manager'&&['draft','reopened'].includes(c.report?.status)&&c.w?.status==='open'&&reportCompletion(c).count===5&&confirm('Submit this departmental report? Editing will be locked.'))mutate('submit_report',{report_id:c.report.id})});
 
 function renderPipelineEditor(){
  const el=$('pipeline-editor');if(!snapshot){el.hidden=true;return}
@@ -279,3 +285,42 @@ $('hsqe-assurance-form').addEventListener('submit',e=>{e.preventDefault();const 
 $('hsqe-close-form').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));hsqeMutate('hsqe_add_close_call',d)});
 $('hsqe-workforce-form').addEventListener('submit',e=>{e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));d.operative_count=Number(d.operative_count);hsqeMutate('hsqe_set_workforce',d)});
 async function updateAssurance(id,status){if(status==='signed_off'&&!confirm('Sign off this record? This cannot be undone.'))return;await hsqeMutate('hsqe_update_assurance',{id,status})}
+
+const reportKeys=['pipeline','delivery','programme','risks','resources'];
+function reportCompletion(c){
+ const saved=reportKeys.filter(key=>{const x=snapshot.sections.find(s=>s.report_id===c.report?.id&&s.section_key===key)?.content;return x&&(String(x.notes||'').trim()||(Array.isArray(x.entries)&&x.entries.length))&&(!x.entries||x.entries.every(e=>e.title&&e.owner_text&&e.required_by))});
+ return {count:saved.length,total:5,percent:saved.length*20};
+}
+function renderActionManager(){
+ const box=$('action-manager');if(!box)return;
+ box.hidden=activeView!=='actions';
+ if(box.hidden||!snapshot)return;
+ const host=$('action-register');host.replaceChildren();
+ const depts=snapshot.identity.departments;
+ const form=$('action-form'),select=form.elements.namedItem('department_id');
+ const old=select.value;select.replaceChildren();
+ const canManage=id=>snapshot.identity.roles.some(r=>['administrator','meeting_host','executive'].includes(typeof r==='string'?r:r.role))||snapshot.identity.memberships.some(m=>m.active&&m.department_id===id&&m.membership_role==='manager');
+ depts.filter(d=>canManage(d.id)).forEach(d=>select.append(option(d.id,d.display_name)));
+ if([...select.options].some(o=>o.value===old))select.value=old;
+ form.hidden=!select.options.length;
+ snapshot.actions.forEach(a=>{
+  const line=document.createElement('div');line.className='action-row';
+  const dep=depts.find(d=>d.id===a.department_id)?.display_name||'Department';
+  const text=document.createElement('span');text.textContent=dep+' · '+a.description+' · '+a.status+' · Owner: '+a.owner_text+' · Due: '+(a.required_by||'Not set');line.append(text);
+  if(canManage(a.department_id)&&a.status!=='completed'){
+   const done=document.createElement('button');done.type='button';done.textContent='Complete action';
+   done.onclick=async()=>{try{await api('update_action',{access_token:session.access_token,id:a.id,department_id:a.department_id,version:a.version,status:'completed',description:a.description,owner_text:a.owner_text,support_text:a.support_text||'',required_by:a.required_by});await load();}catch(e){$('action-message').textContent=e.message}};
+   line.append(done);
+  }host.append(line);
+ });
+}
+$('action-form').addEventListener('submit',async e=>{
+ e.preventDefault();const d=Object.fromEntries(new FormData(e.currentTarget));const week=$('week-filter').value;
+ if(!week){$('action-message').textContent='Select a reporting week.';return}
+ try{await api('create_action',{access_token:session.access_token,...d,reporting_week_id:week});await load();$('action-message').textContent='Action created.'}catch(err){$('action-message').textContent=err.message}
+});
+$('ai-review').addEventListener('click',async()=>{
+ const c=editorContext();if(!c?.member)return;
+ const button=$('ai-review');button.disabled=true;$('ai-review-result').textContent='Reviewing update…';
+ try{const res=await fetch('/.netlify/functions/review-report',{method:'POST',headers:{'content-type':'application/json',authorization:'Bearer '+session.access_token},body:JSON.stringify({section:$('section-select').value,text:$('section-notes').value,department:snapshot.identity.departments.find(d=>d.id===c.dep)?.display_name,week:String(snapshot.weeks.find(w=>w.id===c.week)?.week_number||c.week).slice(0,40)})});const data=await res.json();if(!res.ok)throw Error(data.error||'AI review unavailable');$('ai-review-result').textContent=[data.assessment,...(data.suggestions||[]).map(x=>'Suggestion: '+x),...(data.questions||[]).map(x=>'Question: '+x),'Suggested draft: '+(data.draft||'')].join('\n')}catch(e){$('ai-review-result').textContent='AI review failed: '+e.message}finally{button.disabled=false}
+});
