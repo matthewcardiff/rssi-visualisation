@@ -637,6 +637,24 @@
     return body;
   }
 
+  function cachedPresenterRequest(cache, key, create) {
+    const isMap = cache instanceof Map;
+    const existing = isMap ? cache.get(key) : cache[key];
+    if (existing) return existing;
+    const request = Promise.resolve().then(create);
+    if (isMap) cache.set(key, request); else cache[key] = request;
+    request.catch(() => {
+      if (isMap) {
+        if (cache.get(key) === request) cache.delete(key);
+      } else if (cache[key] === request) cache[key] = null;
+    });
+    return request;
+  }
+
+  const presenterIdentity = () => cachedPresenterRequest(presenterApiCache, 'identity', () => presenterApi('whoami'));
+  const presenterReports = () => cachedPresenterRequest(presenterApiCache, 'reports', () => presenterApi('reports'));
+  const presenterFinance = weekId => cachedPresenterRequest(presenterApiCache.finance, weekId, () => presenterApi('finance_published'));
+
   window.vhInvalidatePresenterFinanceCache = () => presenterApiCache.finance.clear();
   window.vhGetPresenterFinanceCache = weekId => presenterApiCache.finance.get(weekId) || null;
 
@@ -680,10 +698,10 @@
     heading.append(overview);
     void (async () => {
       try {
-        if (!presenterApiCache.reports) presenterApiCache.reports = presenterApi('reports');
+        const reportsRequest = presenterReports();
         const [identity, reports] = await Promise.all([
-          presenterApiCache.identity || (presenterApiCache.identity = presenterApi('whoami')),
-          presenterApiCache.reports
+          presenterIdentity(),
+          reportsRequest
         ]);
         if (!heading.isConnected || heading.dataset.overviewSignature !== signature) return;
         const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
@@ -714,13 +732,11 @@
     panel.append(data);
     void (async () => {
       try {
-        if (!presenterApiCache.identity) presenterApiCache.identity = presenterApi('whoami');
-        const identity = await presenterApiCache.identity;
+        const identity = await presenterIdentity();
         const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
         if (!department || !context.weekId) throw new Error('Finance figures are unavailable.');
         const cacheKey = context.weekId;
-        if (!presenterApiCache.finance.has(cacheKey)) presenterApiCache.finance.set(cacheKey, presenterApi('finance_published'));
-        const finance = await presenterApiCache.finance.get(cacheKey);
+        const finance = await presenterFinance(cacheKey);
         const publications = (finance.publications || []).filter(p => p.reporting_week_id === context.weekId).sort((a,b) => Number(b.publication_version || 0) - Number(a.publication_version || 0));
         const publication = publications.find(p => p.department_id === department.id);
         if (!publication) { data.textContent = 'Finance figures have not been reported for this week.'; return; }
@@ -751,8 +767,8 @@
         const source = (finance.periods || []).find(p => p.id === sourceId);
         if (source) foot.textContent = 'Finance source NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date + ' · two-week lag';
         panel.replaceChildren(panel.querySelector('.vh26-presenter-revenue-title'), grid, foot);
-      } catch {
-        if (panel.isConnected && panel.dataset.signature === signature) data.textContent = 'Finance figures are not available for this week.';
+      } catch (error) {
+        if (panel.isConnected && panel.dataset.signature === signature) data.textContent = error?.message ? 'Finance figures could not load: ' + error.message : 'Finance figures are not available for this week.';
       }
     })();
     return panel;
@@ -776,9 +792,8 @@
 
   async function loadPresenterActions(panel, context, signature, notice = '') {
     try {
-      if (!presenterApiCache.identity) presenterApiCache.identity = presenterApi('whoami');
       const [identity, result] = await Promise.all([
-        presenterApiCache.identity,
+        presenterIdentity(),
         presenterApi('actions')
       ]);
       if (!panel.isConnected || panel.dataset.signature !== signature) return;
@@ -835,8 +850,8 @@
         if (actionsHead) actionsHead.append(create);
         panel.insertBefore(form,panel.querySelector('.vh26-presenter-action-table'));
       }
-    } catch {
-      if (panel.isConnected && panel.dataset.signature === signature) {const status=panel.querySelector('.vh26-presenter-actions-status');if(status)status.textContent='Actions are unavailable. Refresh Presenter Mode and try again.'}
+    } catch (error) {
+      if (panel.isConnected && panel.dataset.signature === signature) {const status=panel.querySelector('.vh26-presenter-actions-status');if(status)status.textContent=error?.message ? 'Actions could not load: ' + error.message : 'Actions are unavailable. Refresh Presenter Mode and try again.'}
     }
   }
 

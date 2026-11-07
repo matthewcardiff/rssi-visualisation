@@ -172,6 +172,11 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(autosave, /DEPARTMENT FINANCIAL OVERVIEW/);
   assert.match(autosave, /No published finance figures are available for this department and week/);
   assert.match(autosave, /Finance source NRW WK/);
+  assert.ok(autosave.includes('function cachedPresenterRequest(cache, key, create)'));
+  assert.ok(autosave.includes('if (cache.get(key) === request) cache.delete(key)'));
+  assert.ok(autosave.includes('else if (cache[key] === request) cache[key] = null'));
+  assert.match(autosave, /Finance figures could not load:/);
+  assert.match(autosave, /Actions could not load:/);
 });
 
 test('Safety Moment endpoint failures expose HTTP and content-type diagnostics in Presenter Mode',()=>{
