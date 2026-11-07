@@ -160,6 +160,12 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(financeUi, /window\.vhInvalidatePresenterFinanceCache\?\.\(\)/);
 });
 
+test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
+  assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);
+  assert.match(financeUi,/\[d\.display_name,d\.code,d\.name\]\.some\(value=>wanted\.includes\(normalise\(value\)\)\)/);
+  assert.match(financeUi,/window\.vhFinDepartments\|\|\[\['TWS'\]/);
+});
+
 test('finance flow shows one next action and advances to Apply after checks are acknowledged', () => {
   assert.match(financeUi, /id="vh26-finance-check" disabled/);
   assert.match(financeUi, /id="vh26-finance-import" hidden disabled>Apply figures/);
