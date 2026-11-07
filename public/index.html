@@ -52282,7 +52282,7 @@ async function presenterRenderFinance(root){
  root.append(presenterSafeText('p','Finance figures · '+(week?hostWeekLabel(week):'No reporting week available')));
  const notice=presenterSafeText('p','Green ↑ means revenue is above budget; red ↓ means it is below. Gap to close follows the workbook calculation: revenue minus budget. Missing values stay “Not reported”.');
  notice.className='vh26-presenter-notice';root.append(notice);
- const refresh=document.createElement('button');refresh.type='button';refresh.className='vh26-presenter-secondary';refresh.textContent='Refresh figures';refresh.addEventListener('click',()=>{presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;renderPresenterSlide()});root.append(refresh);
+ const refresh=document.createElement('button');refresh.type='button';refresh.className='vh26-presenter-secondary';refresh.textContent='Refresh figures';refresh.addEventListener('click',()=>renderPresenterSlide());root.append(refresh);
  const status=presenterSafeText('p','Loading published finance figures…');root.append(status);
  try{
   if(presenterPublishedFinanceWeekId!==week?.id){presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null}

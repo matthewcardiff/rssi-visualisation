@@ -187,7 +187,7 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter, /presenterPublishedFinance=await cached/);
   assert.match(presenter, /vhGetPresenterFinanceCache\?\.\(week\?\.id\)/);
   assert.match(presenter, /presenterPublishedFinanceWeekId=week\?\.id/);
-  assert.match(presenter, /presenterPublishedFinanceWeekId=null;renderPresenterSlide\(\)/);
+  assert.match(presenter, /textContent='Refresh figures';refresh\.addEventListener\('click',\(\)=>renderPresenterSlide\(\)\)/);
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
