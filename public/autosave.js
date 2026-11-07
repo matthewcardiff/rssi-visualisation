@@ -901,6 +901,9 @@
         slide.scrollTop = 0;
         slide.scrollLeft = 0;
         slide.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        mode.scrollTop = 0;
+        mode.scrollLeft = 0;
+        mode.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
         if (document.body) document.body.scrollTop = 0;
