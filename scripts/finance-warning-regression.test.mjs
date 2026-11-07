@@ -153,6 +153,8 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
+  assert.match(presenter,/Finance source week: NRW WK/);
+  assert.match(presenter,/managementPeriodIndex>=2\?financePeriods\[managementPeriodIndex-2\]:null/);
   assert.match(presenter, /const companyAggregate=key=>/);
   assert.match(presenter, /Partial total · \$\{result\.reported\} of \$\{result\.total\} departments reported/);
   assert.match(presenter, /const companyVariance=\(revenueKey,budgetKey\)=>/);
