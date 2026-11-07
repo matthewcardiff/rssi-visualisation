@@ -380,7 +380,8 @@ test('Presenter suppresses QA-marked report cards in every department without in
   assert.match(cleanup,/new Set\(\['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources'\]\)/);
   assert.match(cleanup,/paragraphs\[0\]\.textContent = 'Not reported for this week\.'/);
   assert.doesNotMatch(cleanup,/Lineside vegetation survey|Ecology constraints review|Vegetation clearance quality checks/);
-  assert.match(renderer,/suppressSyntheticPresenterCards\(slide, departmentName\)/);\n  assert.doesNotMatch(cleanup,/departmentName !== 'Managed Environments'/);
+  assert.match(renderer,/suppressSyntheticPresenterCards\(slide, departmentName\)/);
+  assert.doesNotMatch(cleanup,/departmentName !== 'Managed Environments'/);
 });
 test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');

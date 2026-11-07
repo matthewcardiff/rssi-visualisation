@@ -211,12 +211,41 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(autosave, /if \(op === 'finance_published'\) presenterApiCache\.finance\.clear\(\)/);
 });
 
+test('concurrent Presenter redraws share one finance request and failed requests can retry', async () => {
+  const helperStart = autosave.indexOf('function installFinanceRequestDeduplication()');
+  const helperEnd = autosave.indexOf('function install()', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const helper = autosave.slice(helperStart, helperEnd);
+  let resolveRequest;
+  let requests = 0;
+  const successful = { publications: [], values: [], periods: [] };
+  const window = { dataApi: () => { requests++; return new Promise(resolve => { resolveRequest = resolve; }); } };
+  const shared = vm.createContext({ window, Promise });
+  vm.runInContext(`${helper}installFinanceRequestDeduplication()`, shared);
+  const first = window.dataApi('finance_published');
+  const second = window.dataApi('finance_published');
+  await Promise.resolve();
+  assert.equal(requests, 1);
+  resolveRequest(successful);
+  const [firstResult, secondResult] = await Promise.all([first, second]);
+  assert.equal(firstResult, successful);
+  assert.equal(secondResult, successful);
+
+  let attempts = 0;
+  const retryWindow = { dataApi: () => ++attempts === 1 ? Promise.reject(new Error('temporary outage')) : Promise.resolve(successful) };
+  const retryable = vm.createContext({ window: retryWindow, Promise });
+  vm.runInContext(`${helper}installFinanceRequestDeduplication()`, retryable);
+  await assert.rejects(retryWindow.dataApi('finance_published'), /temporary outage/);
+  assert.equal(await retryWindow.dataApi('finance_published'), successful);
+  assert.equal(attempts, 2);
+});
+
 test('a late finance response cannot overwrite a department Presenter slide', () => {
-  const start = financeUi.indexOf('async function presenterRenderFinance(root)');
+  const start = financeUi.indexOf('async function presenterRenderFinance(root,renderGeneration=presenterSlideRenderGeneration)');
   const end = financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', start);
   assert.ok(start >= 0 && end > start);
   const presenter = financeUi.slice(start, end);
-  assert.match(presenter, /if\(!presenterPublishedFinance\)\{[\s\S]*?presenterPublishedFinance=await dataApi\('finance_published'\);[\s\S]*?if\(root\.querySelector\(':scope > h1'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\|\|document\.querySelector\('#vh26-presenter-tabs button\.selected'\)\?\.textContent\.trim\(\)!=='Finance & Commercial'\)return;/);
+  assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
 });
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
   assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);
