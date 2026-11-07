@@ -117,8 +117,8 @@ test('finance checks and import history are readable without an inner results sc
   assert.match(autosave, /function polishFinanceHistory\(\)/);
   assert.match(autosave, /if \(importId && seen\.has\(importId\)\)/);
   assert.match(autosave, /Finance files for review/);
-  assert.match(autosave, /Only approved figures appear in reports/);
-  assert.match(autosave, /waiting for review/);
+  assert.match(autosave, /Only approved and published figures appear in reports/);
+  assert.match(autosave, /finance import.*in the register/);
   assert.match(autosave, /They are not approved and are not shown in reports/);
 });
 

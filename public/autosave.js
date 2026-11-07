@@ -95,7 +95,7 @@
     if (heading && heading.textContent !== 'Finance files for review') heading.textContent = 'Finance files for review';
     const intro = heading?.nextElementSibling;
     if (intro?.tagName === 'P') {
-      const plainIntro = 'These workbooks are waiting for finance review. Only approved figures appear in reports. This preview cannot approve or publish them.';
+      const plainIntro = 'Only approved and published figures appear in reports. Each import below shows its current review and publication status.';
       if (intro.textContent !== plainIntro) intro.textContent = plainIntro;
     }
     const refresh = document.getElementById('vh26-finance-review-refresh');
@@ -105,7 +105,7 @@
     if (status?.textContent) {
       const count = status.textContent.match(/(\d+) imports? found/i)?.[1];
       if (count) {
-        const plainStatus = `${count} finance file${count === '1' ? '' : 's'} waiting for review. They are not published.`;
+        const plainStatus = `${count} finance import${count === '1' ? '' : 's'} in the register. Check each status below; published imports are marked.`;
         if (status.textContent !== plainStatus) status.textContent = plainStatus;
       } else if (/loading finance import register/i.test(status.textContent)) status.textContent = 'Loading finance files…';
     }
