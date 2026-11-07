@@ -355,6 +355,11 @@ test('Build 050 Presenter Mode restores Safety Moment, finance and department ta
   assert.match(html,/id="vh26-session-loading"[\s\S]{0,500}Loading current workspace/);
   assert.match(html,/async function enterConnected\(session\)\{const loader=document\.getElementById\('vh26-session-loading'\)/);
 });
+test('Safety Moment action control follows the shared meeting-host role permissions',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>\['meeting_host','administrator','executive'\]\.includes\(r\.role\)\)\}/);
+  assert.match(html,/function presenterRenderSafety\(root\)\{const canCreateSafetyAction=canHostActions\(\)/);
+});
 test('Presenter reads separate pipeline opportunities and omits false status and duplicate department headings',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/\['weeks','reports','sections','pipeline'\]/);
