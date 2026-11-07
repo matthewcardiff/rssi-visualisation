@@ -190,12 +190,13 @@ test('finance Presenter shows all departments, partial company totals and refres
   const presenterStart = financeUi.indexOf('async function presenterRenderFinance(root');
   const presenter = financeUi.slice(presenterStart, financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', presenterStart));
   assert.match(presenter, /textContent='Refresh figures'/);
-  assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\)/);
+  assert.match(presenter, /presenterPublishedFinance=await presenterLoadPublishedFinance\(week\?\.id\)/);
+  assert.match(financeUi, /function presenterLoadPublishedFinance\(weekId\)\{[\s\S]*?if\(presenterFinanceRequest&&presenterFinanceRequestWeekId===weekId\)return presenterFinanceRequest;[\s\S]*?dataApi\('finance_published'\)[\s\S]*?presenterFinanceRequest=null;presenterFinanceRequestWeekId=null/);
   assert.doesNotMatch(presenter, /vhGetPresenterFinanceCache/);
   assert.match(financeUi, /const generation=\+\+presenterSlideRenderGeneration,week=hostWeek\(\)/);
   assert.match(presenter, /renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id/);
-  assert.match(presenter, /presenterPublishedFinanceWeekId=week\?\.id/);
-  assert.match(presenter, /refresh\.addEventListener\('click',\(\)=>\{window\.vhInvalidatePresenterFinanceCache\?\.\(\);presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;renderPresenterSlide\(\)\}\)/);
+  assert.match(financeUi, /presenterPublishedFinance=data;presenterPublishedFinanceWeekId=weekId/);
+  assert.match(presenter, /refresh\.addEventListener\('click',\(\)=>\{window\.vhInvalidatePresenterFinanceCache\?\.\(\);presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;presenterFinanceRequest=null;presenterFinanceRequestWeekId=null;renderPresenterSlide\(\)\}\)/);
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
@@ -212,19 +213,17 @@ test('finance Presenter shows all departments, partial company totals and refres
 });
 
 test('concurrent Presenter redraws share one finance request and failed requests can retry', async () => {
-  const helperStart = autosave.indexOf('function installFinanceRequestDeduplication()');
-  const helperEnd = autosave.indexOf('function install()', helperStart);
+  const helperStart = financeUi.indexOf('function presenterLoadPublishedFinance(weekId)');
+  const helperEnd = financeUi.indexOf('function presenterSetView(', helperStart);
   assert.ok(helperStart >= 0 && helperEnd > helperStart);
-  const helper = autosave.slice(helperStart, helperEnd);
+  const helper = financeUi.slice(helperStart, helperEnd);
   let resolveRequest;
   let requests = 0;
   const successful = { publications: [], values: [], periods: [] };
-  const window = { dataApi: () => { requests++; return new Promise(resolve => { resolveRequest = resolve; }); } };
-  const shared = vm.createContext({ window, Promise });
-  vm.runInContext(`${helper}installFinanceRequestDeduplication()`, shared);
-  const first = window.dataApi('finance_published');
-  const second = window.dataApi('finance_published');
-  await Promise.resolve();
+  const shared = vm.createContext({ dataApi: () => { requests++; return new Promise(resolve => { resolveRequest = resolve; }); }, Promise });
+  vm.runInContext(`let presenterPublishedFinance=null,presenterPublishedFinanceWeekId=null,presenterFinanceRequest=null,presenterFinanceRequestWeekId=null;${helper};this.presenterLoadPublishedFinance=presenterLoadPublishedFinance`, shared);
+  const first = shared.presenterLoadPublishedFinance('week-32');
+  const second = shared.presenterLoadPublishedFinance('week-32');
   assert.equal(requests, 1);
   resolveRequest(successful);
   const [firstResult, secondResult] = await Promise.all([first, second]);
@@ -232,11 +231,10 @@ test('concurrent Presenter redraws share one finance request and failed requests
   assert.equal(secondResult, successful);
 
   let attempts = 0;
-  const retryWindow = { dataApi: () => ++attempts === 1 ? Promise.reject(new Error('temporary outage')) : Promise.resolve(successful) };
-  const retryable = vm.createContext({ window: retryWindow, Promise });
-  vm.runInContext(`${helper}installFinanceRequestDeduplication()`, retryable);
-  await assert.rejects(retryWindow.dataApi('finance_published'), /temporary outage/);
-  assert.equal(await retryWindow.dataApi('finance_published'), successful);
+  const retryable = vm.createContext({ dataApi: () => ++attempts === 1 ? Promise.reject(new Error('temporary outage')) : Promise.resolve(successful), Promise });
+  vm.runInContext(`let presenterPublishedFinance=null,presenterPublishedFinanceWeekId=null,presenterFinanceRequest=null,presenterFinanceRequestWeekId=null;${helper};this.presenterLoadPublishedFinance=presenterLoadPublishedFinance`, retryable);
+  await assert.rejects(retryable.presenterLoadPublishedFinance('week-32'), /temporary outage/);
+  assert.equal(await retryable.presenterLoadPublishedFinance('week-32'), successful);
   assert.equal(attempts, 2);
 });
 
@@ -245,7 +243,11 @@ test('a late finance response cannot overwrite a department Presenter slide', ()
   const end = financeUi.indexOf('const renderConnectedPresenterDepartment=renderPresenterSlide', start);
   assert.ok(start >= 0 && end > start);
   const presenter = financeUi.slice(start, end);
-  assert.match(presenter, /presenterPublishedFinance=await dataApi\('finance_published'\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
+  assert.match(presenter, /presenterPublishedFinance=await presenterLoadPublishedFinance\(week\?\.id\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
+});
+test('reloading Presenter readiness preserves the host selected reporting week',()=>{
+  assert.match(financeUi,/retainedWeekId=selectedHostWeekId/);
+  assert.match(financeUi,/hostData\.weeks=result\.items\|\|\[\];if\(retainedWeekId&&hostData\.weeks\.some\(w=>w\.id===retainedWeekId\)\)selectedHostWeekId=retainedWeekId/);
 });
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
   assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);

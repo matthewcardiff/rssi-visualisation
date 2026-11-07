@@ -1140,31 +1140,8 @@
     enhancePresenterSlide();
   }
 
-  function installFinanceRequestDeduplication() {
-    if (window.__vh26FinanceRequestDedupInstalled || typeof window.dataApi !== 'function') return;
-    window.__vh26FinanceRequestDedupInstalled = true;
-    const original = window.dataApi;
-    let pendingFinanceRequest = null;
-    window.dataApi = function (op, ...args) {
-      if (op !== 'finance_published') return original.apply(this, [op, ...args]);
-      if (pendingFinanceRequest) return pendingFinanceRequest;
-      const request = Promise.resolve().then(() => original.apply(this, [op, ...args]));
-      pendingFinanceRequest = request;
-      request.finally(() => {
-        if (pendingFinanceRequest === request) pendingFinanceRequest = null;
-      }).catch(() => {});
-      return request;
-    };
-    const invalidate = window.vhInvalidatePresenterFinanceCache;
-    window.vhInvalidatePresenterFinanceCache = function () {
-      pendingFinanceRequest = null;
-      if (typeof invalidate === 'function') invalidate.apply(this, arguments);
-    };
-  }
-
   function install() {
     installSafetyMomentDiagnostics();
-    installFinanceRequestDeduplication();
     installDepartmentChooserStyle();
     installPresenterRestoration();
     const root = workspace();
