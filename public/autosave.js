@@ -896,10 +896,19 @@
     const viewKey = JSON.stringify([viewKind, activeTab, slideTitle]);
     if (slide.dataset.vh26ScrollKey !== viewKey) {
       slide.dataset.vh26ScrollKey = viewKey;
-      requestAnimationFrame(() => {
+      const resetPresenterScroll = () => {
         if (!slide.isConnected) return;
         slide.scrollTop = 0;
+        slide.scrollLeft = 0;
+        slide.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+        window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
         if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+        if (document.body) document.body.scrollTop = 0;
+      };
+      requestAnimationFrame(() => {
+        resetPresenterScroll();
+        requestAnimationFrame(resetPresenterScroll);
+        setTimeout(resetPresenterScroll, 100);
       });
     }
     const weekSelect = document.getElementById('vh26-host-week-select');
@@ -912,10 +921,18 @@
         mode.dataset.vh26WeekRestoreAttempts = '0';
       }
       const attempts = Number(mode.dataset.vh26WeekRestoreAttempts || '0');
-      if (attempts < 3) {
+      if (attempts < 20) {
         mode.dataset.vh26WeekRestoreAttempts = String(attempts + 1);
         weekSelect.value = restoreFor;
+        weekSelect.dispatchEvent(new Event('input', { bubbles: true }));
         weekSelect.dispatchEvent(new Event('change', { bubbles: true }));
+        if (mode.dataset.vh26WeekRestoreTimer !== restoreFor) {
+          mode.dataset.vh26WeekRestoreTimer = restoreFor;
+          setTimeout(() => {
+            mode.dataset.vh26WeekRestoreTimer = '';
+            if (mode.isConnected && !mode.hidden) enhancePresenterSlide();
+          }, 100);
+        }
       }
     }
     mode.querySelector('#vh26-presenter-all')?.classList.toggle('selected', viewKind === 'all');
@@ -1089,12 +1106,17 @@
     const dashboard = document.getElementById('vh26-connected-dashboard');
     dashboard?.addEventListener('change', event => {
       const target = event.target;
-      if (!(target instanceof HTMLSelectElement) || target.id !== 'vh26-host-week-select' || !event.isTrusted) return;
-      try { sessionStorage.setItem('vh26-presenter-week-preference', target.value); } catch {}
+      if (!(target instanceof HTMLSelectElement) || target.id !== 'vh26-host-week-select') return;
       const presenter = document.getElementById('vh26-presenter-mode');
-      if (presenter) {
-        delete presenter.dataset.vh26WeekRestoreFor;
-        delete presenter.dataset.vh26WeekRestoreAttempts;
+      // Keep the user's choice while the host dashboard is active. Presenter rendering
+      // can reinitialize the host selector; those programmatic changes must not replace it.
+      if (!presenter || presenter.hidden) {
+        try { sessionStorage.setItem('vh26-presenter-week-preference', target.value); } catch {}
+        if (presenter) {
+          delete presenter.dataset.vh26WeekRestoreFor;
+          delete presenter.dataset.vh26WeekRestoreAttempts;
+          delete presenter.dataset.vh26WeekRestoreTimer;
+        }
       }
     }, true);
     dashboard?.addEventListener('click', event => {
