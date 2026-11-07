@@ -699,7 +699,7 @@
     if (!panel) {
       panel = document.createElement('section');
       panel.className = 'vh26-presenter-card vh26-presenter-finance-card';
-      panel.setAttribute('aria-label', 'Revenue');
+      panel.setAttribute('aria-label', 'Department financial overview');
       slide.append(panel);
     }
     const signature = JSON.stringify([context.departmentName, context.weekId]);
@@ -708,6 +708,7 @@
     panel.replaceChildren();
     panel.append(presenterTextElement('div', 'REVENUE'));
     panel.querySelector('div').className = 'vh26-presenter-revenue-title';
+    panel.querySelector('div').textContent = 'DEPARTMENT FINANCIAL OVERVIEW';
     const data = presenterTextElement('p', 'Loading figures…');
     data.className = 'vh26-presenter-revenue-status';
     panel.append(data);
@@ -722,7 +723,7 @@
         const finance = await presenterApiCache.finance.get(cacheKey);
         const publications = (finance.publications || []).filter(p => p.reporting_week_id === context.weekId).sort((a,b) => Number(b.publication_version || 0) - Number(a.publication_version || 0));
         const publication = publications.find(p => p.department_id === department.id);
-        if (!publication) { data.textContent = 'Finance figures have not been reported for this week.'; return; }
+        if (!publication) { data.textContent = 'No published finance figures are available for this department and week. Figures appear after finance review and publication.'; return; }
         const values = (finance.values || []).filter(v => v.publication_id === publication.id);
         const get = key => { const item = values.find(v => v.metric_key === key); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
         const weeklyBudget = get('weekly_budget'), weeklyRevenue = get('weekly_revenue');
@@ -755,6 +756,36 @@
       }
     })();
     return panel;
+  }
+
+  function installSafetyMomentDiagnostics() {
+    if (window.__vhSafetyMomentDiagnosticsInstalled || typeof window.fetch !== 'function') return;
+    window.__vhSafetyMomentDiagnosticsInstalled = true;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async function (input, init) {
+      const url = typeof input === 'string' ? input : input?.url || '';
+      const isSafetyMoment = String(url).includes('/.netlify/functions/safety-moment');
+      const response = await originalFetch(input, init);
+      if (!isSafetyMoment) return response;
+      const contentType = response.headers.get('content-type') || 'unknown content type';
+      let payload = null;
+      try { payload = await response.clone().json(); } catch { /* Report the HTTP and content type below. */ }
+      const hasError = typeof payload?.error === 'string' && payload.error.trim();
+      const validResult = payload && typeof payload === 'object' && !Array.isArray(payload)
+        && typeof payload.topic === 'string' && typeof payload.why === 'string'
+        && typeof payload.scenario === 'string' && typeof payload.takeaway === 'string'
+        && Array.isArray(payload.points) && payload.points.length === 3
+        && Array.isArray(payload.questions) && payload.questions.length === 2;
+      if (!response.ok && hasError) return response;
+      if (response.ok && validResult) return response;
+      const message = !response.ok
+        ? 'Safety Moment function returned HTTP ' + response.status + ' (' + contentType + '). Check the branch deployment and Netlify function logs.'
+        : 'Safety Moment function returned an invalid response (HTTP ' + response.status + ', ' + contentType + '). Check the branch deployment and Netlify function logs.';
+      return new Response(JSON.stringify({ error: message }), {
+        status: response.ok ? 502 : response.status,
+        headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' }
+      });
+    };
   }
 
   function presenterActionsCard(slide, context) {
@@ -1101,6 +1132,7 @@
   }
 
   function install() {
+    installSafetyMomentDiagnostics();
     installDepartmentChooserStyle();
     installPresenterRestoration();
     const root = workspace();
