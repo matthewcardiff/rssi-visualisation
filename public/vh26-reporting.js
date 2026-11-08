@@ -14,7 +14,8 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child>label{display:grid!important;grid-template-rows:auto 1fr!important;gap:7px!important;min-width:0!important;flex:none!important;margin:0!important;color:#263d50!important;font:500 13px/1.35 Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:46px!important;padding:12px 14px!important;border:1px solid #cdd7df!important;border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input:focus{outline:3px solid #004d7126!important;border-color:#004d71!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin-top:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;width:100%!important;margin-top:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:nth-child(2){display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button{width:100%!important;min-height:46px!important;padding:11px 18px!important;border:1px solid #cbd6de!important;border-radius:12px!important;background:#fff!important;color:#004d71!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:first-child{border-color:#004d71!important;background:#004d71!important;color:#fff!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:hover:not(:disabled){filter:brightness(.96)}
@@ -233,8 +234,14 @@
     if (id) return id;
     if (!reportingBridge()?.canManage?.()) throw Error('A manager must create the first draft before contributors can edit it.');
     const created = await reportingBridge().createReport();
-    id = created.items?.[0]?.id;
+    const report = created.items?.[0];
+    id = report?.id;
     if (!id) throw Error('Draft creation failed.');
+    const data = reportingBridge()?.nativeData?.();
+    if (data) {
+      const index = data.reports.findIndex(item => item.id === id);
+      if (index < 0) data.reports.push(report); else data.reports[index] = { ...data.reports[index], ...report };
+    }
     return id;
   }
 
@@ -271,13 +278,17 @@
         );
         content = { ...old, notes: document.getElementById('vh26-section-notes').value, entries };
       }
-      await reportingBridge().saveSection({ report_id: id, section_key: sectionKey, content });
+      const payload = { report_id: id, section_key: sectionKey, content };
+      const saved = await reportingBridge().saveSection(payload);
+      const data = reportingBridge()?.nativeData?.();
+      if (data) {
+        const row = { ...(saved?.items?.[0] || saved?.item || {}), ...payload };
+        const index = data.sections.findIndex(item => item.report_id === id && item.section_key === sectionKey);
+        if (index < 0) data.sections.push(row); else data.sections[index] = { ...data.sections[index], ...row };
+      }
       reportingDirty = reportingEditVersion !== savedEditVersion;
       if (reportingDirty) status('A newer change is still saving…');
-      else {
-        await reportingBridge().loadNative();
-        status('Saved automatically to Supabase');
-      }
+      else status('Saved automatically to Supabase');
     } catch (error) {
       reportingDirty = true;
       status('Automatic save failed: ' + error.message);
@@ -421,12 +432,18 @@
       const saveNotes = root.querySelector('#vh26-pipeline-save-notes');
       if (saveNotes && !saveNotes.disabled) {
         const id = await reportId();
-        await reportingBridge().saveSection({
+        const payload = {
           report_id: id,
           section_key: 'pipeline',
           content: { notes: notesValue.trim(), entries: [] }
-        });
-        await reportingBridge().loadNative();
+        };
+        const saved = await reportingBridge().saveSection(payload);
+        const data = reportingBridge()?.nativeData?.();
+        if (data) {
+          const row = { ...(saved?.items?.[0] || saved?.item || {}), ...payload };
+          const index = data.sections.findIndex(item => item.report_id === id && item.section_key === 'pipeline');
+          if (index < 0) data.sections.push(row); else data.sections[index] = { ...data.sections[index], ...row };
+        }
         reportingDirty = false;
         reportingBridge().markSaved?.();
         status('Pipeline section saved');
