@@ -1002,23 +1002,31 @@
   }
 
   function filterPresenterFinanceRows(slide) {
-    const excluded = new Set(['HSQE','Bids/RFQs']);
-    for (const row of [...slide.querySelectorAll('table tr')]) {
-      if (row.cells?.[0]?.tagName === 'TH') continue;
-      const label = row.cells?.[0]?.textContent.trim();
-      if (excluded.has(label)) row.remove();
-    }
-    for (const summary of [...slide.querySelectorAll('small')]) {
-      const text = summary.textContent || '';
-      const match = text.match(/(\d+)\s+of\s+\d+\s+departments reported/i);
-      if (!match) continue;
-      const reported = Number(match[1]);
-      summary.textContent = reported < 9
-        ? 'Partial total · ' + reported + ' of 9 finance departments reported'
-        : '9 of 9 finance departments reported';
-    }
-    for (const caption of [...slide.querySelectorAll('p')]) {
-      if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
+    const apply = () => {
+      const excluded = new Set(['HSQE','Bids/RFQs']);
+      for (const row of [...slide.querySelectorAll('table tr')]) {
+        if (row.cells?.[0]?.tagName === 'TH') continue;
+        const label = row.cells?.[0]?.textContent.trim();
+        if (excluded.has(label)) row.remove();
+      }
+      for (const summary of [...slide.querySelectorAll('small')]) {
+        const text = summary.textContent || '';
+        const match = text.match(/(\d+)\s+of\s+\d+\s+departments reported/i);
+        if (!match) continue;
+        const reported = Number(match[1]);
+        summary.textContent = reported < 9
+          ? 'Partial total · ' + reported + ' of 9 finance departments reported'
+          : '9 of 9 finance departments reported';
+      }
+      for (const caption of [...slide.querySelectorAll('p')]) {
+        if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
+      }
+    };
+    apply();
+    if (slide.dataset.vh26FinanceRowsObserver !== 'true') {
+      slide.dataset.vh26FinanceRowsObserver = 'true';
+      const observer = new MutationObserver(apply);
+      observer.observe(slide, { childList:true, subtree:true });
     }
   }
 
