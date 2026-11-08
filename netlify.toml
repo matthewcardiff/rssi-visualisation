@@ -1,5 +1,5 @@
 [build]
-  command = "node scripts/verify-stage26.cjs"
+  command = "npm test"
   publish = "public"
 
 [build.environment]
