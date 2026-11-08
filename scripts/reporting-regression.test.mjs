@@ -345,7 +345,7 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/4 · Finance review/);
   assert.match(html,/Departments with finance figures/);
-  assert.match(html,/byDepartment\.filter\(x=>Object\.values\(x\.values\)\.some\(value=>value!==null\)\)\.length\+' \/ 11'/);
+  assert.match(html,/byDepartment\.filter\(x=>Object\.values\(x\.values\)\.some\(value=>value!==null\)\)\.length\+' \/ 10'/);
   assert.match(html,/Not reported for this source week/);
   assert.match(html,/byDepartment\.some\(x=>x\.values\[metric\]!==null\)\?byDepartment\.reduce\(\(sum,x\)=>sum\+\(x\.values\[metric\]\?\?0\),0\):null/);
   assert.match(html,/vh26-finance-department-list/);
