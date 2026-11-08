@@ -374,24 +374,11 @@ test('Presenter reads separate pipeline opportunities and omits false status and
   assert.match(html,/vh26-presenter-pager\{position:fixed!important/);assert.match(html,/vh26-presenter-slide\{display:grid!important/);
   assert.match(html,/vh26-presenter-department-label\{display:none!important\}/);
 });
-test('Presenter suppresses QA-marked report cards in every department without inventing figures',()=>{
+test('Presenter keeps saved department report content available for the demo',()=>{
   const renderer=readFileSync(new URL('../public/vh26-reporting.js',import.meta.url),'utf8');
-  const start=renderer.indexOf('function suppressSyntheticPresenterCards');
-  const end=renderer.indexOf('function enhancePresenterSlide',start);
-  assert.ok(start>=0&&end>start);
-  const cleanup=renderer.slice(start,end);
-  assert.match(cleanup,/QA TEST DATA\|QA TEST — Fictional\|Fictional scenario\|Illustrative staging\|Synthetic test data only\|Test owner: QA Test User\|QA staging test only\|synthetic data/);
-  assert.match(cleanup,/new Set\(\['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources'\]\)/);
-  assert.match(cleanup,/paragraphs\[0\]\.textContent = 'Not reported for this week\.'/);
-  assert.match(cleanup,/paragraphs\[0\]\.classList\.add\('empty'\)/);
-  assert.match(cleanup,/paragraph\.className = 'empty'/);
-  assert.match(cleanup,/let suppressed = 0/);
-  assert.match(cleanup,/return suppressed/);
-  assert.match(renderer,/const hiddenSyntheticSections = suppressSyntheticPresenterCards\(slide, departmentName\);\s*const context = presenterDepartmentContext\(slide, tabs\);\s*context\.hiddenSyntheticSections = hiddenSyntheticSections/);
-  assert.match(renderer,/state === 'submitted' && context\.hiddenSyntheticSections \? 'Report Submitted · synthetic content hidden'/);
-  assert.doesNotMatch(cleanup,/Lineside vegetation survey|Ecology constraints review|Vegetation clearance quality checks/);
-  assert.match(renderer,/suppressSyntheticPresenterCards\(slide, departmentName\)/);
-  assert.doesNotMatch(cleanup,/departmentName !== 'Managed Environments'/);
+  assert.match(renderer,/presenterApi\('sections'\)/);
+  assert.match(renderer,/content\.demo/);
+  assert.doesNotMatch(renderer,/suppressSyntheticPresenterCards|synthetic content hidden/);
 });
 test('manager submission blocks incomplete saved sections and restores Build 050 action/support controls',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
@@ -415,7 +402,7 @@ test('Presenter Mode opens on Finance & Commercial while readiness loads, and cl
   assert.ok(html.includes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
   assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='finance';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
   assert.match(html,/add\('Finance & Commercial','finance'\);presenterDepartments\.forEach/);
-  assert.match(html,/const financeDepartments=presenterDepartments/);
+  assert.match(html,/const financeDepartments=presenterDepartments\.filter\(d=>!\['hsqe','bids-rfqs'\]\.includes\(String\(d\.code\|\|''\)\.toLowerCase\(\)\)\)/);
   assert.match(html,/presenterDepartments=resolved/);
   assert.match(html,/function presenterDepartmentLabel\(department\)/);
   for(const [source,label] of [['Civils & Construction','Civils'],['Signalling','S&T'],['Track Warning Systems','TWS'],['Midland Metro','MMA']])assert.ok(html.includes(`['${source}','${label}']`));
