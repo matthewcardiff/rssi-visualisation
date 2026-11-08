@@ -260,7 +260,7 @@ test('reloading Presenter readiness preserves the host selected reporting week',
   assert.match(financeUi,/hostData\.weeks=result\.items\|\|\[\];if\(retainedWeekId&&hostData\.weeks\.some\(w=>w\.id===retainedWeekId\)\)selectedHostWeekId=retainedWeekId/);
 });
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
-  assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\]\}/);
+  assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\],'HS2 Bird Deterrant':\['BIRDDETERRENT','BIRDDETERENT'\]\}/);
   assert.match(financeUi,/\[d\.display_name,d\.code,d\.name\]\.some\(value=>wanted\.includes\(normalise\(value\)\)\)/);
   assert.match(financeUi,/window\.vhFinDepartments\|\|\[\['TWS'\]/);
 });
