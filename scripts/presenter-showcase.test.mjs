@@ -26,3 +26,11 @@ test('HSQE and Bids/RFQs use their agreed presenter content', () => {
   assert.match(source, /https:\/\/rssi-bid-hub-staging2\.netlify\.app\/#\/tracker/);
   assert.match(source, /presenterDepartmentForName/);
 });
+
+const presenterPage = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+
+test('Presenter Mode company overview uses green for favourable gaps and keeps adverse gaps red', () => {
+  assert.ok(presenterPage.includes('number.className=\'vh26-finance-variance-\'+(value<=0?\'favourable\':\'adverse\')'));
+  assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-favourable{color:#17633c!important}'));
+  assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-adverse{color:#a12a16!important}'));
+});
