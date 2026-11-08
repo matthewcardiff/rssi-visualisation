@@ -4,6 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
+const autosaveScript = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
@@ -220,6 +221,15 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(autosave, /signal: AbortSignal\.timeout\(20000\)/);
   assert.match(autosave, /Presenter request timed out\. Use Refresh to try again\./);
   assert.match(autosave, /if \(op === 'finance_published'\) presenterApiCache\.finance\.clear\(\)/);
+});
+
+test('finance Presenter shows YTD variance percent and the historical HS2 value behind the company total', () => {
+  assert.match(autosaveScript, /function enhanceFinanceCompanyOverview\(slide\)/);
+  assert.match(autosaveScript, /const percentValue = ytdBudget\.value !== null && ytdRevenue\.value !== null/);
+  assert.match(autosaveScript, /Historical HS2 \(legacy\)/);
+  assert.match(autosaveScript, /YTD variance %/);
+  assert.match(autosaveScript, /vh26-presenter-finance-active/);
+  assert.match(autosaveScript, /max-width:1240px/);
 });
 
 test('concurrent Presenter redraws share one finance request and failed requests can retry', async () => {
