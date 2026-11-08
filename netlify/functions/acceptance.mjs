@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','update_password','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -18,6 +18,13 @@ export default async (request)=>{
       if(typeof data.refresh_token!=='string')return json(401,{error:'Refresh token required'});
       const r=await fetch(url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:common,body:JSON.stringify({refresh_token:data.refresh_token}),signal:AbortSignal.timeout(12000)});
       if(!r.ok)return json(401,{error:'Session expired'});const b=await r.json();return json(200,{access_token:b.access_token,refresh_token:b.refresh_token,expires_in:b.expires_in});
+    }
+    if(data.op==='update_password'){
+      if(typeof data.access_token!=='string'||data.access_token.length<30||data.access_token.length>5000)return json(401,{error:'Password recovery link is invalid or expired'});
+      if(typeof data.password!=='string'||data.password.length<12||data.password.length>128)return json(400,{error:'Choose a password between 12 and 128 characters'});
+      const r=await fetch(url+'/auth/v1/user',{method:'PUT',headers:{...common,authorization:'Bearer '+data.access_token},body:JSON.stringify({password:data.password}),signal:AbortSignal.timeout(12000)});
+      if(!r.ok)return json(r.status===429?429:401,{error:'Password recovery link is invalid, expired, or already used. Request a new link.'});
+      return json(200,{updated:true});
     }
     if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
     const headers={...common,authorization:'Bearer '+data.access_token};
