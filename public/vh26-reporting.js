@@ -192,7 +192,7 @@
         cachedBudget: null,
         cachedRevenue: null
       }));
-      result.acceptanceReady = !!result.weekFound && result.records.length === 9 &&
+      result.acceptanceReady = !!result.weekFound && result.records.length === 11 &&
         result.records.every(record => record.issues.length === 0) && result.warnings.length === 0;
       return result;
     };

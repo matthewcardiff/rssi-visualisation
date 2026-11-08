@@ -750,7 +750,7 @@ async function financeRefresh(w){
 window.rssiFinanceRefresh=async function(w){const ok=await financeRefresh(w);if(ok){if(isFinance())renderFinance();else if(typeof window.render==='function')window.render()}return ok};
 
 
-const vhFinDepartments=[['TWS',6],['Civils',7],['Rail Operations',8],['Welding',9],['Managed Environments',10],['MMA',11],['S&T',12],['HS2',13],['Montel',14]];
+const vhFinDepartments=[['TWS',6],['Civils',7],['Rail Operations',8],['Welding',9],['Managed Environments',10],['MMA',11],['S&T',12],['HS2',13],['Montel',14],['Bird Deterrent',15],['HS2 Fencing',13]];
 // The authenticated finance workflow and the legacy preview use the same mapping.
 window.vhFinDepartments=vhFinDepartments;
 function vhFinCol(n){let r='';for(n++;n;n=Math.floor((n-1)/26))r=String.fromCharCode(65+(n-1)%26)+r;return r}
@@ -840,8 +840,9 @@ async function vhFinanceExtract(file,selectedWeek){
  const revenueWeek=revenueCalendar.weeks.find(x=>x.week===financePeriod?.sourceWeek)||null;
  if(!budgetWeek)warnings.push('Budget source week NRW WK'+(financePeriod?.sourceWeek??'unavailable')+' was not found in BUDGET.');
  if(!revenueWeek&&!financePeriod?.requiresPriorCycle)warnings.push('Revenue source week NRW WK'+(financePeriod?.sourceWeek??'unavailable')+' was not found in REVENUE.');
- const aliases={'Managed Environments':['MANAGEDENVIRONMENTS','ARB','ARBORICULTURE'],'Civils':['CIVILS','CIVILSCONSTRUCTION'],'Rail Operations':['RAILOPERATIONS','RAILOPS','RAILOPSRESOURCE'],'S&T':['ST','SIGNALLING','SIGNALING'],'TWS':['TWS','TRACKWARNINGSYSTEMS'],'Welding':['WELDING'],'MMA':['MMA','MIDLANDMETRO'],'HS2':['HS2','HS2FENCING','BIRDDETERRENT','BIRDDETERENT'],'Montel':['MONTEL']};
- const explicitRows={HS2:{budget:[13,15],revenue:[13,15]}};
+ const aliases={'Managed Environments':['MANAGEDENVIRONMENTS','ARB','ARBORICULTURE'],'Civils':['CIVILS','CIVILSCONSTRUCTION'],'Rail Operations':['RAILOPERATIONS','RAILOPS','RAILOPSRESOURCE'],'S&T':['ST','SIGNALLING','SIGNALING'],'TWS':['TWS','TRACKWARNINGSYSTEMS'],'Welding':['WELDING'],'MMA':['MMA','MIDLANDMETRO'],'HS2':['HS2'],'Montel':['MONTEL'],'Bird Deterrent':['BIRDDETERRENT','BIRDDETERENT','HS2BIRDDETERRENT','HS2BIRDDETERENT'],'HS2 Fencing':['HS2FENCING']};
+ const splitFinancePeriod=Number(financePeriod?.sourceWeek)>=29;
+ const explicitRows={HS2:{budget:splitFinancePeriod?[]:[13,15],revenue:splitFinancePeriod?[]:[15]},'Bird Deterrent':{budget:splitFinancePeriod?[15]:[],revenue:splitFinancePeriod?[15]:[]},'HS2 Fencing':{budget:splitFinancePeriod?[13]:[],revenue:splitFinancePeriod?[13]:[]}};
  function rowsFor(map,name){
   const wanted=aliases[name]||[normLabel(name)];let found=null;
   for(let row=6;row<=17;row++){const label=map.get('A'+row)?.value;if(wanted.includes(normLabel(label))){found=row;break}}
@@ -856,6 +857,8 @@ async function vhFinanceExtract(file,selectedWeek){
  const records=[];
  for(const [name] of vhFinDepartments){
   const bRows=explicitRows[name]?.budget||rowsFor(budget,name),rRows=explicitRows[name]?.revenue||rowsFor(revenue,name);
+  const intentionallyNotReported=(!splitFinancePeriod&&['Bird Deterrent','HS2 Fencing'].includes(name))||(splitFinancePeriod&&name==='HS2');
+  if(intentionallyNotReported){records.push({name,ref:'',rv:null,bv:null,ytdRevenue:null,ytdBudget:null,revenueInputState:'blank',calculationNotes:['No separate finance line is reported for this department in the selected source week.'],sourceRows:{budget:[],revenue:[]},issues:[],mappingStatus:'not-reported'});continue}
   if(!bRows.length||!rRows.length){records.push({name,ref:'',rv:null,bv:null,ytdRevenue:null,ytdBudget:null,issues:['Department not mapped in this workbook.'],mappingStatus:'missing-department'});continue}
   const bv=addRows(budget,bRows,budgetWeek?.col,'BUDGET'),rv=addRows(revenue,rRows,revenueWeek?.col,'REVENUE');
   const ytdBudget=addPeriods(budget,bRows,budgetYtdPeriods,'BUDGET'),ytdRevenue=addPeriods(revenue,rRows,revenueYtdPeriods,'REVENUE');
@@ -51863,7 +51866,7 @@ async function loadPublishedFinance(){
   if(summary){
    const normalise=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
    const financeAliases={TWS:['TRACKWARNINGSYSTEMS'],'MMA':['MIDLANDMETRO'],'S&T':['SIGNALLING']};
-   const financeDepartments=(window.vhFinDepartments||[['TWS'],['Civils'],['Rail Operations'],['Welding'],['Managed Environments'],['MMA'],['S&T'],['HS2'],['Montel']]).map(([name])=>{const wanted=[normalise(name),...(financeAliases[name]||[])];return {name,department:(nativeData?.departments||[]).find(d=>[d.display_name,d.code,d.name].some(value=>wanted.includes(normalise(value))))}}).filter(x=>x.department);
+   const financeDepartments=(window.vhFinDepartments||[['TWS'],['Civils'],['Rail Operations'],['Welding'],['Managed Environments'],['MMA'],['S&T'],['HS2'],['Montel'],['Bird Deterrent'],['HS2 Fencing']]).map(([name])=>{const wanted=[normalise(name),...(financeAliases[name]||[])];return {name,department:(nativeData?.departments||[]).find(d=>[d.display_name,d.code,d.name].some(value=>wanted.includes(normalise(value))))}}).filter(x=>x.department);
    const byDepartment=financeDepartments.map(({name,department})=>{
     const publication=(feed.publications||[]).filter(x=>x.reporting_week_id===selectedWeek&&x.department_id===department.id).sort((a,b)=>(b.publication_version||0)-(a.publication_version||0))[0];
     const rows=publication?(feed.values||[]).filter(v=>v.publication_id===publication.id):[];
@@ -51877,11 +51880,11 @@ async function loadPublishedFinance(){
     return {name,publication,values};
    });
    const currency=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0});
-   const totalValue=metric=>byDepartment.length===9&&byDepartment.every(x=>x.values[metric]!==null)?byDepartment.reduce((sum,x)=>sum+x.values[metric],0):null;
+   const totalValue=metric=>byDepartment.some(x=>x.values[metric]!==null)?byDepartment.reduce((sum,x)=>sum+(x.values[metric]??0),0):null;
    const total=metric=>{const value=totalValue(metric);return value===null?'Not reported':currency.format(value)};
-   const gap=(budget,revenue)=>{const b=totalValue(budget),r=totalValue(revenue);return b===null||r===null?'Not reported':currency.format(Math.max(b-r,0))};
+   const gap=(budget,revenue)=>{const pairs=byDepartment.filter(x=>x.values[budget]!==null&&x.values[revenue]!==null);return pairs.length?currency.format(Math.max(pairs.reduce((sum,x)=>sum+x.values[budget]-x.values[revenue],0),0)):'Not reported'};
    summary.innerHTML='<p class="vh26-finance-source-period">Company finance overview · Management week '+esc(period?.rail_week??periods[idx].rail_week)+' · Financial source NRW WK'+esc(String(source.rail_week).padStart(2,'0'))+' ('+esc(source.start_date)+' to '+esc(source.end_date)+') · Intentional two-rail-week lag</p><div class="vh26-finance-kpis">'+[
-    ['Departments with finance figures',byDepartment.filter(x=>x.publication).length+' / 9'],
+    ['Departments with finance figures',byDepartment.filter(x=>x.publication).length+' / 11'],
     ['Weekly budget',total('weekly_budget')],['Weekly revenue',total('weekly_revenue')],['Weekly gap to close',gap('weekly_budget','weekly_revenue')],
     ['YTD budget',total('ytd_budget')],['YTD revenue',total('ytd_revenue')],['YTD gap to close',gap('ytd_budget','ytd_revenue')]
    ].map(([label,value])=>'<div><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="vh26-finance-department-list">'+byDepartment.map(x=>'<div><strong>'+esc(x.name)+'</strong><span>'+(x.publication?'Published · v'+esc(x.publication.publication_version||1):'Awaiting approved finance figures')+'</span></div>').join('')+'</div>';
@@ -52124,7 +52127,7 @@ financeCheckButton.addEventListener('click',async()=>{
    if(!reportingWeek||!managementPeriod||!sourceWeek)throw Error('The selected management period is not present in the Network Rail calendar.');
    const financeReader=window.vhFinanceExtract;if(typeof financeReader!=='function')throw Error('The Excel workbook reader did not load. Refresh Finance and choose the workbook again; no figures were staged.');
    financeWorkbook=await financeReader(file,sourceWeek.id);sourceRevenueWeek=financeWorkbook.financialSourceWeek;missingWeeklyRevenue=financeWorkbook.records.filter(record=>record.revenueInputState==='blank').length;
-   if(financeWorkbook.records.length!==9||financeWorkbook.records.some(record=>record.mappingStatus==='missing-department'))throw Error('The workbook must map all nine finance departments before review.');
+   if(financeWorkbook.records.length!==11||financeWorkbook.records.some(record=>record.mappingStatus==='missing-department'))throw Error('The workbook must contain all 11 finance departments before review.');
    if(financeWorkbook.sourceFormulaIssues?.length)throw Error('Formula cells need independent recalculation before this workbook can be staged: '+financeWorkbook.sourceFormulaIssues.join(', '));
    const sourcePeriod=(nativeData?.periods||[]).find(x=>x.start_date===financeWorkbook.financialSourceStartDate&&x.end_date===financeWorkbook.financialSourceEndDate);
    if(!sourcePeriod)throw Error('The intentional two-week-lag finance period is not present in the authenticated rail calendar.');
@@ -52134,7 +52137,7 @@ financeCheckButton.addEventListener('click',async()=>{
     return {reporting_week_id:selectedWeek,department_id:record.departmentId,metric_key,amount,input_state,source_period_id:sourcePeriod.id};
    });
    const departments=nativeData?.departments||verifiedIdentity?.departments||[];
-   const departmentCodes={TWS:'track-warning-systems',Civils:'civils','Rail Operations':'rail-operations',Welding:'welding','Managed Environments':'managed-environments',MMA:'midland-metro','S&T':'signalling',HS2:'hs2',Montel:'montel'};
+   const departmentCodes={TWS:'track-warning-systems',Civils:'civils','Rail Operations':'rail-operations',Welding:'welding','Managed Environments':'managed-environments',MMA:'midland-metro','S&T':'signalling',HS2:'hs2',Montel:'montel','Bird Deterrent':'bird-deterrent','HS2 Fencing':'hs2-fencing'};
    rows=financeWorkbook.records.flatMap(record=>{
     const norm=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
     const targetCode=departmentCodes[record.name];
@@ -52142,7 +52145,7 @@ financeCheckButton.addEventListener('click',async()=>{
     if(!dept)throw Error('Workbook department could not be mapped: '+record.name);
     record.departmentId=dept.id;return metricValues(record);
    });
-   if(rows.length!==36)throw Error('The workbook must contain all nine finance departments and four metrics for each.');
+   if(rows.length!==44)throw Error('The workbook must contain all 11 finance departments and four metrics for each.');
    workbookWarnings=[...(financeWorkbook.warnings||[]),...financeWorkbook.records.flatMap(record=>(record.issues||[]).map(issue=>record.name+': '+issue))];
   }else{if(file.size>120000)throw Error('Finance CSV exceeds the 120 KB preview limit.');rows=parseFinanceCsv(await file.text())}
   status.textContent='Validating '+rows.length+' finance figures...';
@@ -52346,7 +52349,7 @@ async function presenterRenderFinance(root,renderGeneration=presenterSlideRender
   const head=document.createElement('tr');
   for(const label of ['Department','Weekly budget','Weekly revenue','Weekly gap to close','YTD budget','YTD revenue','YTD gap to close'])head.append(presenterSafeText('th',label));
   table.append(head);
-  const financeDepartments=presenterDepartments;
+  const financeDepartments=presenterDepartments.filter(d=>!['hsqe','bids-rfqs'].includes(String(d.code||'').toLowerCase()));
   const companyAggregate=key=>{
    const amounts=[];
    for(const d of financeDepartments){const pub=latest.get(d.id),value=pub?amount(metric(pub.id,key)):null;if(value!==null&&Number.isFinite(value))amounts.push(value)}
