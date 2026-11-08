@@ -62,7 +62,7 @@ test('report heading aligns with the week selector and keeps the orange section 
 test('pipeline fields use a single Build 050 row with coordinated buttons below', () => {
   assert.match(autosave, /id = 'vh26-pipeline-layout'/);
   assert.match(autosave, /grid-template-columns:1\.2fr 1\.2fr \.85fr 1fr 1fr/);
-  assert.match(autosave, /\.vh26-pipeline-actions\{display:grid!important;grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);
+  assert.match(autosave, /\.vh26-pipeline-actions\{display:grid!important;grid-template-columns:minmax\(0,1fr\)!important/);
   assert.match(autosave, /background:#fafbfc!important;color:#163247!important;font:400 15px/);
   assert.match(autosave, /background:#004d71!important;color:#fff!important/);
   assert.match(autosave, /background:#ff6b00!important;color:#173448!important;font:600 14px/);

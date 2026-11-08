@@ -117,7 +117,7 @@ test('submitted, inaccessible or concurrently changed report is not falsely subm
 test('finance import and reconciliation are disabled unless the deploy-scoped staging gate is set',async()=>{
   for(const op of ['finance_import','finance_reconcile']){
     const out=await request(op,{},[{body:{id}}]);
-    assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
+    assert.equal(out.status,503);assert.equal(out.body.code,op==='finance_reconcile'?'FINANCE_RECONCILIATION_DISABLED':'FINANCE_STAGING_WRITES_DISABLED');assert.equal(out.calls.length,1);
   }
 });
 test('finance Apply requires acknowledgement and sends workbook findings to the atomic staging RPC',async()=>{
@@ -432,7 +432,7 @@ test('Reporting Weeks resolves independently, times out visibly and can be retri
   assert.match(html,/syncPresenterDepartments\(\);const request=async op=>/);
   assert.match(html,/hostData=\{weeks:\[\],reports:\[\],sections:\[\],pipeline:\[\],loading:\{weeks:true,reports:true,sections:true,pipeline:true,actions:true\}/);
   assert.match(html,/const names=\['reports','sections','pipeline','actions'\],results=await Promise\.allSettled\(names\.map\(request\)\)/);
-  assert.match(html,/hostData\[name\]=result\.value\.items\|\|\[\]/);
+  assert.match(html,/if\(name==='actions'\)presenterActions=items;else hostData\[name\]=items/);
   assert.match(html,/request timed out after 8 seconds/);
   assert.match(html,/Retry loading weeks/);
   assert.match(html,/Reporting weeks unavailable:/);
