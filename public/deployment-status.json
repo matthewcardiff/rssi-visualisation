@@ -1,1 +1,1 @@
-{"build":"Build 052 connected staging preview","status":"Authenticated preview branch; production remains unchanged; finance publication disabled"}
+{"build":"Build 052 finance XLSX staging acceptance","status":"Authenticated staging branch; XLSX extraction, finance review, reconciliation and publication enabled for staging; production remains unchanged"}
