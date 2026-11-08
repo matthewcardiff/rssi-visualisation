@@ -166,6 +166,7 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(financeFlow, /const sourceWeek=managementPeriod\?\.start_date\?\{id:managementPeriod\.start_date\}:null/);
   assert.match(financeFlow, /Company finance overview/);
   assert.match(financeFlow, /Financial source NRW WK/);
+  assert.match(financeFlow, /selectedOptions\?\.\[0\]\?\.textContent\?\.trim\(\)/);
   assert.match(financeFlow, /Weekly gap to close/);
   assert.match(financeFlow, /YTD gap to close/);
   assert.match(financeUi, /Company finance overview · Management week/);
