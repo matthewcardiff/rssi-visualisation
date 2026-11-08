@@ -1105,7 +1105,12 @@
       output.setAttribute('aria-label', presenterMoney(Math.abs(delta)) + (favourable ? ' above budget' : ' below budget'));
       return output;
     };
-    legacyRow.replaceChildren(presenterTextElement('th', 'Historical HS2 (legacy)'), cell(1), cell(2), variance(2, 1), cell(4), cell(5), variance(5, 4));
+    const children = [presenterTextElement('th', 'Historical HS2 (legacy)'), cell(1), cell(2), variance(2, 1), cell(4), cell(5), variance(5, 4)];
+    const unchanged = legacyRow.childElementCount === children.length && children.every((child, index) => {
+      const current = legacyRow.children[index];
+      return current.tagName === child.tagName && current.textContent === child.textContent && current.className === child.className && current.getAttribute('aria-label') === child.getAttribute('aria-label');
+    });
+    if (!unchanged) legacyRow.replaceChildren(...children);
   }
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');

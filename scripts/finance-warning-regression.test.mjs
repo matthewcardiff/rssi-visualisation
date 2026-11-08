@@ -227,6 +227,7 @@ test('finance Presenter shows YTD variance percent and the historical HS2 value 
   assert.match(autosave, /function enhanceFinanceCompanyOverview\(slide\)/);
   assert.match(autosave, /const percentValue = ytdBudget\.value !== null && ytdRevenue\.value !== null/);
   assert.match(autosave, /Historical HS2 \(legacy\)/);
+  assert.match(autosave, /if \(!unchanged\) legacyRow\.replaceChildren/);
   assert.match(autosave, /YTD variance %/);
   assert.match(autosave, /vh26-presenter-finance-active/);
   assert.match(autosave, /max-width:1240px/);
