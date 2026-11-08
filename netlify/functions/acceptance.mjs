@@ -357,15 +357,16 @@ export default async (request)=>{
         if(!r.ok)throw new Error('Finance publication access denied');
         return r.json();
       };
-      const [publications,periods]=await Promise.all([
+      const [publications,departments,periods]=await Promise.all([
         get('finance_publications?select=id,reporting_week_id,department_id,publication_version,published_at,status&status=eq.published&order=publication_version.desc&limit=1000'),
+        get('departments?select=id,code,display_name,active&limit=500'),
         get('rail_calendar_periods?select=id,rail_week,start_date,end_date&order=start_date.desc&limit=150')
       ]);
-      // Keep retired-department finance in the published feed for historical company totals.
+      // Keep retired-department finance and metadata for historical company totals.
       // Active-department navigation and report cards are resolved separately.
       const ids=publications.map(p=>p.id).filter(id=>/^[0-9a-f-]{36}$/i.test(id));
       const values=ids.length?await get('finance_publication_values?select=publication_id,metric_key,amount,source_period_id,input_state&publication_id=in.('+ids.join(',')+')&limit=4000'):[];
-      return json(200,{publications,values,periods});
+      return json(200,{publications,values,periods,departments});
     }
     if(['hsqe_assurance','hsqe_close_calls','hsqe_workforce'].includes(data.op)){
       const paths={
