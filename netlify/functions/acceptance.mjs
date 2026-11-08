@@ -376,7 +376,7 @@ export default async (request)=>{
       return json(200,{items:await r.json()});
     }
     if(data.op==='whoami'){
-      const paths=['profiles?select=id,display_name,active','user_roles?select=role,organisation_id','department_memberships?select=department_id,membership_role,active','departments?select=id,code,display_name'];
+      const paths=['profiles?select=id,display_name,active','user_roles?select=role,organisation_id','department_memberships?select=department_id,membership_role,active','departments?select=id,code,display_name&active=eq.true'];
       const results=await Promise.all(paths.map(p=>fetch(url+'/rest/v1/'+p,{headers,signal:AbortSignal.timeout(12000)})));
       if(results.some(r=>!r.ok)){
         console.warn('[acceptance] whoami lookup failed',JSON.stringify({statuses:results.map(r=>r.status)}));
