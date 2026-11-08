@@ -62,6 +62,7 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;width:100%!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields[hidden]{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-ai-review{min-height:42px!important;padding:10px 16px!important;border-radius:12px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active.vh26-hsqe-report-active #vh26-ai-review{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-entries .vh26-entry,
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-add-entry{display:none!important}
     @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:minmax(0,1fr)!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title owner" "support required" "update update" "remove remove"!important}}
@@ -357,6 +358,11 @@
       field.setAttribute('spellcheck', 'true');
       field.setAttribute('lang', 'en-GB');
     });
+  }
+
+  function updateHsqeReviewControl() {
+    const dashboard = document.getElementById('vh26-connected-dashboard');
+    dashboard?.classList.toggle('vh26-hsqe-report-active', reportingBridge()?.selectedDepartment?.()?.code === 'hsqe');
   }
 
   function navigationIntent(target) {
@@ -1376,12 +1382,14 @@
     const observer = new MutationObserver(() => {
       hideOpportunitySaveButtons(root);
       applyReportingSpellcheck(root);
+      updateHsqeReviewControl();
       simplifyNarrativeEntries(root);
       suppressInternalStatusMessages(root);
     });
     observer.observe(root, { childList: true, subtree: true });
     hideOpportunitySaveButtons(root);
     applyReportingSpellcheck(root);
+    updateHsqeReviewControl();
     simplifyNarrativeEntries(root);
     suppressInternalStatusMessages(root);
   }
