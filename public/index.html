@@ -51884,10 +51884,10 @@ async function loadPublishedFinance(){
    const total=metric=>{const value=totalValue(metric);return value===null?'Not reported':currency.format(value)};
    const gap=(budget,revenue)=>{const pairs=byDepartment.filter(x=>x.values[budget]!==null&&x.values[revenue]!==null);return pairs.length?currency.format(Math.max(pairs.reduce((sum,x)=>sum+x.values[budget]-x.values[revenue],0),0)):'Not reported'};
    summary.innerHTML='<p class="vh26-finance-source-period">Company finance overview · Management week '+esc(period?.rail_week??periods[idx].rail_week)+' · Financial source NRW WK'+esc(String(source.rail_week).padStart(2,'0'))+' ('+esc(source.start_date)+' to '+esc(source.end_date)+') · Intentional two-rail-week lag</p><div class="vh26-finance-kpis">'+[
-    ['Departments with finance figures',byDepartment.filter(x=>x.publication).length+' / 11'],
+    ['Departments with finance figures',byDepartment.filter(x=>Object.values(x.values).some(value=>value!==null)).length+' / 11'],
     ['Weekly budget',total('weekly_budget')],['Weekly revenue',total('weekly_revenue')],['Weekly gap to close',gap('weekly_budget','weekly_revenue')],
     ['YTD budget',total('ytd_budget')],['YTD revenue',total('ytd_revenue')],['YTD gap to close',gap('ytd_budget','ytd_revenue')]
-   ].map(([label,value])=>'<div><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="vh26-finance-department-list">'+byDepartment.map(x=>'<div><strong>'+esc(x.name)+'</strong><span>'+(x.publication?'Published · v'+esc(x.publication.publication_version||1):'Awaiting approved finance figures')+'</span></div>').join('')+'</div>';
+   ].map(([label,value])=>'<div><span>'+esc(label)+'</span><strong>'+esc(value)+'</strong></div>').join('')+'</div><div class="vh26-finance-department-list">'+byDepartment.map(x=>'<div><strong>'+esc(x.name)+'</strong><span>'+(x.publication?(Object.values(x.values).some(value=>value!==null)?'Published · v'+esc(x.publication.publication_version||1):'Not reported for this source week'):'Awaiting approved finance figures')+'</span></div>').join('')+'</div>';
   }
   if(!selectedDepartment){const msg=document.createElement('p');msg.textContent='Select a department report to see department-level financial figures.';target.append(msg);return}
   const pubs=(feed.publications||[]).filter(p=>p.reporting_week_id===selectedWeek&&p.department_id===selectedDepartment.id);
