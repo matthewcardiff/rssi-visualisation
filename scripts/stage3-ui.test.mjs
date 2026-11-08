@@ -90,7 +90,7 @@ test('Presenter Mode follows the Build 050 centered meeting layout and navigatio
   assert.match(autosave, /presenterApi\('create_action'/);
   assert.match(autosave, /\['administrator','meeting_host','executive'\]/);
   assert.match(autosave, /vh26-presenter-create-action-toggle/);
-  assert.match(autosave, /if \(heading\.nextElementSibling !== revenue\) heading\.after\(revenue\)/);
+  assert.match(autosave, /const desired = \[heading, \.\.\.\(revenue \? \[revenue\] : \[\]\), actions, \.\.\.reportCards\]/);
   assert.match(autosave, /if \(revenue\.nextElementSibling !== actions\) revenue\.after\(actions\)/);
   assert.match(autosave, /if \(panel\.dataset\.signature === signature\) return panel/);
   assert.match(autosave, /vh26-presenter-pager/);
