@@ -615,7 +615,7 @@
     }
   }
 
-  const presenterApiCache = { token: null, identity: null, reports: null, finance: new Map(), actions: new Map() };
+  const presenterApiCache = { token: null, identity: null, reports: null, sections: null, finance: new Map(), actions: new Map() };
 
   async function presenterApi(op, extra = {}) {
     const token = await window.vhGetAIReviewToken?.();
@@ -624,6 +624,7 @@
       presenterApiCache.token = token;
       presenterApiCache.identity = null;
       presenterApiCache.reports = null;
+      presenterApiCache.sections = null;
       presenterApiCache.finance.clear();
       presenterApiCache.actions.clear();
     }
@@ -663,6 +664,7 @@
 
   const presenterIdentity = () => cachedPresenterRequest(presenterApiCache, 'identity', () => presenterApi('whoami'));
   const presenterReports = () => cachedPresenterRequest(presenterApiCache, 'reports', () => presenterApi('reports'));
+  const presenterSections = () => cachedPresenterRequest(presenterApiCache, 'sections', () => presenterApi('sections'));
   const presenterFinance = weekId => cachedPresenterRequest(presenterApiCache.finance, weekId, () => presenterApi('finance_published'));
 
   window.vhInvalidatePresenterFinanceCache = () => presenterApiCache.finance.clear();
@@ -692,6 +694,12 @@
     return { departmentName, departmentNumber: Math.max(0, selected) + 1, departmentCount: count, weekLabel, weekId, activeCards, populated };
   }
 
+  function presenterDepartmentForName(identity, name) {
+    const aliases = { 'Civils':'civils', 'S&T':'signalling', 'MMA':'midland-metro', 'TWS':'track-warning-systems' };
+    const code = aliases[name] || String(name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    return (identity.departments || []).find(d => d.code === code || d.display_name === name || d.name === name);
+  }
+
   function presenterAppendOverview(slide, heading, context) {
     const signature = JSON.stringify([context.departmentName, context.weekId, context.populated]);
     if (heading.dataset.overviewSignature === signature && heading.querySelector('.vh26-presenter-heading-meta') && heading.querySelector('.vh26-presenter-overview')) return;
@@ -713,10 +721,10 @@
           reportsRequest
         ]);
         if (!heading.isConnected || heading.dataset.overviewSignature !== signature) return;
-        const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+        const department = presenterDepartmentForName(identity, context.departmentName);
         const report = (reports.items || []).find(r => r.department_id === department?.id && r.reporting_week_id === context.weekId);
         const state = String(report?.status || 'unsubmitted').toLowerCase();
-        status = state === 'reopened' ? 'Report Reopened' : state === 'submitted' && context.hiddenSyntheticSections ? 'Report Submitted · synthetic content hidden' : 'Report ' + (state.charAt(0).toUpperCase() + state.slice(1));
+        status = state === 'reopened' ? 'Report Reopened' : 'Report ' + (state.charAt(0).toUpperCase() + state.slice(1));
         meta.textContent = 'DEPARTMENT ' + context.departmentNumber + ' OF ' + context.departmentCount + ' · ' + context.populated + '/6 sections populated · ' + status;
       } catch { /* Keep the meeting week and section summary visible if status lookup is unavailable. */ }
     })();
@@ -743,7 +751,7 @@
     void (async () => {
       try {
         const identity = await presenterIdentity();
-        const department = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+        const department = presenterDepartmentForName(identity, context.departmentName);
         if (!department || !context.weekId) throw new Error('Finance figures are unavailable.');
         const cacheKey = context.weekId;
         const finance = await presenterFinance(cacheKey);
@@ -837,7 +845,7 @@
         presenterApi('actions')
       ]);
       if (!panel.isConnected || panel.dataset.signature !== signature) return;
-      const dept = (identity.departments || []).find(d => (d.display_name || d.name || d.code) === context.departmentName);
+      const dept = presenterDepartmentForName(identity, context.departmentName);
       const canEdit = (identity.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role));
       const actions = (result.items || []).filter(a => a.department_id === dept?.id && !['completed','cancelled'].includes(a.status));
       const head = panel.querySelector('h2');
@@ -885,7 +893,7 @@
         const due=document.createElement('input');due.name='required_by';due.type='date';due.required=true;due.setAttribute('aria-label','Target date');
         const submit=document.createElement('button');submit.type='submit';submit.className='orange';submit.textContent='Save action';
         form.append(desc,person,due,submit);
-        form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{const dept=(identity.departments||[]).find(d=>(d.display_name||d.name||d.code)===context.departmentName);if(!dept||!context.weekId)throw new Error('Department or reporting week is unavailable.');await presenterApi('create_action',{department_id:dept.id,reporting_week_id:context.weekId,description:desc.value.trim(),owner_text:person.value.trim(),support_text:'',required_by:due.value});form.reset();form.hidden=true;await loadPresenterActions(panel,context,signature,'Action saved.')}catch{status.textContent='The action could not be saved. Check the required fields and try again.'}finally{submit.disabled=false}});
+        form.addEventListener('submit',async event=>{event.preventDefault();submit.disabled=true;try{const dept=presenterDepartmentForName(identity, context.departmentName);if(!dept||!context.weekId)throw new Error('Department or reporting week is unavailable.');await presenterApi('create_action',{department_id:dept.id,reporting_week_id:context.weekId,description:desc.value.trim(),owner_text:person.value.trim(),support_text:'',required_by:due.value});form.reset();form.hidden=true;await loadPresenterActions(panel,context,signature,'Action saved.')}catch{status.textContent='The action could not be saved. Check the required fields and try again.'}finally{submit.disabled=false}});
         const actionsHead = panel.querySelector('.vh26-presenter-actions-head');
         if (actionsHead) actionsHead.append(create);
         panel.insertBefore(form,panel.querySelector('.vh26-presenter-action-table'));
@@ -896,105 +904,123 @@
   }
 
 
-  const presenterShowcaseExamples = {
-    'Managed Environments': {Pipeline:'A vegetation inspection package is being scoped; no customer commitment or value is assumed.',Delivery:'Routine inspections are progressing; one access window is being reconfirmed with the site team.',Programme:'Agree access, crew plan and survey sequence for the next two weeks.',Risks:'Seasonal restrictions may shorten the working window; confirm ecological controls before mobilisation.',Resources:'Confirm an ecology lead and a two-person field team for the next work period.'},
-    'Civils': {Pipeline:'A drainage and access package is at early scope review; no live tender is implied.',Delivery:'Planned civils activities are progressing; a material delivery is being checked against the work plan.',Programme:'Confirm possession, plant and material sequence for the next two weeks.',Risks:'A late access change could compress the work window; agree a recovery sequence with the delivery team.',Resources:'Confirm ganger, multi-skilled operatives and plant cover against upcoming shifts.'},
-    'Rail Operations': {Pipeline:'A rail support package is under early review; scope and access assumptions remain unconfirmed.',Delivery:'Planned operational support is progressing; the next shift handover is being checked for coverage.',Programme:'Confirm worksite access and the operational plan for the next two weeks.',Risks:'Changes to access arrangements may affect the sequence; maintain a clear escalation route.',Resources:'Check competent staff and cover for the next planned operational shifts.'},
-    'S&T': {Pipeline:'A signalling support package is at preliminary scope review; no live customer commitment is implied.',Delivery:'Planned signalling tasks are progressing; equipment availability is being confirmed before the next shift.',Programme:'Align access, test resources and handback requirements for the next two weeks.',Risks:'Equipment lead times could affect the sequence; confirm alternatives and escalation points.',Resources:'Confirm signalling competencies and test support for the planned work.'},
-    'Welding': {Pipeline:'A fabrication support package is being scoped; no live framework award or value is assumed.',Delivery:'Planned fabrication work is progressing; inspection points are being aligned with the delivery sequence.',Programme:'Confirm material availability, welding slots and inspection cover for the next two weeks.',Risks:'A late material delivery could affect throughput; agree a revised sequence early.',Resources:'Check coded welder availability and inspection cover against upcoming workload.'},
-    'MMA': {Pipeline:'A metro maintenance support package is at early review; scope and access remain unconfirmed.',Delivery:'Planned metro support activities are progressing; access arrangements are being checked with the site team.',Programme:'Confirm access windows, crew sequence and handback requirements for the next two weeks.',Risks:'A restricted access window may reduce productive time; agree a prioritised work list.',Resources:'Confirm the supervisor, operatives and specialist plant needed for planned shifts.'},
-    'HS2': {Pipeline:'An infrastructure support package is at early scope review; this is not a live HS2 opportunity.',Delivery:'Planned site activities are progressing; environmental and access controls are being checked before the next phase.',Programme:'Align site access, work sequence and assurance evidence for the next two weeks.',Risks:'Interface changes may affect the sequence; confirm owners and decision dates for dependencies.',Resources:'Check supervisor, specialist support and assurance cover against planned work.'},
-    'Montel': {Pipeline:'A utilities support package is at preliminary review; no live customer commitment is implied.',Delivery:'Planned support activities are progressing; the next site interface is being confirmed.',Programme:'Confirm access, task sequence and client coordination for the next two weeks.',Risks:'A change in site access could affect the planned sequence; agree a prompt escalation route.',Resources:'Confirm the supervisor and operational team needed for the upcoming work period.'},
-    'TWS': {Pipeline:'A track warning support package is at early scope review; no live opportunity is represented.',Delivery:'Planned warning-system support is progressing; equipment checks are scheduled before deployment.',Programme:'Confirm coverage, equipment readiness and access for the next two weeks.',Risks:'A late work-plan change could affect coverage; maintain a checked contingency arrangement.',Resources:'Confirm competent lookout and warning-system staff for the planned shifts.'},
-    'HSQE': {Pipeline:'A safety improvement initiative is being considered for the next reporting cycle.',Delivery:'Routine assurance activity is progressing; open findings are being tracked to named owners.',Programme:'Schedule the next inspection and review outstanding close-out evidence.',Risks:'Overdue actions may weaken assurance; escalate items that miss agreed due dates.',Resources:'Confirm audit and site-inspection capacity for the next reporting period.'},
-    'Bids/RFQs': {Pipeline:'A rail maintenance enquiry is at early qualification; no live tender or customer is represented.',Delivery:'Bid inputs are being coordinated; technical, commercial and evidence owners are being confirmed.',Programme:'Complete compliance review and agree drafting and review dates for the next two weeks.',Risks:'Late SME evidence could reduce review time; agree owners and escalation dates early.',Resources:'Confirm bid lead, subject-matter input and commercial review capacity for planned submissions.'}
-  };
-  const presenterShowcaseOriginals = new WeakMap();
+  const presenterHsqeCategories = [
+    { key:'hsqe_accidents', title:'Accidents and Incidents', fields:[['accidents','Accidents'],['incidents','Incidents'],['details','Details, actions and current status']] },
+    { key:'hsqe_close_calls', title:'Close Calls by Department', fields:[['department_breakdown','Department breakdown'],['total_12_months','Close calls in the last 12 months'],['notes','Trends and follow-up']] },
+    { key:'hsqe_assurance', title:'Assurance, Performance and Sustainability', fields:[['toolbox_talks','Toolbox talks'],['audits','Audits'],['ncrs','Non-conformance reports'],['supplier_performance','Supplier performance'],['site_inspections','Site inspections'],['campaigns','Themed weeks and campaigns'],['sustainability','Sustainability']] },
+    { key:'hsqe_events', title:'Attendance at Events', fields:[['events','Events']] },
+    { key:'hsqe_documents', title:'Documents', fields:[['documents','Documents']] }
+  ];
 
-  function applyPresenterShowcase(slide, heading, departmentName, mode) {
-    const enabled = mode?.dataset.vh26Showcase === 'true';
-    const examples = presenterShowcaseExamples[departmentName] || presenterShowcaseExamples['Rail Operations'];
-    const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
-    for (const card of cards) {
-      const title = card.querySelector('h2')?.textContent.trim();
-      if (!Object.prototype.hasOwnProperty.call(examples, title)) continue;
-      if (!presenterShowcaseOriginals.has(card)) presenterShowcaseOriginals.set(card, card.cloneNode(true));
-      if (!enabled) {
-        if (card.dataset.vh26ShowcaseRendered === 'true') card.replaceWith(presenterShowcaseOriginals.get(card));
-        continue;
+  function renderPresenterHsqe(slide, context) {
+    slide.querySelector(':scope > .vh26-presenter-finance-card')?.remove();
+    slide.querySelector(':scope > .vh26-presenter-bid-link-card')?.remove();
+    for (const card of [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card):not(.vh26-presenter-hsqe-card)')]) card.remove();
+    const signature = JSON.stringify([context.weekId, context.departmentName]);
+    const cards = presenterHsqeCategories.map(category => {
+      let card = slide.querySelector(':scope > .vh26-presenter-hsqe-card[data-category="' + category.key + '"]');
+      if (!card) {
+        card = document.createElement('section');
+        card.className = 'vh26-presenter-card vh26-presenter-hsqe-card';
+        card.dataset.category = category.key;
+        card.append(presenterTextElement('h2', category.title));
+        slide.append(card);
       }
-      if (card.dataset.vh26ShowcaseRendered === 'true' && card.dataset.vh26ShowcaseText === examples[title]) continue;
-      card.dataset.vh26ShowcaseRendered = 'true';
-      card.dataset.vh26ShowcaseText = examples[title];
-      const titleNode = presenterTextElement('h2', title);
-      const text = presenterTextElement('p', 'ILLUSTRATIVE EXAMPLE · ' + examples[title]);
-      text.className = 'vh26-presenter-showcase-example';
-      card.replaceChildren(titleNode, text);
+      if (card.dataset.signature !== signature) {
+        card.dataset.signature = signature;
+        card.replaceChildren(presenterTextElement('h2', category.title), presenterTextElement('p', 'Loading HSQE report…'));
+      }
+      return { category, card };
+    });
+    if (cards.every(({card}) => card.dataset.loadedSignature === signature || card.dataset.loadingSignature === signature)) return;
+    for (const {card} of cards) card.dataset.loadingSignature = signature;
+    void (async () => {
+      try {
+        const [identity, reports, sections] = await Promise.all([presenterIdentity(), presenterReports(), presenterSections()]);
+        const department = presenterDepartmentForName(identity, context.departmentName);
+        const report = (reports.items || []).find(item => item.department_id === department?.id && item.reporting_week_id === context.weekId);
+        for (const {category, card} of cards) {
+          if (!card.isConnected || card.dataset.signature !== signature) return;
+          const section = (sections.items || []).find(item => item.report_id === report?.id && item.section_key === category.key);
+          const content = section?.content || {};
+          const fields = content.fields || {};
+          const hasValues = category.fields.some(([key]) => fields[key] !== null && fields[key] !== undefined && String(fields[key]).trim() !== '');
+          const children = [presenterTextElement('h2', category.title)];
+          if (content.demo) {
+            const badge = presenterTextElement('p', content.demo);
+            badge.className = 'vh26-presenter-demo-tag';
+            children.push(badge);
+          }
+          if (hasValues) {
+            for (const [key, label] of category.fields) {
+              const value = fields[key];
+              if (value === null || value === undefined || String(value).trim() === '') continue;
+              const row = document.createElement('p');
+              row.append(presenterTextElement('strong', label + ': '), document.createTextNode(String(value)));
+              children.push(row);
+            }
+          } else {
+            const empty = presenterTextElement('p', 'Not reported for this week.');
+            empty.className = 'empty';
+            children.push(empty);
+          }
+          card.replaceChildren(...children);
+          card.dataset.loadedSignature = signature;
+          card.dataset.loadingSignature = '';
+        }
+      } catch {
+        for (const {category, card} of cards) {
+          if (!card.isConnected || card.dataset.signature !== signature) continue;
+          card.replaceChildren(presenterTextElement('h2', category.title), Object.assign(presenterTextElement('p','HSQE report could not load.'),{className:'empty'}));
+          card.dataset.loadedSignature = signature;
+          card.dataset.loadingSignature = '';
+        }
+      }
+    })();
+  }
+
+  function renderPresenterBidHub(slide, context) {
+    slide.querySelector(':scope > .vh26-presenter-finance-card')?.remove();
+    slide.querySelectorAll(':scope > .vh26-presenter-hsqe-card').forEach(card => card.remove());
+    for (const card of [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card):not(.vh26-presenter-bid-link-card)')]) card.remove();
+    let card = slide.querySelector(':scope > .vh26-presenter-bid-link-card');
+    if (!card) {
+      card = document.createElement('section');
+      card.className = 'vh26-presenter-card vh26-presenter-bid-link-card';
+      card.setAttribute('aria-label','Bid Hub');
+      const heading = presenterTextElement('h2','Bid Hub');
+      const description = presenterTextElement('p','Open the Bid Hub bid tracker to review current bids and RFQs.');
+      const link = document.createElement('a');
+      link.href = 'https://rssi-bid-hub-staging2.netlify.app/#/tracker';
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.className = 'orange';
+      link.textContent = 'Open Bid Hub';
+      card.append(heading,description,link);
+      slide.append(card);
     }
-    if (enabled) {
-      const meta = heading?.querySelector('.vh26-presenter-heading-meta');
-      if (meta && meta.textContent !== 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report') meta.textContent = 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report';
-      if (heading && !heading.querySelector('.vh26-presenter-showcase-badge')) {
-        const badge = presenterTextElement('span', 'SHOWCASE DATA · fictional examples · no live report changes');
-        badge.className = 'vh26-presenter-showcase-badge';
-        heading.append(badge);
-      }
-    } else heading?.querySelector('.vh26-presenter-showcase-badge')?.remove();
   }
 
-  function installPresenterShowcaseControl(mode) {
-    if (!mode || ['installed','pending','unavailable'].includes(mode.dataset.vh26ShowcaseControl)) return;
-    mode.dataset.vh26ShowcaseControl = 'pending';
-    void presenterIdentity().then(identity => {
-      if (!(identity?.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role))) {
-        mode.dataset.vh26ShowcaseControl = 'unavailable';
-        return;
-      }
-      const controls = mode.querySelector('.vh26-presenter-controls');
-      if (!controls) { mode.dataset.vh26ShowcaseControl = ''; return; }
-      if (!controls.querySelector('#vh26-presenter-showcase-toggle')) {
-        const button = document.createElement('button');
-        button.id = 'vh26-presenter-showcase-toggle';
-        button.type = 'button';
-        button.setAttribute('aria-pressed','false');
-        button.textContent = 'Show illustrative examples';
-        button.addEventListener('click', () => {
-          const enabled = button.getAttribute('aria-pressed') !== 'true';
-          mode.dataset.vh26Showcase = enabled ? 'true' : 'false';
-          button.setAttribute('aria-pressed',String(enabled));
-          button.textContent = enabled ? 'Hide illustrative examples' : 'Show illustrative examples';
-          button.classList.toggle('selected',enabled);
-          enhancePresenterSlide();
-        });
-        controls.insertBefore(button,controls.querySelector('#vh26-presenter-fullscreen'));
-      }
-      mode.dataset.vh26ShowcaseControl = 'installed';
-    }).catch(() => { mode.dataset.vh26ShowcaseControl = 'unavailable'; });
-  }
-
-  function suppressSyntheticPresenterCards(slide, departmentName) {
-    const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
-    const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User|QA staging test only|synthetic data/i;
-    const reportSections = new Set(['Pipeline', 'Delivery', 'Programme', 'Risks', 'Resources']);
-    let suppressed = 0;
-    for (const card of cards) {
-      const title = card.querySelector('h2')?.textContent.trim();
-      if (!reportSections.has(title) || !syntheticContent.test(card.textContent || '')) continue;
-      suppressed += 1;
-      const paragraphs = [...card.querySelectorAll('p')];
-      if (paragraphs.length) {
-        paragraphs[0].textContent = 'Not reported for this week.';
-        paragraphs[0].classList.add('empty');
-        paragraphs.slice(1).forEach(paragraph => paragraph.remove());
-      } else {
-        const paragraph = document.createElement('p');
-        paragraph.textContent = 'Not reported for this week.';
-        paragraph.className = 'empty';
-        card.append(paragraph);
-      }
+  function filterPresenterFinanceRows(slide) {
+    const excluded = new Set(['HSQE','Bids/RFQs']);
+    for (const row of [...slide.querySelectorAll('table tbody tr')]) {
+      const label = row.cells?.[0]?.textContent.trim();
+      if (excluded.has(label)) row.remove();
     }
-    return suppressed;
+    for (const summary of [...slide.querySelectorAll('small')]) {
+      const text = summary.textContent || '';
+      const match = text.match(/(\d+)\s+of\s+\d+\s+departments reported/i);
+      if (!match) continue;
+      const reported = Number(match[1]);
+      summary.textContent = reported < 9
+        ? 'Partial total · ' + reported + ' of 9 finance departments reported'
+        : '9 of 9 finance departments reported';
+    }
+    for (const caption of [...slide.querySelectorAll('p')]) {
+      if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
+    }
   }
+
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -1075,26 +1101,26 @@
       const departmentName = activeTab || title?.textContent || 'Department';
       const week = document.getElementById('vh26-presenter-week')?.textContent.trim() || 'Reporting week not available';
       const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-actions-card)')];
-      const hiddenSyntheticSections = suppressSyntheticPresenterCards(slide, departmentName);
       const context = presenterDepartmentContext(slide, tabs);
-      context.hiddenSyntheticSections = hiddenSyntheticSections;
       presenterAppendOverview(slide, heading, context);
-      installPresenterShowcaseControl(mode);
-      applyPresenterShowcase(slide, heading, departmentName, mode);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
-      const revenue = presenterFinanceCard(slide, context);
+      const nonFinanceDepartment = ['HSQE', 'Bids/RFQs'].includes(departmentName);
+      const revenue = nonFinanceDepartment ? null : presenterFinanceCard(slide, context);
       const actions = presenterActionsCard(slide, context);
-      if (heading.nextElementSibling !== revenue) heading.after(revenue);
-      if (revenue.nextElementSibling !== actions) revenue.after(actions);
-      const ordered = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
-      const desired = [heading, revenue, actions, ...ordered];
+      if (departmentName === 'HSQE') renderPresenterHsqe(slide, context);
+      else if (departmentName === 'Bids/RFQs') renderPresenterBidHub(slide, context);
+      const reportCards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
+      const desired = [heading, ...(revenue ? [revenue] : []), actions, ...reportCards];
       if (desired.some((node, index) => slide.children[index] !== node)) {
-        let anchor = actions;
-        for (const card of ordered) { anchor.after(card); anchor = card; }
+        let anchor = heading;
+        if (revenue) { anchor.after(revenue); anchor = revenue; }
+        anchor.after(actions); anchor = actions;
+        for (const card of reportCards) { anchor.after(card); anchor = card; }
       }
     }
 
     if (viewKind === 'finance') {
+      filterPresenterFinanceRows(slide);
       let panel = slide.querySelector(':scope > .vh26-presenter-finance-panel');
       if (!panel) {
         panel = document.createElement('section');
@@ -1129,11 +1155,6 @@
         #vh26-presenter-mode .vh26-presenter-tabs button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:999px!important;background:#fff!important;color:#365b70!important;font-size:14px!important;font-weight:600!important;box-shadow:none!important}
         #vh26-presenter-mode .vh26-presenter-tabs button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
         #vh26-presenter-mode .vh26-presenter-pager{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:501!important;box-sizing:border-box!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;width:100%!important;max-width:none!important;margin:0!important;padding:12px clamp(18px,3vw,48px) calc(12px + env(safe-area-inset-bottom))!important;transform:none!important;background:#f5f6f8!important;border-top:1px solid #dce5eb!important;box-shadow:0 -5px 16px #1230440d!important}
-        #vh26-presenter-mode .vh26-presenter-controls button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
-        #vh26-presenter-mode #vh26-presenter-showcase-toggle{border-color:#ff6b00!important;color:#713800!important}
-        #vh26-presenter-mode #vh26-presenter-showcase-toggle.selected{background:#ffead8!important;color:#713800!important}
-        #vh26-presenter-mode .vh26-presenter-showcase-badge{display:inline-flex!important;align-self:flex-start!important;margin-top:12px!important;padding:7px 11px!important;border:1px solid #f3b27d!important;border-radius:999px!important;background:#fff1e6!important;color:#783d0c!important;font-size:11px!important;font-weight:800!important;letter-spacing:.04em!important}
-        #vh26-presenter-mode .vh26-presenter-showcase-example{padding:12px 14px!important;border-left:4px solid #ff6b00!important;border-radius:6px!important;background:#fff8f2!important;color:#29485b!important;font-weight:600!important}
         #vh26-presenter-mode .vh26-presenter-pager button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:10px!important;background:#fff!important;color:#004d71!important;font-size:14px!important}
         #vh26-presenter-mode #vh26-presenter-slide{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:15px!important;width:calc(100% - 44px)!important;max-width:780px!important;margin:4px auto 0!important;padding:12px 0 calc(108px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;background:transparent!important}
         #vh26-presenter-mode #vh26-presenter-slide>h1,#vh26-presenter-mode .vh26-presenter-heading{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 28px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 8px 30px #12304408!important}
@@ -1148,6 +1169,9 @@
         #vh26-presenter-mode .vh26-presenter-actions-card span{color:#597182!important;font-size:14px!important}
         #vh26-presenter-mode .vh26-presenter-finance-panel{overflow-x:auto!important}
         #vh26-presenter-mode .vh26-presenter-finance-card{overflow:hidden!important;padding:0!important}
+        #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide .vh26-presenter-finance-source-caption,#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide .vh26-presenter-finance-source{margin:12px 18px!important}
+        #vh26-presenter-mode .vh26-presenter-demo-tag{display:inline-block!important;margin:0 0 10px!important;padding:5px 9px!important;border-radius:999px!important;background:#fff1e6!important;color:#783d0c!important;font-size:11px!important;font-weight:800!important;letter-spacing:.04em!important}
+        #vh26-presenter-mode .vh26-presenter-bid-link-card a{display:inline-flex!important;align-items:center!important;justify-content:center!important;min-height:44px!important;padding:10px 16px!important;border-radius:10px!important;color:#fff!important;text-decoration:none!important;font-weight:700!important}
         #vh26-presenter-mode .vh26-presenter-revenue-title{padding:12px 18px!important;background:#ff6b00!important;color:#173448!important;text-align:center!important;font-size:16px!important;font-weight:800!important;letter-spacing:.04em!important}
         #vh26-presenter-mode .vh26-presenter-revenue-grid{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:0 24px!important;padding:16px 20px 8px!important}
         #vh26-presenter-mode .vh26-presenter-revenue-item{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)!important;gap:12px!important;padding:8px 4px!important;border-bottom:1px solid #e7edf1!important}
