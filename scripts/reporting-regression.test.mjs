@@ -9,7 +9,7 @@ process.env.SUPABASE_URL='https://test-project.supabase.co';
 process.env.SUPABASE_ANON_KEY='fixture-public-key';
 delete process.env.VH_FINANCE_WRITES_ACCEPTED;
 delete process.env.VH_FINANCE_STAGING_WRITES;
-const token='test-only-access-token-with-at-least-thirty-characters';
+const token='test-session-token';
 test('a stale session restore cannot erase a newer sign-in session',()=>{const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');assert.match(html,/async function restore\(\)\{const raw=sessionStorage\.getItem\(key\);if\(!raw\)return;let session;try\{session=JSON\.parse\(raw\);await enterConnected\(session\)\}catch\{if\(sessionStorage\.getItem\(key\)!==raw\)return;/);assert.match(html,/catch\{if\(sessionStorage\.getItem\(key\)===raw\)sessionStorage\.removeItem\(key\);message\('Session expired\. Sign in again\.'\)\}\}\}/);});
 async function request(op,extra,responses){
   const previous=globalThis.fetch, calls=[];
