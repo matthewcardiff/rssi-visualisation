@@ -6,8 +6,8 @@ import safetyMoment from '../netlify/functions/safety-moment.mjs';
 const userId='4dc09629-3a17-48b5-8a82-622c1cb4f012';
 const departmentId='66fc03cf-e42c-4f7a-881c-b12e2c5508de';
 const organisationId='6d50a120-aa9b-43af-b059-34c64db370db';
-const token='test-access-token';
-const config={SUPABASE_URL:'https://staging-project.supabase.co',SUPABASE_ANON_KEY:'public-test-key',OLLAMA_API_KEY:'test-ollama-key',OLLAMA_MODEL:'gemma4:31b'};
+const token='test';
+const config={SUPABASE_URL:'https://staging-project.supabase.co',SUPABASE_ANON_KEY:'test',OLLAMA_API_KEY:'test',OLLAMA_MODEL:'gemma4:31b'};
 const review={assessment:'Clear and concise; add a dated milestone.',suggestions:['Name the milestone date.'],questions:['What is the forecast date?'],draft:'Delivery is progressing; the next milestone is due on the confirmed date.'};
 const safety={topic:'Situational awareness',why:'Changing conditions can affect safe decisions.',scenario:'Illustrative example: a worksite condition changes.',points:['Pause when conditions change.','Reconfirm the plan with the team.','Use approved briefings and controls.'],questions:['What changed?','Who needs to know?'],takeaway:'Pause, communicate and follow approved controls.'};
 
