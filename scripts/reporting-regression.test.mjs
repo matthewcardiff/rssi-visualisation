@@ -335,15 +335,15 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/const budgetCalendar=weekHeaders\(budget,5,'BUDGET'\),revenueCalendar=weekHeaders\(revenue,19,'REVENUE'\)/);
   assert.match(html,/const budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(html,/const revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
-  assert.match(html,/const explicitRows=\{HS2:\{budget:\[13,15\],revenue:\[13,15\]\}\}/);
+  assert.ok(html.includes("const explicitRows={HS2:{budget:splitFinancePeriod?[]:[13,15],revenue:splitFinancePeriod?[]:[15]},'Bird Deterrent':{budget:splitFinancePeriod?[15]:[],revenue:splitFinancePeriod?[15]:[]},'HS2 Fencing':{budget:splitFinancePeriod?[13]:[],revenue:splitFinancePeriod?[13]:[]}};"));
   assert.match(html,/if\(c\.formula\)\{sourceFormulaIssues\.push\(tab\+'!'\+ref\);return \{value:null,missing:true,formula:true\}\}/);
   assert.match(html,/const totalOf=key=>\{const available=records\.filter\(r=>isAmount\(r\[key\]\)\)/);
-  assert.match(html,/reportedCounts,complete:Object\.entries\(reportedCounts\)\.every/);
-  assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
+  assert.match(html,/reportedCounts,complete:records\.every\(r=>r\.mappingStatus==='not-reported'\|\|\(r\.issues\|\|\[\]\)\.length===0\)/);
+  assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===11/);\n  assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/4 · Finance review/);
   assert.match(html,/Departments with finance figures/);
-  assert.match(html,/byDepartment\.length===9&&byDepartment\.every\(x=>x\.values\[metric\]!==null\)/);
+  assert.match(html,/byDepartment\.some\(x=>x\.values\[metric\]!==null\)\?byDepartment\.reduce\(\(sum,x\)=>sum\+\(x\.values\[metric\]\?\?0\),0\):null/);
   assert.match(html,/vh26-finance-department-list/);
 });
 

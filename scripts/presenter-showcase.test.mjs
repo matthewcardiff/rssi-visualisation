@@ -15,7 +15,7 @@ test('finance overview excludes non-finance departments and filters all table ro
   assert.match(source, /new Set\(\['HSQE','Bids\/RFQs'\]\)/);
   assert.match(source, /slide\.querySelectorAll\('table tr'\)/);
   assert.match(source, /label === 'Department'/);
-  assert.match(source, /of 9 finance departments reported/);
+  assert.match(source, /of 11 finance departments reported/);
   assert.match(source, /vh26-presenter-finance-source-caption/);
 });
 

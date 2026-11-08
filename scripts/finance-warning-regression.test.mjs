@@ -36,7 +36,7 @@ function installFinanceCheckCorrection(result) {
 }
 
 test('finance import ignores historical dashboard mismatches but retains real missing-source findings', async () => {
-  const records = Array.from({ length: 9 }, (_, index) => ({
+  const records = Array.from({ length: 11 }, (_, index) => ({
     name: 'Department ' + index,
     bv: 100 + index,
     rv: null,
@@ -77,13 +77,13 @@ test('finance import ignores historical dashboard mismatches but retains real mi
   assert.equal(result.acceptanceReady, false);
 });
 
-test('finance import is ready when nine source-mapped departments have no remaining findings', async () => {
+test('finance import is ready when all 11 finance departments have no remaining findings', async () => {
   const result = {
     financialSourceWeek: 30,
     weekFound: true,
     acceptanceReady: false,
     warnings: [],
-    records: Array.from({ length: 9 }, (_, index) => ({
+    records: Array.from({ length: 11 }, (_, index) => ({
       name: 'Department ' + index,
       bv: 100 + index,
       rv: null,
