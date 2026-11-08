@@ -9,7 +9,7 @@ process.env.SUPABASE_URL='https://test-project.supabase.co';
 process.env.SUPABASE_ANON_KEY='fixture-public-key';
 delete process.env.VH_FINANCE_WRITES_ACCEPTED;
 delete process.env.VH_FINANCE_STAGING_WRITES;
-const token='test';
+const token='local-test-session-not-a-secret-value';
 test('a stale session restore cannot erase a newer sign-in session',()=>{const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');assert.match(html,/async function restore\(\)\{const raw=sessionStorage\.getItem\(key\);if\(!raw\)return;let session;try\{session=JSON\.parse\(raw\);await enterConnected\(session\)\}catch\{if\(sessionStorage\.getItem\(key\)!==raw\)return;/);assert.match(html,/catch\{if\(sessionStorage\.getItem\(key\)===raw\)sessionStorage\.removeItem\(key\);message\('Session expired\. Sign in again\.'\)\}\}\}/);});
 async function request(op,extra,responses){
   const previous=globalThis.fetch, calls=[];
@@ -347,7 +347,8 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/Departments with finance figures/);
   assert.match(html,/byDepartment\.filter\(x=>Object\.values\(x\.values\)\.some\(value=>value!==null\)\)\.length\+' \/ 10'/);
   assert.match(html,/Not reported for this source week/);
-  assert.match(html,/byDepartment\.some\(x=>x\.values\[metric\]!==null\)\?byDepartment\.reduce\(\(sum,x\)=>sum\+\(x\.values\[metric\]\?\?0\),0\):null/);
+  assert.ok(html.includes("const includeLegacyHs2=!!legacyHs2Pub&&!splitHs2HasValues;"));
+  assert.ok(html.includes("const totalValue=metric=>{const values=byDepartment.map(x=>x.values[metric]).filter(value=>value!==null);const legacy=includeLegacyHs2?legacyHs2Value(metric):null;"));
   assert.match(html,/vh26-finance-department-list/);
 });
 
