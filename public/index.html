@@ -52164,7 +52164,7 @@ financeCheckButton.addEventListener('click',async()=>{
     const valid=row=>!!row&&row.input_state!=='missing'&&row.amount!==null&&Number.isFinite(Number(row.amount));
     const total=metric=>{const entries=[...grouped.values()].map(metrics=>metrics[metric]).filter(valid);return entries.length?entries.reduce((sum,row)=>sum+Number(row.amount),0):null};
     const weeklyBudget=total('weekly_budget'),weeklyRevenue=total('weekly_revenue'),ytdBudget=total('ytd_budget'),ytdRevenue=total('ytd_revenue');
-    const gap=(budget,revenue)=>{const pairs=[...grouped.values()].map(metrics=>[metrics[budget],metrics[revenue]]).filter(([b,r])=>valid(b)&&valid(r));return pairs.length?Math.max(pairs.reduce((sum,[b,r])=>sum+Number(b.amount)-Number(r.amount),0),0):null};
+    const gap=(budget,revenue)=>budget===null||revenue===null?null:Math.max(budget-revenue,0);
     const money=value=>value===null?'Not reported':Number(value).toLocaleString('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:2});
     const overview=document.createElement('section');overview.className='vh26-finance-company-overview';overview.setAttribute('aria-label','Company finance overview');
     const title=document.createElement('h3');title.textContent='Company finance overview';overview.append(title);

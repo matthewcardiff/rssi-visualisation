@@ -340,6 +340,7 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/const totalOf=key=>\{const available=records\.filter\(r=>isAmount\(r\[key\]\)\)/);
   assert.match(html,/reportedCounts,complete:records\.every\(r=>r\.mappingStatus==='not-reported'\|\|\(r\.issues\|\|\[\]\)\.length===0\)/);
   assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===11/);
+  assert.match(html,/const gap=\(budget,revenue\)=>budget===null\|\|revenue===null\?null:Math\.max\(budget-revenue,0\)/);
   assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/4 · Finance review/);
