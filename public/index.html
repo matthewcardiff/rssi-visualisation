@@ -51880,9 +51880,16 @@ async function loadPublishedFinance(){
     return {name,publication,values};
    });
    const currency=new Intl.NumberFormat('en-GB',{style:'currency',currency:'GBP',maximumFractionDigits:0});
-   const totalValue=metric=>byDepartment.some(x=>x.values[metric]!==null)?byDepartment.reduce((sum,x)=>sum+(x.values[metric]??0),0):null;
+   const financeDeptKey=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+   const legacyHs2Dept=(feed.departments||[]).find(d=>!d.active&&financeDeptKey(d.display_name)==='HS2');
+   const legacyHs2Pub=legacyHs2Dept?(feed.publications||[]).filter(p=>p.reporting_week_id===selectedWeek&&p.department_id===legacyHs2Dept.id).sort((a,b)=>(b.publication_version||0)-(a.publication_version||0))[0]:null;
+   const legacyHs2Rows=legacyHs2Pub?(feed.values||[]).filter(v=>v.publication_id===legacyHs2Pub.id):[];
+   const legacyHs2Value=key=>{const row=legacyHs2Rows.find(v=>v.metric_key===key);return row&&row.input_state!=='missing'&&row.amount!==null&&Number.isFinite(Number(row.amount))?Number(row.amount):null};
+   const splitHs2HasValues=byDepartment.filter(x=>['HS2BIRDDETERRENT','HS2FENCING'].includes(financeDeptKey(x.name))).some(x=>Object.values(x.values).some(value=>value!==null));
+   const includeLegacyHs2=!!legacyHs2Pub&&!splitHs2HasValues;
+   const totalValue=metric=>{const values=byDepartment.map(x=>x.values[metric]).filter(value=>value!==null);const legacy=includeLegacyHs2?legacyHs2Value(metric):null;if(legacy!==null)values.push(legacy);return values.length?values.reduce((sum,value)=>sum+value,0):null};
    const total=metric=>{const value=totalValue(metric);return value===null?'Not reported':currency.format(value)};
-   const gap=(budget,revenue)=>{const pairs=byDepartment.filter(x=>x.values[budget]!==null&&x.values[revenue]!==null);return pairs.length?currency.format(Math.max(pairs.reduce((sum,x)=>sum+x.values[budget]-x.values[revenue],0),0)):'Not reported'};
+   const gap=(budget,revenue)=>{const pairs=byDepartment.filter(x=>x.values[budget]!==null&&x.values[revenue]!==null);const gaps=pairs.map(x=>x.values[budget]-x.values[revenue]);const legacyBudget=includeLegacyHs2?legacyHs2Value(budget):null,legacyRevenue=includeLegacyHs2?legacyHs2Value(revenue):null;if(legacyBudget!==null&&legacyRevenue!==null)gaps.push(legacyBudget-legacyRevenue);return gaps.length?currency.format(gaps.reduce((sum,value)=>sum+value,0)):'Not reported'};
    summary.innerHTML='<p class="vh26-finance-source-period">Company finance overview · Management week '+esc(period?.rail_week??periods[idx].rail_week)+' · Financial source NRW WK'+esc(String(source.rail_week).padStart(2,'0'))+' ('+esc(source.start_date)+' to '+esc(source.end_date)+') · Intentional two-rail-week lag</p><div class="vh26-finance-kpis">'+[
     ['Departments with finance figures',byDepartment.filter(x=>Object.values(x.values).some(value=>value!==null)).length+' / 10'],
     ['Weekly budget',total('weekly_budget')],['Weekly revenue',total('weekly_revenue')],['Weekly gap to close',gap('weekly_budget','weekly_revenue')],
@@ -52317,7 +52324,7 @@ async function presenterRenderFinance(root,renderGeneration=presenterSlideRender
  const week=hostWeek();
  root.append(presenterSafeText('h1','Finance & Commercial'));
  root.append(presenterSafeText('p','Finance figures · '+(week?hostWeekLabel(week):'No reporting week available')));
- const notice=presenterSafeText('p','Green ↑ means revenue is above budget; red ↓ means it is below. Gap to close follows the workbook calculation: revenue minus budget. Missing values stay “Not reported”.');
+ const notice=presenterSafeText('p','Green ↑ means revenue is above budget; red ↓ means it is below. Gap to close follows the workbook calculation: budget minus revenue. Missing values stay “Not reported”.');
  notice.className='vh26-presenter-notice';root.append(notice);
  const refresh=document.createElement('button');refresh.type='button';refresh.className='vh26-presenter-secondary';refresh.textContent='Refresh figures';refresh.addEventListener('click',()=>{window.vhInvalidatePresenterFinanceCache?.();presenterPublishedFinance=null;presenterPublishedFinanceWeekId=null;presenterFinanceRequest=null;presenterFinanceRequestWeekId=null;renderPresenterSlide()});root.append(refresh);
  const status=presenterSafeText('p','Loading published finance figures…');root.append(status);
@@ -52351,20 +52358,29 @@ async function presenterRenderFinance(root,renderGeneration=presenterSlideRender
   for(const label of ['Department','Weekly budget','Weekly revenue','Weekly gap to close','YTD budget','YTD revenue','YTD gap to close'])head.append(presenterSafeText('th',label));
   table.append(head);
   const financeDepartments=presenterDepartments.filter(d=>!['hsqe','bids-rfqs'].includes(String(d.code||'').toLowerCase()));
+  const financeDeptKey=value=>String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  const legacyHs2Dept=(presenterPublishedFinance.departments||[]).find(d=>!d.active&&financeDeptKey(d.display_name)==='HS2');
+  const legacyHs2Pub=legacyHs2Dept?latest.get(legacyHs2Dept.id):null;
+  const splitHs2=financeDepartments.filter(d=>['HS2BIRDDETERRENT','HS2FENCING'].includes(financeDeptKey(d.display_name||d.name||d.code)));
+  const splitHs2HasValues=splitHs2.some(d=>{const pub=latest.get(d.id);return pub&&['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].some(key=>amount(metric(pub.id,key))!==null)});
+  const includeLegacyHs2=!!legacyHs2Pub&&!splitHs2HasValues;
+  const legacyHs2Amount=key=>includeLegacyHs2?amount(metric(legacyHs2Pub.id,key)):null;
   const companyAggregate=key=>{
    const amounts=[];
    for(const d of financeDepartments){const pub=latest.get(d.id),value=pub?amount(metric(pub.id,key)):null;if(value!==null&&Number.isFinite(value))amounts.push(value)}
-   return {value:amounts.length?amounts.reduce((sum,value)=>sum+value,0):null,reported:amounts.length,total:financeDepartments.length};
+   const legacy=legacyHs2Amount(key);if(legacy!==null&&Number.isFinite(legacy))amounts.push(legacy);
+   return {value:amounts.length?amounts.reduce((sum,value)=>sum+value,0):null,reported:amounts.filter(value=>Number.isFinite(value)).length-(legacy!==null?1:0),total:financeDepartments.length};
   };
   const companyVariance=(revenueKey,budgetKey)=>{
    const variances=[];
-   for(const d of financeDepartments){const pub=latest.get(d.id);if(!pub)continue;const revenue=amount(metric(pub.id,revenueKey)),budget=amount(metric(pub.id,budgetKey));if(revenue!==null&&budget!==null&&Number.isFinite(revenue)&&Number.isFinite(budget))variances.push(revenue-budget)}
-   return {value:variances.length?variances.reduce((sum,value)=>sum+value,0):null,reported:variances.length,total:financeDepartments.length};
+   for(const d of financeDepartments){const pub=latest.get(d.id);if(!pub)continue;const revenue=amount(metric(pub.id,revenueKey)),budget=amount(metric(pub.id,budgetKey));if(revenue!==null&&budget!==null&&Number.isFinite(revenue)&&Number.isFinite(budget))variances.push(budget-revenue)}
+   const legacyRevenue=legacyHs2Amount(revenueKey),legacyBudget=legacyHs2Amount(budgetKey);if(legacyRevenue!==null&&legacyBudget!==null)variances.push(legacyBudget-legacyRevenue);
+   return {value:variances.length?variances.reduce((sum,value)=>sum+value,0):null,reported:variances.length-(legacyRevenue!==null&&legacyBudget!==null?1:0),total:financeDepartments.length};
   };
   const overview=document.createElement('section');overview.className='vh26-presenter-company-overview';
   overview.append(presenterSafeText('h2','Company overview'));
   const companyMetrics=[['Weekly budget',companyAggregate('weekly_budget')],['Weekly revenue',companyAggregate('weekly_revenue')],['Weekly gap to close',companyVariance('weekly_revenue','weekly_budget')],['YTD budget',companyAggregate('ytd_budget')],['YTD revenue',companyAggregate('ytd_revenue')],['YTD gap to close',companyVariance('ytd_revenue','ytd_budget')]];
-  for(const [label,result] of companyMetrics){const card=document.createElement('article');card.append(presenterSafeText('span',label));const value=result.value;let shown=value===null?'Not reported':money(Math.abs(value));if(value!==null&&label.includes('gap to close'))shown=(value>=0?'↑ ':'↓ ')+shown;const number=presenterSafeText('strong',shown);if(value!==null&&label.includes('gap to close'))number.className='vh26-finance-variance-'+(value>=0?'favourable':'adverse');card.append(number);if(result.reported<result.total){const detail=presenterSafeText('small',result.reported?`Partial total · ${result.reported} of ${result.total} departments reported`:`No department figures reported`);card.append(detail)}overview.append(card)}
+  for(const [label,result] of companyMetrics){const card=document.createElement('article');card.append(presenterSafeText('span',label));const value=result.value;let shown=value===null?'Not reported':money(Math.abs(value));if(value!==null&&label.includes('gap to close'))shown=(value<=0?'↑ ':'↓ ')+shown;const number=presenterSafeText('strong',shown);if(value!==null&&label.includes('gap to close'))number.className='vh26-finance-variance-'+(value<=0?'favourable':'adverse');card.append(number);if(result.reported<result.total){const detail=presenterSafeText('small',result.reported?`Partial total · ${result.reported} of ${result.total} departments reported`:`No department figures reported`);card.append(detail)}overview.append(card)}
   root.append(overview);
   for(const dep of financeDepartments){
    const pub=latest.get(dep.id);
