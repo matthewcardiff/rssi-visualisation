@@ -1,5 +1,5 @@
 [build]
-  command = "npm test"
+  command = "env -u VH_FINANCE_STAGING_WRITES -u VH_FINANCE_RECONCILIATION_ENABLED -u VH_FINANCE_PUBLICATION_ENABLED npm test"
   publish = "public"
 
 [build.environment]
