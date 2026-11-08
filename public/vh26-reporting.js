@@ -1003,7 +1003,8 @@
 
   function filterPresenterFinanceRows(slide) {
     const excluded = new Set(['HSQE','Bids/RFQs']);
-    for (const row of [...slide.querySelectorAll('table tbody tr')]) {
+    for (const row of [...slide.querySelectorAll('table tr')]) {
+      if (row.cells?.[0]?.tagName === 'TH') continue;
       const label = row.cells?.[0]?.textContent.trim();
       if (excluded.has(label)) row.remove();
     }
