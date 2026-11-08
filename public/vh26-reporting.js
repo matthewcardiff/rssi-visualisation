@@ -1053,6 +1053,60 @@
     }
   }
 
+  function enhanceFinanceCompanyOverview(slide) {
+    const overview = slide.querySelector('.vh26-presenter-company-overview');
+    const table = slide.querySelector('.vh26-presenter-finance-table');
+    if (!overview || !table) return;
+    const number = value => {
+      if (!value || /not reported/i.test(value)) return null;
+      const parsed = Number(String(value).replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const metric = label => {
+      const card = [...overview.querySelectorAll('article')].find(item => item.querySelector('span')?.textContent.trim() === label);
+      return { card, value: number(card?.querySelector('strong')?.textContent || '') };
+    };
+    const ytdBudget = metric('YTD budget'), ytdRevenue = metric('YTD revenue');
+    let percentCard = [...overview.querySelectorAll('article')].find(item => item.querySelector('span')?.textContent.trim() === 'YTD variance %');
+    if (!percentCard) {
+      percentCard = document.createElement('article');
+      percentCard.append(presenterTextElement('span', 'YTD variance %'), presenterTextElement('strong', 'Not reported'));
+      overview.append(percentCard);
+    }
+    const percentValue = ytdBudget.value !== null && ytdRevenue.value !== null && ytdBudget.value !== 0
+      ? (ytdRevenue.value - ytdBudget.value) / Math.abs(ytdBudget.value) * 100 : null;
+    const percentText = percentValue === null ? 'Not reported' : (percentValue >= 0 ? '↑ ' : '↓ ') + Math.abs(percentValue).toLocaleString('en-GB', { maximumFractionDigits: 1 }) + '%';
+    const percentOutput = percentCard.querySelector('strong');
+    if (percentOutput && percentOutput.textContent !== percentText) percentOutput.textContent = percentText;
+    if (percentOutput) percentOutput.className = percentValue === null ? 'vh26-finance-variance-unavailable' : 'vh26-finance-variance-' + (percentValue >= 0 ? 'favourable' : 'adverse');
+    const ytdCoverage = ytdBudget.card?.querySelector('small');
+    if (ytdCoverage && !percentCard.querySelector('small')) percentCard.append(ytdCoverage.cloneNode(true));
+    const rows = [...table.querySelectorAll('tr')];
+    const bodyRows = rows.slice(1).filter(row => !row.dataset.vh26LegacyHs2);
+    const splitHs2 = bodyRows.filter(row => /hs2\\s*(fencing|bird)/i.test(row.querySelector('th')?.textContent || ''));
+    const splitHs2Unreported = splitHs2.length >= 2 && splitHs2.every(row => [...row.querySelectorAll('td')].slice(0, 6).every(cell => /not reported/i.test(cell.textContent || '')));
+    let legacyRow = table.querySelector('tr[data-vh26-legacy-hs2="true"]');
+    if (!splitHs2Unreported) { legacyRow?.remove(); return; }
+    const aggregate = [null, metric('Weekly budget').value, metric('Weekly revenue').value, null, ytdBudget.value, ytdRevenue.value];
+    const columns = [1, 2, 4, 5];
+    for (const index of columns) {
+      const available = bodyRows.map(row => number(row.querySelectorAll('td')[index - 1]?.textContent || '')).filter(value => value !== null);
+      aggregate[index] = aggregate[index] === null ? null : aggregate[index] - available.reduce((sum, value) => sum + value, 0);
+      if (aggregate[index] !== null && Math.abs(aggregate[index]) < 0.005) aggregate[index] = 0;
+    }
+    if (!columns.some(index => aggregate[index] !== null && aggregate[index] !== 0)) { legacyRow?.remove(); return; }
+    if (!legacyRow) { legacyRow = document.createElement('tr'); legacyRow.dataset.vh26LegacyHs2 = 'true'; table.append(legacyRow); }
+    const cell = index => presenterTextElement('td', aggregate[index] === null ? 'Not reported' : presenterMoney(aggregate[index]));
+    const variance = (revenueIndex, budgetIndex) => {
+      const revenue = aggregate[revenueIndex], budget = aggregate[budgetIndex];
+      if (revenue === null || budget === null) { const output = presenterTextElement('td', 'Not reported'); output.className = 'vh26-finance-variance-unavailable'; return output; }
+      const delta = revenue - budget, favourable = delta >= 0, output = presenterTextElement('td', (favourable ? '↑ ' : '↓ ') + presenterMoney(Math.abs(delta)));
+      output.className = 'vh26-finance-variance-' + (favourable ? 'favourable' : 'adverse');
+      output.setAttribute('aria-label', presenterMoney(Math.abs(delta)) + (favourable ? ' above budget' : ' below budget'));
+      return output;
+    };
+    legacyRow.replaceChildren(presenterTextElement('th', 'Historical HS2 (legacy)'), cell(1), cell(2), variance(2, 1), cell(4), cell(5), variance(5, 4));
+  }
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -1073,6 +1127,7 @@
 
     const slideTitle = (title?.textContent || heading?.querySelector('h1')?.textContent || '').trim();
     const viewKind = slideTitle === 'Meeting readiness' ? 'all' : activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : 'department';
+    slide.classList.toggle('vh26-presenter-finance-active', viewKind === 'finance');
     const viewKey = JSON.stringify([viewKind, activeTab, slideTitle]);
     if (slide.dataset.vh26ScrollKey !== viewKey) {
       slide.dataset.vh26ScrollKey = viewKey;
@@ -1160,6 +1215,7 @@
         slide.append(panel);
       }
       for (const child of [...slide.children]) if (child !== heading && child !== panel && child.parentElement !== panel) panel.append(child);
+      enhanceFinanceCompanyOverview(slide);
     } else if (viewKind === 'safety') {
       const content = slide.querySelector(':scope > .vh26-presenter-safety-content');
       let panel = slide.querySelector(':scope > .vh26-presenter-safety-panel');
@@ -1249,6 +1305,13 @@
         @media(max-width:850px){#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
         @media(max-width:700px){#vh26-presenter-mode .vh26-presenter-create-action{grid-template-columns:1fr 1fr!important}#vh26-presenter-mode .vh26-presenter-action-table{min-width:640px!important}#vh26-presenter-mode .vh26-presenter-actions-card{overflow-x:auto!important}}
         @media(max-width:560px){#vh26-presenter-mode #vh26-presenter-slide{width:calc(100% - 28px)!important;padding:10px 0 calc(105px + env(safe-area-inset-bottom))!important}#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-heading,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-content,#vh26-presenter-mode .vh26-presenter-safety-panel{padding:17px!important}#vh26-presenter-mode .vh26-presenter-tabs{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important}#vh26-presenter-mode .vh26-presenter-tabs button{flex:0 0 auto!important}#vh26-presenter-mode .vh26-presenter-revenue-grid{grid-template-columns:1fr!important}}
+        #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide.vh26-presenter-finance-active{box-sizing:border-box!important;width:calc(100% - 44px)!important;max-width:1240px!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview{box-sizing:border-box!important;width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview>h2{grid-column:1/-1!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview>article{box-sizing:border-box!important;min-width:0!important}
+        #vh26-presenter-mode .vh26-presenter-finance-scroll{box-sizing:border-box!important;width:100%!important;overflow-x:auto!important;overscroll-behavior-inline:contain!important}
+        @media(max-width:800px){#vh26-presenter-mode .vh26-presenter-company-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+        @media(max-width:560px){#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide.vh26-presenter-finance-active{width:calc(100% - 28px)!important}#vh26-presenter-mode .vh26-presenter-company-overview{grid-template-columns:1fr!important}}
       `;
       document.head.append(style);
     }

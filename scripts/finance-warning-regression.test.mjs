@@ -224,14 +224,13 @@ test('finance Presenter shows all departments, partial company totals and refres
 });
 
 test('finance Presenter shows YTD variance percent and the historical HS2 value behind the company total', () => {
-  assert.match(autosaveScript, /function enhanceFinanceCompanyOverview\(slide\)/);
-  assert.match(autosaveScript, /const percentValue = ytdBudget\.value !== null && ytdRevenue\.value !== null/);
-  assert.match(autosaveScript, /Historical HS2 \(legacy\)/);
-  assert.match(autosaveScript, /YTD variance %/);
-  assert.match(autosaveScript, /vh26-presenter-finance-active/);
-  assert.match(autosaveScript, /max-width:1240px/);
+  assert.match(autosave, /function enhanceFinanceCompanyOverview\\(slide\\)/);
+  assert.match(autosave, /const percentValue = ytdBudget\\.value !== null && ytdRevenue\\.value !== null/);
+  assert.match(autosave, /Historical HS2 \\(legacy\\)/);
+  assert.match(autosave, /YTD variance %/);
+  assert.match(autosave, /vh26-presenter-finance-active/);
+  assert.match(autosave, /max-width:1240px/);
 });
-
 test('concurrent Presenter redraws share one finance request and failed requests can retry', async () => {
   const helperStart = financeUi.indexOf('function presenterLoadPublishedFinance(weekId)');
   const helperEnd = financeUi.indexOf('function presenterSetView(', helperStart);
