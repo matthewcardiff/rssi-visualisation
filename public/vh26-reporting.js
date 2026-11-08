@@ -933,7 +933,7 @@
     }
     if (enabled) {
       const meta = heading?.querySelector('.vh26-presenter-heading-meta');
-      if (meta) meta.textContent = 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report';
+      if (meta && meta.textContent !== 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report') meta.textContent = 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report';
       if (heading && !heading.querySelector('.vh26-presenter-showcase-badge')) {
         const badge = presenterTextElement('span', 'SHOWCASE DATA · fictional examples · no live report changes');
         badge.className = 'vh26-presenter-showcase-badge';
