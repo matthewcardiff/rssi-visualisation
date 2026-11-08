@@ -335,11 +335,11 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/const budgetCalendar=weekHeaders\(budget,5,'BUDGET'\),revenueCalendar=weekHeaders\(revenue,19,'REVENUE'\)/);
   assert.match(html,/const budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(html,/const revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
-  assert.ok(html.includes("const explicitRows={HS2:{budget:splitFinancePeriod?[]:[13,15],revenue:splitFinancePeriod?[]:[15]},'Bird Deterrent':{budget:splitFinancePeriod?[15]:[],revenue:splitFinancePeriod?[15]:[]},'HS2 Fencing':{budget:splitFinancePeriod?[13]:[],revenue:splitFinancePeriod?[13]:[]}};"));
+  assert.ok(html.includes("const explicitRows={'HS2 Bird Deterrant':{budget:splitFinancePeriod?[15]:[],revenue:splitFinancePeriod?[15]:[]},'HS2 Fencing':{budget:splitFinancePeriod?[13]:[],revenue:splitFinancePeriod?[13]:[]}};"));
   assert.match(html,/if\(c\.formula\)\{sourceFormulaIssues\.push\(tab\+'!'\+ref\);return \{value:null,missing:true,formula:true\}\}/);
   assert.match(html,/const totalOf=key=>\{const available=records\.filter\(r=>isAmount\(r\[key\]\)\)/);
   assert.match(html,/reportedCounts,complete:records\.every\(r=>r\.mappingStatus==='not-reported'\|\|\(r\.issues\|\|\[\]\)\.length===0\)/);
-  assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===11/);
+  assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===10/);
   assert.match(html,/const gap=\(budget,revenue\)=>budget===null\|\|revenue===null\?null:Math\.max\(budget-revenue,0\)/);
   assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
@@ -616,7 +616,7 @@ test('absence reporting includes the complete departmental list',()=>{
   const start=html.indexOf('const depts=');
   const end=html.indexOf(';',start);
   const declaration=html.slice(start,end);
-  for(const department of ['Managed Environments','Civils','Rail Operations','S&T','TWS','Welding','MMA','HS2','Montel','HSQE','Bids/RFQs'])assert.ok(declaration.includes(`'${department}'`),department+' is available');
+  for(const department of ['Managed Environments','Civils','Rail Operations','S&T','TWS','Welding','MMA','Montel','HS2 Bird Deterrant','HS2 Fencing','HSQE','Bids/RFQs'])assert.ok(declaration.includes(`'${department}'`),department+' is available');
 });
 
 test('planned reporting weeks lock Pipeline controls and reject save attempts in the UI',()=>{
