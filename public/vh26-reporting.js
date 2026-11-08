@@ -895,6 +895,83 @@
     }
   }
 
+
+  const presenterShowcaseExamples = {
+    'Managed Environments': {Pipeline:'A vegetation inspection package is being scoped; no customer commitment or value is assumed.',Delivery:'Routine inspections are progressing; one access window is being reconfirmed with the site team.',Programme:'Agree access, crew plan and survey sequence for the next two weeks.',Risks:'Seasonal restrictions may shorten the working window; confirm ecological controls before mobilisation.',Resources:'Confirm an ecology lead and a two-person field team for the next work period.'},
+    'Civils': {Pipeline:'A drainage and access package is at early scope review; no live tender is implied.',Delivery:'Planned civils activities are progressing; a material delivery is being checked against the work plan.',Programme:'Confirm possession, plant and material sequence for the next two weeks.',Risks:'A late access change could compress the work window; agree a recovery sequence with the delivery team.',Resources:'Confirm ganger, multi-skilled operatives and plant cover against upcoming shifts.'},
+    'Rail Operations': {Pipeline:'A rail support package is under early review; scope and access assumptions remain unconfirmed.',Delivery:'Planned operational support is progressing; the next shift handover is being checked for coverage.',Programme:'Confirm worksite access and the operational plan for the next two weeks.',Risks:'Changes to access arrangements may affect the sequence; maintain a clear escalation route.',Resources:'Check competent staff and cover for the next planned operational shifts.'},
+    'S&T': {Pipeline:'A signalling support package is at preliminary scope review; no live customer commitment is implied.',Delivery:'Planned signalling tasks are progressing; equipment availability is being confirmed before the next shift.',Programme:'Align access, test resources and handback requirements for the next two weeks.',Risks:'Equipment lead times could affect the sequence; confirm alternatives and escalation points.',Resources:'Confirm signalling competencies and test support for the planned work.'},
+    'Welding': {Pipeline:'A fabrication support package is being scoped; no live framework award or value is assumed.',Delivery:'Planned fabrication work is progressing; inspection points are being aligned with the delivery sequence.',Programme:'Confirm material availability, welding slots and inspection cover for the next two weeks.',Risks:'A late material delivery could affect throughput; agree a revised sequence early.',Resources:'Check coded welder availability and inspection cover against upcoming workload.'},
+    'MMA': {Pipeline:'A metro maintenance support package is at early review; scope and access remain unconfirmed.',Delivery:'Planned metro support activities are progressing; access arrangements are being checked with the site team.',Programme:'Confirm access windows, crew sequence and handback requirements for the next two weeks.',Risks:'A restricted access window may reduce productive time; agree a prioritised work list.',Resources:'Confirm the supervisor, operatives and specialist plant needed for planned shifts.'},
+    'HS2': {Pipeline:'An infrastructure support package is at early scope review; this is not a live HS2 opportunity.',Delivery:'Planned site activities are progressing; environmental and access controls are being checked before the next phase.',Programme:'Align site access, work sequence and assurance evidence for the next two weeks.',Risks:'Interface changes may affect the sequence; confirm owners and decision dates for dependencies.',Resources:'Check supervisor, specialist support and assurance cover against planned work.'},
+    'Montel': {Pipeline:'A utilities support package is at preliminary review; no live customer commitment is implied.',Delivery:'Planned support activities are progressing; the next site interface is being confirmed.',Programme:'Confirm access, task sequence and client coordination for the next two weeks.',Risks:'A change in site access could affect the planned sequence; agree a prompt escalation route.',Resources:'Confirm the supervisor and operational team needed for the upcoming work period.'},
+    'TWS': {Pipeline:'A track warning support package is at early scope review; no live opportunity is represented.',Delivery:'Planned warning-system support is progressing; equipment checks are scheduled before deployment.',Programme:'Confirm coverage, equipment readiness and access for the next two weeks.',Risks:'A late work-plan change could affect coverage; maintain a checked contingency arrangement.',Resources:'Confirm competent lookout and warning-system staff for the planned shifts.'},
+    'HSQE': {Pipeline:'A safety improvement initiative is being considered for the next reporting cycle.',Delivery:'Routine assurance activity is progressing; open findings are being tracked to named owners.',Programme:'Schedule the next inspection and review outstanding close-out evidence.',Risks:'Overdue actions may weaken assurance; escalate items that miss agreed due dates.',Resources:'Confirm audit and site-inspection capacity for the next reporting period.'},
+    'Bids/RFQs': {Pipeline:'A rail maintenance enquiry is at early qualification; no live tender or customer is represented.',Delivery:'Bid inputs are being coordinated; technical, commercial and evidence owners are being confirmed.',Programme:'Complete compliance review and agree drafting and review dates for the next two weeks.',Risks:'Late SME evidence could reduce review time; agree owners and escalation dates early.',Resources:'Confirm bid lead, subject-matter input and commercial review capacity for planned submissions.'}
+  };
+  const presenterShowcaseOriginals = new WeakMap();
+
+  function applyPresenterShowcase(slide, heading, departmentName, mode) {
+    const enabled = mode?.dataset.vh26Showcase === 'true';
+    const examples = presenterShowcaseExamples[departmentName] || presenterShowcaseExamples['Rail Operations'];
+    const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card:not(.vh26-presenter-finance-card):not(.vh26-presenter-actions-card)')];
+    for (const card of cards) {
+      const title = card.querySelector('h2')?.textContent.trim();
+      if (!Object.prototype.hasOwnProperty.call(examples, title)) continue;
+      if (!presenterShowcaseOriginals.has(card)) presenterShowcaseOriginals.set(card, card.cloneNode(true));
+      if (!enabled) {
+        if (card.dataset.vh26ShowcaseRendered === 'true') card.replaceWith(presenterShowcaseOriginals.get(card));
+        continue;
+      }
+      if (card.dataset.vh26ShowcaseRendered === 'true' && card.dataset.vh26ShowcaseText === examples[title]) continue;
+      card.dataset.vh26ShowcaseRendered = 'true';
+      card.dataset.vh26ShowcaseText = examples[title];
+      const titleNode = presenterTextElement('h2', title);
+      const text = presenterTextElement('p', 'ILLUSTRATIVE EXAMPLE · ' + examples[title]);
+      text.className = 'vh26-presenter-showcase-example';
+      card.replaceChildren(titleNode, text);
+    }
+    if (enabled) {
+      const meta = heading?.querySelector('.vh26-presenter-heading-meta');
+      if (meta) meta.textContent = 'ILLUSTRATIVE SHOWCASE EXAMPLES · not a submitted department report';
+      if (heading && !heading.querySelector('.vh26-presenter-showcase-badge')) {
+        const badge = presenterTextElement('span', 'SHOWCASE DATA · fictional examples · no live report changes');
+        badge.className = 'vh26-presenter-showcase-badge';
+        heading.append(badge);
+      }
+    } else heading?.querySelector('.vh26-presenter-showcase-badge')?.remove();
+  }
+
+  function installPresenterShowcaseControl(mode) {
+    if (!mode || ['installed','pending','unavailable'].includes(mode.dataset.vh26ShowcaseControl)) return;
+    mode.dataset.vh26ShowcaseControl = 'pending';
+    void presenterIdentity().then(identity => {
+      if (!(identity?.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role))) {
+        mode.dataset.vh26ShowcaseControl = 'unavailable';
+        return;
+      }
+      const controls = mode.querySelector('.vh26-presenter-controls');
+      if (!controls) { mode.dataset.vh26ShowcaseControl = ''; return; }
+      if (!controls.querySelector('#vh26-presenter-showcase-toggle')) {
+        const button = document.createElement('button');
+        button.id = 'vh26-presenter-showcase-toggle';
+        button.type = 'button';
+        button.setAttribute('aria-pressed','false');
+        button.textContent = 'Show illustrative examples';
+        button.addEventListener('click', () => {
+          const enabled = button.getAttribute('aria-pressed') !== 'true';
+          mode.dataset.vh26Showcase = enabled ? 'true' : 'false';
+          button.setAttribute('aria-pressed',String(enabled));
+          button.textContent = enabled ? 'Hide illustrative examples' : 'Show illustrative examples';
+          button.classList.toggle('selected',enabled);
+          enhancePresenterSlide();
+        });
+        controls.insertBefore(button,controls.querySelector('#vh26-presenter-fullscreen'));
+      }
+      mode.dataset.vh26ShowcaseControl = 'installed';
+    }).catch(() => { mode.dataset.vh26ShowcaseControl = 'unavailable'; });
+  }
+
   function suppressSyntheticPresenterCards(slide, departmentName) {
     const cards = [...slide.querySelectorAll(':scope > .vh26-presenter-card')];
     const syntheticContent = /QA TEST DATA|QA TEST — Fictional|Fictional scenario|Illustrative staging|Synthetic test data only|Test owner: QA Test User|QA staging test only|synthetic data/i;
@@ -1002,6 +1079,8 @@
       const context = presenterDepartmentContext(slide, tabs);
       context.hiddenSyntheticSections = hiddenSyntheticSections;
       presenterAppendOverview(slide, heading, context);
+      installPresenterShowcaseControl(mode);
+      applyPresenterShowcase(slide, heading, departmentName, mode);
       slide.querySelector(':scope > .vh26-presenter-kpis')?.remove();
       const revenue = presenterFinanceCard(slide, context);
       const actions = presenterActionsCard(slide, context);
@@ -1051,6 +1130,10 @@
         #vh26-presenter-mode .vh26-presenter-tabs button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
         #vh26-presenter-mode .vh26-presenter-pager{position:fixed!important;left:0!important;right:0!important;bottom:0!important;z-index:501!important;box-sizing:border-box!important;display:flex!important;justify-content:space-between!important;align-items:center!important;gap:12px!important;width:100%!important;max-width:none!important;margin:0!important;padding:12px clamp(18px,3vw,48px) calc(12px + env(safe-area-inset-bottom))!important;transform:none!important;background:#f5f6f8!important;border-top:1px solid #dce5eb!important;box-shadow:0 -5px 16px #1230440d!important}
         #vh26-presenter-mode .vh26-presenter-controls button.selected{background:#004d71!important;border-color:#004d71!important;color:#fff!important}
+        #vh26-presenter-mode #vh26-presenter-showcase-toggle{border-color:#ff6b00!important;color:#713800!important}
+        #vh26-presenter-mode #vh26-presenter-showcase-toggle.selected{background:#ffead8!important;color:#713800!important}
+        #vh26-presenter-mode .vh26-presenter-showcase-badge{display:inline-flex!important;align-self:flex-start!important;margin-top:12px!important;padding:7px 11px!important;border:1px solid #f3b27d!important;border-radius:999px!important;background:#fff1e6!important;color:#783d0c!important;font-size:11px!important;font-weight:800!important;letter-spacing:.04em!important}
+        #vh26-presenter-mode .vh26-presenter-showcase-example{padding:12px 14px!important;border-left:4px solid #ff6b00!important;border-radius:6px!important;background:#fff8f2!important;color:#29485b!important;font-weight:600!important}
         #vh26-presenter-mode .vh26-presenter-pager button{min-height:42px!important;padding:10px 16px!important;border:1px solid #d7e2e9!important;border-radius:10px!important;background:#fff!important;color:#004d71!important;font-size:14px!important}
         #vh26-presenter-mode #vh26-presenter-slide{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:15px!important;width:calc(100% - 44px)!important;max-width:780px!important;margin:4px auto 0!important;padding:12px 0 calc(108px + env(safe-area-inset-bottom))!important;overflow-y:auto!important;overflow-x:hidden!important;background:transparent!important}
         #vh26-presenter-mode #vh26-presenter-slide>h1,#vh26-presenter-mode .vh26-presenter-heading{box-sizing:border-box!important;width:100%!important;margin:0!important;padding:22px 28px!important;border:1px solid #dce5eb!important;border-radius:18px!important;background:#fff!important;box-shadow:0 8px 30px #12304408!important}
