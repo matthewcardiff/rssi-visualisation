@@ -339,7 +339,8 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/if\(c\.formula\)\{sourceFormulaIssues\.push\(tab\+'!'\+ref\);return \{value:null,missing:true,formula:true\}\}/);
   assert.match(html,/const totalOf=key=>\{const available=records\.filter\(r=>isAmount\(r\[key\]\)\)/);
   assert.match(html,/reportedCounts,complete:records\.every\(r=>r\.mappingStatus==='not-reported'\|\|\(r\.issues\|\|\[\]\)\.length===0\)/);
-  assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===11/);\n  assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
+  assert.match(html,/acceptanceReady:!!budgetWeek&&!!revenueWeek&&records\.length===11/);
+  assert.match(html,/const companyOverview=\{week:selectedWeek,sourceFile:file\.name/);
   assert.match(html,/finance publication stays server-gated|finance_publish/);
   assert.match(html,/4 · Finance review/);
   assert.match(html,/Departments with finance figures/);

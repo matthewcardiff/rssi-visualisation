@@ -1014,9 +1014,9 @@
         const match = text.match(/(\d+)\s+of\s+\d+\s+departments reported/i);
         if (!match) continue;
         const reported = Number(match[1]);
-        summary.textContent = reported < 9
-          ? 'Partial total · ' + reported + ' of 9 finance departments reported'
-          : '9 of 9 finance departments reported';
+        summary.textContent = reported < 11
+          ? 'Partial total · ' + reported + ' of 11 finance departments reported'
+          : '11 of 11 finance departments reported';
       }
       for (const caption of [...slide.querySelectorAll('p')]) {
         if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
