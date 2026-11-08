@@ -792,24 +792,25 @@ function vhFinancialSourcePeriod(managementWeek){
 }
 window.vhFinancialSourcePeriod=vhFinancialSourcePeriod;
 async function vhFinanceExtract(file,selectedWeek){
+ const elementsByLocalName=(root,name)=>Array.from(root.getElementsByTagName('*')).filter(node=>(node.localName||node.nodeName.split(':').pop())===name);
  const load=vhFinZipEntries(await file.arrayBuffer());
  const workbook=vhFinParse(await load('xl/workbook.xml'));
- const sheetNodes=Array.from(workbook.getElementsByTagName('sheet'));
+ const sheetNodes=elementsByLocalName(workbook,'sheet');
  const rel=vhFinParse(await load('xl/_rels/workbook.xml.rels'));
- const links=new Map(Array.from(rel.getElementsByTagName('Relationship')).map(x=>[x.getAttribute('Id'),x.getAttribute('Target')]));
+ const links=new Map(elementsByLocalName(rel,'Relationship').map(x=>[x.getAttribute('Id'),x.getAttribute('Target')]));
  const strings=[];
- try{const sh=vhFinParse(await load('xl/sharedStrings.xml'));for(const si of sh.getElementsByTagName('si'))strings.push(Array.from(si.getElementsByTagName('t')).map(x=>x.textContent).join(''))}catch{}
+ try{const sh=vhFinParse(await load('xl/sharedStrings.xml'));for(const si of elementsByLocalName(sh,'si'))strings.push(elementsByLocalName(si,'t').map(x=>x.textContent).join(''))}catch{}
  async function sheet(name){
   const node=sheetNodes.find(x=>String(x.getAttribute('name')||'').toLocaleLowerCase('en-GB')===String(name||'').toLocaleLowerCase('en-GB'));if(!node)throw Error('Missing '+name+' worksheet');
   const rid=node.getAttribute('r:id')||node.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships','id');
   let target=links.get(rid);if(!target)throw Error('Missing '+name+' worksheet relationship');
   target=target.replace(/^\/+/, '');if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');
   const doc=vhFinParse(await load(target)),map=new Map();
-  for(const c of doc.getElementsByTagName('c')){
-   const v=c.getElementsByTagName('v')[0],f=c.getElementsByTagName('f')[0],inline=c.getElementsByTagName('is')[0],type=c.getAttribute('t');
+  for(const c of elementsByLocalName(doc,'c')){
+   const v=elementsByLocalName(c,'v')[0],f=elementsByLocalName(c,'f')[0],inline=elementsByLocalName(c,'is')[0],type=c.getAttribute('t');
    let value=v&&v.textContent.trim()!==''?v.textContent:null;
    if(type==='s'&&value!==null)value=strings[Number(value)];
-   else if(type==='inlineStr'&&inline)value=Array.from(inline.getElementsByTagName('t')).map(x=>x.textContent).join('');
+   else if(type==='inlineStr'&&inline)value=elementsByLocalName(inline,'t').map(x=>x.textContent).join('');
    else if(value!==null&&type!=='str'&&type!=='e'&&type!=='b')value=Number(value);
    map.set(c.getAttribute('r'),{value,formula:f?f.textContent:null,type});
   }

@@ -314,6 +314,9 @@ test('Build 052 finance workbook layout stages XLSX through the authenticated fi
   assert.match(html,/Excel financial workbook/);
   assert.match(html,/accept="\.xlsx,application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet"/);
   assert.match(html,/window\.vhFinanceExtract=vhFinanceExtract;\s*function vhFinancePreview/);
+  assert.match(html,/function vhFinanceExtract\(file,selectedWeek\)\{\s*const elementsByLocalName=/);
+  assert.match(html,/const sheetNodes=elementsByLocalName\(workbook,'sheet'\)/);
+  assert.match(html,/for\(const c of elementsByLocalName\(doc,'c'\)\)/);
   assert.match(html,/const financeReader=window\.vhFinanceExtract;if\(typeof financeReader!==\x27function\x27\)/);
   assert.match(html,/await financeReader\(file,sourceWeek\.id\)/);
   assert.match(html,/window\.vhFinDepartments=vhFinDepartments/);
