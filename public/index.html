@@ -327,7 +327,6 @@ let hostCalendarPeriods=RAIL_WEEKS.map(p=>({rail_week:p.weekNumber,start_date:p.
 const RAIL_BY_LEGACY=new Map();
 for(const n of [27,28,29,30]){const p=RAIL_WEEKS.find(x=>x.cycleId==='2026-04-04'&&x.weekNumber===n);if(!p)throw new Error('Missing seeded 2026 rail week '+n);const oldId=`2026-W${String(n).padStart(2,'0')}`;p.legacyStorageId=oldId;RAIL_BY_LEGACY.set(oldId,p)}
 function resolveRailWeek(k){return RAIL_BY_ID.get(String(k))||RAIL_BY_LEGACY.get(String(k))||null}
-window.vhResolveRailWeek=resolveRailWeek;
 function sortRailWeekIds(ids){return [...ids].sort((a,b)=>{const pa=resolveRailWeek(a),pb=resolveRailWeek(b);return (pa?.startDate||'9999-12-31').localeCompare(pb?.startDate||'9999-12-31')||String(a).localeCompare(String(b))})}
 function readWeeks(){try{const x=JSON.parse(localStorage.getItem(WKKEY));if(Array.isArray(x)&&x.length){const normalized=x.map(k=>resolveRailWeek(k)?.id||String(k));return [...new Set(normalized)]}}catch(e){}return [27,28,29,30].map(n=>RAIL_WEEKS.find(p=>p.cycleId==='2026-04-04'&&p.weekNumber===n).id)}
 let weekIds=readWeeks();
@@ -52120,7 +52119,7 @@ financeCheckButton.addEventListener('click',async()=>{
    const selectedWeek=document.getElementById('vh26-week')?.value;
    const reportingWeek=nativeData?.weeks.find(x=>x.id===selectedWeek);
    const managementPeriod=reportingWeek?.rail_calendar_periods;
-   const sourceWeek=window.vhResolveRailWeek?.(selectedWeek);
+   const sourceWeek=managementPeriod?.start_date?{id:managementPeriod.start_date}:null;
    if(!reportingWeek||!managementPeriod||!sourceWeek)throw Error('The selected management period is not present in the Network Rail calendar.');
    const financeReader=window.vhFinanceExtract;if(typeof financeReader!=='function')throw Error('The Excel workbook reader did not load. Refresh Finance and choose the workbook again; no figures were staged.');
    financeWorkbook=await financeReader(file,sourceWeek.id);sourceRevenueWeek=financeWorkbook.financialSourceWeek;missingWeeklyRevenue=financeWorkbook.records.filter(record=>record.revenueInputState==='blank').length;
