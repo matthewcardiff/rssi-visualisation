@@ -7,3 +7,10 @@
 
 [functions]
   directory = "netlify/functions"
+
+# Enable the finance review workflow on this staging branch only.
+# Production and pull-request previews remain closed by default.
+[context."build052-visual-restoration".environment]
+  VH_FINANCE_STAGING_WRITES = "enabled"
+  VH_FINANCE_RECONCILIATION_ENABLED = "enabled"
+  VH_FINANCE_PUBLICATION_ENABLED = "enabled"
