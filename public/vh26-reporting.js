@@ -1083,7 +1083,7 @@
     if (ytdCoverage && !percentCard.querySelector('small')) percentCard.append(ytdCoverage.cloneNode(true));
     const rows = [...table.querySelectorAll('tr')];
     const bodyRows = rows.slice(1).filter(row => !row.dataset.vh26LegacyHs2);
-    const splitHs2 = bodyRows.filter(row => /hs2\\s*(fencing|bird)/i.test(row.querySelector('th')?.textContent || ''));
+    const splitHs2 = bodyRows.filter(row => /hs2\s*(fencing|bird)/i.test(row.querySelector('th')?.textContent || ''));
     const splitHs2Unreported = splitHs2.length >= 2 && splitHs2.every(row => [...row.querySelectorAll('td')].slice(0, 6).every(cell => /not reported/i.test(cell.textContent || '')));
     let legacyRow = table.querySelector('tr[data-vh26-legacy-hs2="true"]');
     if (!splitHs2Unreported) { legacyRow?.remove(); return; }
