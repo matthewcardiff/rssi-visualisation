@@ -163,6 +163,14 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(financeUi, /presenterRenderFinance/);
   assert.match(financeUi, /Applied figures appear here after finance review and publication/);
   assert.match(financeUi, /vh26-finance-review-table/);
+  assert.match(financeFlow, /Company finance overview/);
+  assert.match(financeFlow, /Financial source NRW WK/);
+  assert.match(financeFlow, /Weekly gap to close/);
+  assert.match(financeFlow, /YTD gap to close/);
+  assert.match(financeUi, /Company finance overview · Management week/);
+  assert.match(financeUi, /\['Weekly gap to close',gap\('weekly_budget','weekly_revenue'\)\]/);
+  assert.match(financeUi, /\['YTD gap to close',gap\('ytd_budget','ytd_revenue'\)\]/);
+  assert.match(financeUi, /YTD gap to close \(budget less revenue\)/);
   assert.match(autosave, /\['Weekly budget', presenterMoney\(weeklyBudget\)\]/);
   assert.match(autosave, /\['Weekly gap to close', presenterVariance\(weeklyRevenue, weeklyBudget\)\]/);
   assert.match(autosave, /\['YTD gap to close', presenterVariance\(ytdRevenue, ytdBudget\)\]/);
