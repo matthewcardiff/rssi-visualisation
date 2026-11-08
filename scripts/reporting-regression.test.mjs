@@ -490,7 +490,11 @@ test('HSQE uses its five specialist sections plus review and saves fields in the
   assert.match(html,/function currentReportKeys\(\)\{return selectedDepartment\?\.code==='hsqe'\?\[\.\.\.hsqeReportSections\.map\(x=>x\.key\),'review'\]/);
   assert.match(html,/selectedDepartment\.code==='hsqe'\)\{const fields=Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\('#vh26-hsqe-fields \[data-hsqe-field\]'\)/);
   assert.match(html,/section_key:selectedSection,content\}/);
-  assert.match(html,/open the HSQE rolling registers/);
+  assert.doesNotMatch(html,/HSQE rolling registers|vh26-hsqe-register-link/);
+  assert.match(html,/const aiReviewButton=document\.getElementById\('vh26-ai-review'\);if\(aiReviewButton\)aiReviewButton\.hidden=isHsqe/);
+  assert.match(html,/#vh26-hsqe-fields\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:22px 26px/);
+  assert.match(html,/Spelling check · UK English:/);
+  assert.match(html,/vhFindSpellingIssues\(original\)/);
 });
 
 test('Bids/RFQs bypasses the generic report and links from the Build 052 workspace to Bid Hub',()=>{
