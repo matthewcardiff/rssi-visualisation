@@ -24,6 +24,7 @@ test('showcase toggle is role gated, clearly labelled, and changes Presenter car
   assert.match(source, /SHOWCASE DATA · fictional examples · no live report changes/);
   assert.match(source, /ILLUSTRATIVE EXAMPLE · /);
   assert.match(source, /presenterShowcaseOriginals/);
+  assert.match(source, /meta && meta\.textContent !== 'ILLUSTRATIVE SHOWCASE EXAMPLES/ , 'showcase heading update is idempotent to avoid mutation-observer redraw loops');
   const apply = source.slice(source.indexOf('function applyPresenterShowcase'), source.indexOf('function suppressSyntheticPresenterCards'));
   assert.doesNotMatch(apply, /presenterApi\(/, 'showcase mode must not send report writes');
 });
