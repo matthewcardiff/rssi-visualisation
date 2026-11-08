@@ -29,6 +29,12 @@ test('HSQE and Bids/RFQs use their agreed presenter content', () => {
 
 const presenterPage = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 
+test('Meeting readiness loads actions before displaying the open-action total', () => {
+  assert.ok(presenterPage.includes("const names=['reports','sections','pipeline','actions']"));
+  assert.ok(presenterPage.includes("if(name==='actions')presenterActions=items;else hostData[name]=items"));
+  assert.ok(presenterPage.includes("if(hostData?.loading?.actions||errors.actions)actionsNode.textContent='—'"));
+});
+
 test('Presenter Mode company overview uses green for favourable gaps and keeps adverse gaps red', () => {
   assert.ok(presenterPage.includes('number.className=\'vh26-finance-variance-\'+(value<=0?\'favourable\':\'adverse\')'));
   assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-favourable{color:#17633c!important}'));
