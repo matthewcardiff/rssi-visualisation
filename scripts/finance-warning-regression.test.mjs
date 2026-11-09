@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 const autosaveScript = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+const precisionMigration = readFileSync(new URL('../database/finance_preserve_source_precision.sql', import.meta.url), 'utf8');
 const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
 test('finance import, reconciliation and publication are enabled only on the named staging branch', () => {
@@ -89,6 +90,20 @@ test('selected WK sheets discover mapped department blocks dynamically', () => {
   const context = {dashboard:{map:new Map([['B7',{value:'MANAGED ENVIRONMENTS'}],['BF7',{value:'HS2'}],['BL7',{value:'MONTEL'}],['A7',{value:'VISUALISATION MATRIX'}],['BL8',{value:'not a department label'}]])},vhFinCol};
   const blocks = vm.runInNewContext(`${blockSource}; sourceBlocks`,context);
   assert.equal(JSON.stringify(blocks),JSON.stringify([['B','F'],['BF','BJ'],['BL','BP']]));
+});
+
+test('selected WK cached J5 variance is validated and shown consistently', () => {
+  assert.match(financeUi, /ytdVariancePercent:'J5'/);
+  assert.match(financeUi, /cached YTD variance percentage is missing or invalid/);
+  assert.match(financeUi, /variancePercent:matrixValues\\.ytdVariancePercent/);
+  assert.match(financeUi, /Math\\.abs\\(financeWorkbook\\.companyOverview\\.variancePercent\\)\\*100/);
+  assert.match(financeUi, /Math\\.abs\\(\\(ytdBudgetTotal-ytdRevenueTotal\\)\\/ytdBudgetTotal\\)\\*100/);
+  assert.match(financeUi, /Math\\.abs\\(\\(ytdBudget-ytdRevenue\\)\\/ytdBudget\\)\\*100/);
+});
+
+test('finance amount columns retain source precision through publication', () => {
+  assert.match(precisionMigration, /finance_metric_values[\\s\\S]*numeric\\(24,8\\)/);
+  assert.match(precisionMigration, /finance_publication_values[\\s\\S]*numeric\\(24,8\\)/);
 });
 
 test('weekly finance header scan includes the first source-week column', () => {
