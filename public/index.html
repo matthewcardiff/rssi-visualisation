@@ -52136,7 +52136,7 @@ document.addEventListener('change',event=>{
  if(event.target?.id!=='vh26-week')return;
  queueMicrotask(()=>{
   const select=document.getElementById('vh26-week'),dashboard=document.getElementById('vh26-connected-dashboard');
-  if(!select?.value||!dashboard?.classList.contains('vh26-finance-view-active')||selectedWeek===select.value)return;
+  if(!select?.value||!dashboard?.classList.contains('vh26-finance-view-active'))return;
   selectedWeek=select.value;void loadPublishedFinance();void financeReviewRefresh();
  });
 },true);
