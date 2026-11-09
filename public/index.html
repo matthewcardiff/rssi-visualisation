@@ -855,7 +855,7 @@ async function vhFinanceExtract(file,selectedWeek){
   for(const [key,cell] of Object.entries(matrixCells)){const expected=matrixValues[key],actual=reconciledTotals[key];if(expected===null)warnings.push(dashboard.name+'!'+cell+' matrix total is missing or invalid.');else if(actual===null||Math.abs(expected-actual)>0.01)warnings.push(dashboard.name+'!'+cell+' matrix value '+money(expected)+' does not match mapped Week '+directWeek+' sheet total '+(actual===null?'Not reported':money(actual))+'.')}
   if(directWeek===29){
    const confirmed={ytdRevenue:1363438,ytdGap:33719,variancePercent:2};
-   for(const key of ['ytdRevenue','ytdGap'])if(matrixValues[key]===null||(key==='ytdGap'?Math.round(matrixValues[key]):matrixValues[key])!==confirmed[key])warnings.push('WK29 confirmed '+key+' is £'+confirmed[key].toLocaleString('en-GB')+'; selected-sheet cached value is '+(matrixValues[key]===null?'Not reported':money(matrixValues[key]))+'. Correct the WK29 source before applying.');
+   for(const key of ['ytdRevenue','ytdGap'])if(matrixValues[key]===null||Math.round(matrixValues[key])!==confirmed[key])warnings.push('WK29 confirmed '+key+' is £'+confirmed[key].toLocaleString('en-GB')+'; selected-sheet cached value is '+(matrixValues[key]===null?'Not reported':money(matrixValues[key]))+'. Correct the WK29 source before applying.');
    const variancePercent=matrixValues.ytdBudget&&matrixValues.ytdGap!==null?Math.round(matrixValues.ytdGap/matrixValues.ytdBudget*100):null;
    if(variancePercent!==confirmed.variancePercent)warnings.push('WK29 confirmed variance is 2%; selected-sheet cached budget and gap calculate to '+(variancePercent===null?'Not reported':variancePercent+'%')+'. Correct the WK29 source before applying.');
   }
