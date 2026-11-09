@@ -558,6 +558,16 @@ test('Finance week selection bypasses department-report navigation replay',()=>{
   assert.ok(handler.indexOf("contains('vh26-finance-view-active')")<handler.indexOf('runNavigation({ kind: \'week\''));
 });
 
+test('The native department week handler leaves Finance week changes to Finance',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf("document.getElementById('vh26-week').addEventListener('change',e=>{");
+  const end=html.indexOf("document.getElementById('vh26-refresh').addEventListener",start);
+  const handler=html.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(handler,/classList\.contains\('vh26-finance-view-active'\)\)return/);
+  assert.ok(handler.indexOf("contains('vh26-finance-view-active')")<handler.indexOf('renderSection()'));
+});
+
 test('Finance review resolves explicitly mapped department codes and canonicalises their ids',()=>{
   const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
