@@ -54,6 +54,10 @@ test('finance extraction uses the selected reporting week for budget, revenue an
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /if\(dashboard&&financePeriod&&sheetWeek===directWeek\)/);
+  assert.match(extractor, /dashboardName='WK'\+Number\(management\?\.railWeek/);
+  assert.match(extractor, /toLocaleLowerCase\('en-GB'\).*String\(name\|\|''\).*toLocaleLowerCase\('en-GB'\)/);
+  assert.match(extractor, /const sourceBlocks=\[\.\.\.dashboard\.map\.entries\(\)\]/);
+  assert.doesNotMatch(extractor, /const sourceBlocks=\[\['B','F'\]/);
   assert.match(extractor, /sourcePolicy:'Values come only from the selected WK sheet/);
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /matrix total/);
@@ -73,6 +77,15 @@ test('finance extraction uses the selected reporting week for budget, revenue an
   assert.match(extractor, /vhFinCol\(1\)\+row\+':'\+vhFinCol\(52\)\+row/);
   assert.doesNotMatch(extractor, /blank inputs sum to £0/);
   assert.doesNotMatch(financeUi, /two.?week|two rail weeks|minus two/i);
+});
+
+test('selected WK sheets discover mapped department blocks dynamically', () => {
+  const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
+  const blockSource = extractor.slice(extractor.indexOf('const columnNumber='), extractor.indexOf('const directRecords='));
+  const vhFinCol = n => { let value=''; for (n++; n; n=Math.floor((n-1)/26)) value=String.fromCharCode(65+(n-1)%26)+value; return value; };
+  const context = {dashboard:{map:new Map([['B7',{value:'MANAGED ENVIRONMENTS'}],['BF7',{value:'HS2'}],['BL7',{value:'MONTEL'}],['A7',{value:'VISUALISATION MATRIX'}],['BL8',{value:'not a department label'}]])},vhFinCol};
+  const blocks = vm.runInNewContext(`${blockSource}; sourceBlocks`,context);
+  assert.equal(JSON.stringify(blocks),JSON.stringify([['B','F'],['BF','BJ'],['BL','BP']]));
 });
 
 test('weekly finance header scan includes the first source-week column', () => {
