@@ -196,6 +196,7 @@ test('Presenter finance refreshes on host week changes and withholds other-perio
 test('finance Presenter shows YTD variance percent and keeps legacy finance period data guarded', () => {
   assert.match(autosave, /function enhanceFinanceCompanyOverview\(slide\)/);
   assert.match(autosave, /const percentValue = ytdBudget\.value !== null && ytdRevenue\.value !== null/);
+  assert.match(autosave, /Math\.abs\(percentValue\)\.toLocaleString\('en-GB', \{ maximumFractionDigits: 0 \}\) \+ '%'/);
   assert.match(autosave, /Historical HS2 \(legacy\)/);
   assert.match(autosave, /if \(!unchanged\) legacyRow\.replaceChildren/);
   assert.match(autosave, /YTD variance %/);
