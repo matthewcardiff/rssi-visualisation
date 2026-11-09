@@ -350,4 +350,195 @@ test('absence reasons are not stored in browser local storage',()=>{
 });
 
 test('leaving Report Absence hides its card and restores the target page heading',()=>{
-  const html=readFileSync(new URL('../public/index.html',import.meta.u
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/const closeAbsenceView=\(\)=>\{const absencePanel=document\.getElementById\('vh26-absence-workspace'\);if\(absencePanel\)absencePanel\.hidden=true/);
+  for(const route of ['departments','report','actions','finance']){
+    const start=html.indexOf("side.querySelector('[data-connected-nav=\""+route+"\"]')");
+    assert.ok(start>0,route+' route exists');
+    const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+    const handler=html.slice(start,end>start?end:start+1200);
+    assert.match(handler,/closeAbsenceView\(\)/,route+' clears absence view');
+  }
+  const render=html.slice(html.indexOf('function renderSection(){'),html.indexOf('async function loadPublishedFinance'));
+  assert.match(render,/absenceView\?'Report absence':isBids\?'Bids \/ RFQs':'Department report'/);
+  assert.match(html,/title\.textContent='Department report'/);
+});
+
+test('HSQE uses its five specialist sections plus review and saves fields in the supported schema',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  for(const key of ['hsqe_accidents','hsqe_close_calls','hsqe_assurance','hsqe_events','hsqe_documents'])assert.ok(html.includes("key:'"+key+"'"));
+  assert.match(html,/function currentReportKeys\(\)\{return selectedDepartment\?\.code==='hsqe'\?\[\.\.\.hsqeReportSections\.map\(x=>x\.key\),'review'\]/);
+  assert.match(html,/selectedDepartment\.code==='hsqe'\)\{const fields=Object\.fromEntries\(\[\.\.\.document\.querySelectorAll\('#vh26-hsqe-fields \[data-hsqe-field\]'\)/);
+  assert.match(html,/section_key:selectedSection,content\}/);
+  assert.doesNotMatch(html,/HSQE rolling registers|vh26-hsqe-register-link/);
+  assert.match(html,/const aiReviewButton=document\.getElementById\('vh26-ai-review'\);if\(aiReviewButton\)aiReviewButton\.hidden=isHsqe/);
+  assert.match(html,/#vh26-hsqe-fields\{display:grid;grid-template-columns:repeat\(2,minmax\(0,1fr\)\);gap:22px 26px/);
+  assert.match(html,/Spelling check · UK English:/);
+  assert.match(html,/vhFindSpellingIssues\(original\)/);
+});
+
+test('Bids/RFQs bypasses the generic report and links from the Build 052 workspace to Bid Hub',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/department\.code==='bids-rfqs'\)renderSection\(\);else loadNative\(\)/);
+  assert.match(html,/id="vh26-bids-workspace"/);
+  assert.match(html,/https:\/\/rssi-bid-hub-staging2\.netlify\.app\/#\/tracker/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-bids-active #vh26-native-report\{display:none!important\}/);
+});
+
+test('Bids/RFQs workspace state clears before switching to other connected routes',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/dash\.classList\.remove\('vh26-action-view-active','vh26-finance-view-active','vh26-absence-view-active','vh26-bids-active'\)/);
+  assert.match(html,/function closeBidsView=|const closeBidsView=\(\)=>\{dash\.classList\.remove\('vh26-bids-active'\)/);
+  for(const route of ['departments','report','actions','finance','absence']){
+    const start=html.indexOf("side.querySelector('[data-connected-nav=\""+route+"\"]')");
+    assert.ok(start>0,route+' route exists');
+    const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+    assert.ok(html.slice(start,end>start?end:start+1200).includes('closeBidsView()'),route+' clears Bid Hub content');
+  }
+  assert.match(html,/classList\.remove\('vh26-workspace-active','vh26-bids-active'\)/);
+});
+
+test('meeting host view is role-gated and supplies live readiness plus read-only Presenter Mode',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/function hostDashboardAllowed\(identity=verifiedIdentity\)\{return !!identity\?\.roles\?\.some\(r=>\['meeting_host','executive','administrator'\]\.includes\(r\.role\)\)\}/);
+  assert.match(html,/hostData\.reports\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'&&departments\.includes\(r\.department_id\)&&hostReportComplete\(r\)/);
+  assert.match(html,/const departments=presenterDepartments\.map\(d=>d\.id\),submitted=new Set\(\(hostData\.reports\|\|\[\]\)\.filter\(r=>r\.reporting_week_id===week\.id&&r\.status==='submitted'&&departments\.includes\(r\.department_id\)&&hostReportComplete\(r\)\)/);
+  assert.match(html,/id="vh26-host-submitted"/);
+  assert.match(html,/id="vh26-host-awaiting"/);
+  assert.match(html,/id="vh26-host-open-actions"/);
+  assert.match(html,/id="vh26-presenter-launch"/);
+  assert.match(html,/id="vh26-presenter-mode"/);
+  for(const id of ['vh26-host-week','vh26-host-submitted','vh26-host-awaiting','vh26-host-open-actions'])assert.equal([...html.matchAll(new RegExp('id="'+id+'"','g'))].length,1,`${id} is unique from the hidden legacy interface`);
+  assert.match(html,/getElementById\('vh26-host-submitted'\)\.textContent=String\(submitted\.size\)/);
+  assert.match(html,/if\(!week\)\{status\.textContent='No open reporting week is available to calculate readiness\.';for\(const id of \['vh26-host-submitted','vh26-host-awaiting'\]\)/);
+  assert.doesNotMatch(html,/for\(const id of \['hubSubmittedCount','hubAttentionCount'\]\)document\.getElementById\(id\)\.textContent/);
+  assert.match(html,/function canHostActions\(\)\{return !!verifiedIdentity\?\.roles\?\.some\(r=>\['meeting_host','administrator','executive'\]\.includes\(r\.role\)\)\}/);
+  assert.match(html,/function canManageDepartmentActions\(\)\{return canHostActions\(\)\|\|canManage\(\)\}/);
+});
+
+test('host dashboard and action register are hidden while navigating to other workspaces',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/function setHostHomeVisible\(visible\)\{const active=!!\(visible&&hostDashboardAllowed\(\)\)/);
+  assert.match(html,/dash\.classList\.toggle\('vh26-host-layout-active',active\)/);
+  assert.match(html,/presenterRoot\.hidden=true/);
+  assert.ok(html.includes('function openDepartment(department,initialWeekId=null){if(!confirmReportingLeave())return;setHostHomeVisible(false);'));
+  const home=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')"),html.indexOf("side.querySelector('[data-connected-nav=\"report\"]')"));
+  assert.ok(home.includes('setHostHomeVisible(false)'), 'Home / Departments must leave the host-only layout');
+  const absence=html.slice(html.indexOf("side.querySelector('[data-connected-nav=\"absence\"]')"),html.indexOf("side.querySelector('#vh26-sidebar-signout')"));
+  assert.ok(absence.includes('setHostHomeVisible(false)'));
+});
+
+test('Build 050 Reporting Weeks restores department filtering, report counts, view and next-week controls',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/vh26-host-weeks-department/);
+  assert.match(html,/Department reports started/);
+  assert.match(html,/hostData\.loading\?\.reports\?'Loading…':hostData\.errors\?\.reports\?'Unavailable'/);
+  assert.match(html,/started\.size\+' \/ '\+presenterDepartments\.length/);
+  assert.match(html,/function addNextHostWeek\(status\)/);
+  assert.match(html,/dataApi\('create_week'\)/);
+  assert.match(html,/openDepartment\(d,week\.id\)/);
+  assert.match(html,/Download calendar CSV/);
+  assert.match(html,/vh26-host-calendar-controls/);
+});
+
+test('Presenter full-window fallback keeps fullscreen control usable without the Fullscreen API',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/typeof presenterMode\.requestFullscreen!=='function'/);
+  assert.match(html,/vh26-pseudo-fullscreen/);
+  assert.match(html,/document\.body\.style\.overflow='hidden'/);
+  assert.match(html,/vh26-presenter-fullscreen/);
+});
+
+test('administrator lands in the department workspace and retains an explicit Meeting Overview route',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/const host=hostDashboardAllowed\(identity\),administrator=\(identity\.roles\|\|\[\]\)\.some\(r=>r\.role==='administrator'\);[\s\S]{0,260}setHostHomeVisible\(host&&!administrator\)/);
+  assert.match(html,/hostDashboardAllowed\(identity\)\?'<button type="button" data-connected-nav="host">Meeting overview<\/button>':''/);
+  assert.match(html,/side\.querySelector\('\[data-connected-nav="host"\]'\)\?\.addEventListener\('click'/);
+});
+
+test('Build 052 host dashboard restores responsive chrome, week selection and connected navigation',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(html,/<h1>Visualisation <span class="hub-orange-word">Hub<\/span><\/h1>/);
+  assert.match(html,/id="vh26-host-week-select" aria-label="Reporting Rail Week"/);
+  for(const view of ['overview','actions','weeks','settings'])assert.match(html,new RegExp('data-host-view="'+view+'"'));
+  assert.match(html,/function orderedHostWeeks\(\)\{return \[\.\.\.\(hostData\?\.weeks\|\|\[\]\)\]/);
+  assert.match(html,/function setHostDashboardView\(view\)/);
+  assert.match(html,/Session expired\. Select Sign out, then sign in again to load live readiness\./);
+  assert.match(html,/vh26-host-session-error/);
+  assert.match(html,/\.choose-head\{display:flex!important;position:relative!important;inset:auto!important;width:100%;height:46px!important;min-height:46px!important;box-sizing:border-box!important/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-welcome\{height:362px/);
+  assert.match(html,/vh26-connected-dashboard\.vh26-host-layout-active \.vh26-host-nav\{display:flex/);
+  assert.match(html,/renderHostWeeksList\(\)/);
+});
+
+test('department reporting is outside the host-only visibility container',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const host=html.indexOf('<section id="vh26-meeting-host"');
+  const actions=html.indexOf('<section id="vh26-presenter-actions"');
+  const departments=html.indexOf('id="vh26-department-grid"');
+  const report=html.indexOf('<section id="vh26-report-workspace"');
+  assert.ok(host>0&&actions>host&&departments>actions&&report>departments);
+  assert.match(html.slice(host,actions),/id="vh26-presenter-mode"/);
+  assert.doesNotMatch(html.slice(host,actions),/id="vh26-report-workspace"/);
+  assert.doesNotMatch(html.slice(host,actions),/id="vh26-department-grid"/);
+});
+
+test('Home / Departments restores its heading and subtitle',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf("side.querySelector('[data-connected-nav=\"departments\"]')");
+  const end=html.indexOf("side.querySelector('[data-connected-nav=",start+40);
+  assert.ok(start>0&&end>start);
+  const handler=html.slice(start,end);
+  assert.match(handler,/closeAbsenceView\(\)/);
+  assert.match(handler,/title\.textContent='Choose a department'/);
+  assert.match(handler,/sub\.textContent='Select a department to view its weekly report'/);
+  assert.match(handler,/vh26-back-departments/);
+});
+
+test('absence reporting includes the complete departmental list',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('const depts=');
+  const end=html.indexOf(';',start);
+  const declaration=html.slice(start,end);
+  for(const department of ['Managed Environments','Civils','Rail Operations','S&T','TWS','Welding','MMA','Montel','HS2 Bird Deterrant','HS2 Fencing','HSQE','Bids/RFQs'])assert.ok(declaration.includes(`'${department}'`),department+' is available');
+});
+
+test('planned reporting weeks lock Pipeline controls and reject save attempts in the UI',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function renderPipeline()');
+  const end=html.indexOf('async function loadPipeline()',start);
+  const pipeline=html.slice(start,end);
+  assert.match(pipeline,/const c=context\(\),editable=c\.editable/);
+  assert.match(pipeline,/const c=context\(\);if\(!c\.editable\)return/);
+  assert.match(pipeline,/c\.week\?\.status==='planned'\?'This reporting week is planned/);
+  assert.match(html,/document\.getElementById\('vh26-pipeline-add'\)\.addEventListener\('click',\(\)=>\{if\(!context\(\)\.editable\)return;/);
+});
+
+test('Finance & Commercial mirrors the selected-week matrix and signed variance rules',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function renderFinance(){'),end=html.indexOf('const oldEnter=window.enter;',start),finance=html.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(finance,/Finance figures for the same week/);
+  assert.match(finance,/Weekly gap to close/);
+  assert.match(finance,/YTD variance %/);
+  assert.match(finance,/variance:yb===null\|\|yr===null\?null:yr-yb/);
+  assert.match(finance,/totalValue\('ytdBudget'\)-totalValue\('ytdRevenue'\)/);
+  assert.match(finance,/financeReports=reports\.filter\(\(\{d\}\)=>!\['HSQE','Bids\/RFQs'\]\.includes\(d\)\)/);
+  assert.doesNotMatch(finance,/two-rail-week lag|two-week lag/i);
+});
+
+test('Finance week changes refresh the selected-week overview and discard stale finance responses',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('let publishedFinanceLoadGeneration=0;');
+  const end=html.indexOf('\nasync function loadNative()',start);
+  const loader=html.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(loader,/requestedWeek=selectedWeek/);
+  assert.match(loader,/generation!==publishedFinanceLoadGeneration\|\|selectedWeek!==requestedWeek/);
+  assert.doesNotMatch(loader,/reporting_week_id===selectedWeek/);
+  const weekStart=html.indexOf("document.getElementById('vh26-week').addEventListener('change',()=>{",end);
+  const weekEnd=html.indexOf('\n});',weekStart);
+  const financeWeekChange=html.slice(weekStart,weekEnd);
+  assert.match(financeWeekChange,/selectedWeek=nextWeek/);
+  assert.match(financeWeekChange,/void loadPublishedFinance\(\);void financeReviewRefresh\(\)/);
+});
