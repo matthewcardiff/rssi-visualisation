@@ -57,8 +57,16 @@ test('finance extraction uses the selected reporting week for budget, revenue an
   assert.match(extractor, /sourcePolicy:'Values come only from the selected WK sheet/);
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /matrix total/);
-  assert.match(extractor, /weeklyBudget:'G2',weeklyRevenue:'G3',ytdBudget:'J2',ytdRevenue:'J3'/);
+  assert.match(extractor, /weeklyBudget:'G2',weeklyRevenue:'G3',weeklyGap:'G4',ytdBudget:'J2',ytdRevenue:'J3',ytdGap:'J4'/);
   assert.match(extractor, /Math\.abs\(Number\(expected\)-Number\(actual\)\)>0\.01/);
+  assert.match(extractor, /weeklyGap:totals\.weeklyBudget===null\|\|totals\.weeklyRevenue===null\?null:totals\.weeklyBudget-totals\.weeklyRevenue/);
+  assert.match(extractor, /ytdGap:totals\.ytdBudget===null\|\|totals\.ytdRevenue===null\?null:totals\.ytdBudget-totals\.ytdRevenue/);
+  assert.match(extractor, /if\(!dashboard\|\|!financePeriod\|\|sheetWeek!==directWeek\)[\s\S]*?no other worksheet will be read as a fallback[\s\S]*?return \{companyOverview[\s\S]*?acceptanceReady:false/);
+  assert.match(extractor, /duplicates the mapped department/);
+  assert.match(extractor, /else if\(match\)directRecords\.set\(match\[0\],record\)/);
+  assert.match(extractor, /if\(directWeek===29\)[\s\S]*?ytdRevenue:1363438,ytdGap:33719,variancePercent:2/);
+  assert.match(extractor, /WK29 confirmed variance is 2%/);
+  assert.match(extractor, /confirmed .*Correct the WK29 source/);
   assert.match(extractor, /blockingWarnings:warnings\.filter/);
   assert.match(extractor, /for\(let col=1;col<=52;col\+\+\).*index:col-1/);
   assert.match(extractor, /vhFinCol\(1\)\+row\+':'\+vhFinCol\(52\)\+row/);
