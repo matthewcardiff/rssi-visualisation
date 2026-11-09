@@ -304,7 +304,8 @@ export default async (request)=>{
           (source?.rail_week===29&&source?.start_date==='2026-10-17'&&source?.end_date==='2026-10-23')||
           (source?.rail_week===30&&source?.start_date==='2026-10-24'&&source?.end_date==='2026-10-30')
         );
-        const dept=departments.find(d=>d.id===r.department_id)||(legacyHs2Source?departments.find(d=>d.code==='hs2'&&d.active===false):null);
+        const normalizeCode=value=>String(value||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+        const dept=departments.find(d=>d.id===r.department_id)||(r.department_code?departments.find(d=>normalizeCode(d.code)===normalizeCode(r.department_code)):null)||(legacyHs2Source?departments.find(d=>d.code==='hs2'&&d.active===false):null);
         const metric=String(r.metric_key||'').trim();
         const state=String(r.input_state||'').trim();
         const raw=String(r.amount??'').trim();

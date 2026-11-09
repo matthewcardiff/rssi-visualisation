@@ -52219,7 +52219,7 @@ financeCheckButton.addEventListener('click',async()=>{
    const metricValues=record=>[['weekly_budget',record.bv],['weekly_revenue',record.rv],['ytd_budget',record.ytdBudget],['ytd_revenue',record.ytdRevenue]].map(([metric_key,value])=>{
     const blank=metric_key==='weekly_revenue'&&record.revenueInputState==='blank'||value===null||value===undefined||value==='';
     const amount=blank?null:Number(value),input_state=blank?'missing':amount===0?'zero':'value';
-    return {reporting_week_id:selectedWeek,...(record.departmentCode?{department_code:record.departmentCode}:{department_id:record.departmentId}),metric_key,amount,input_state,source_period_id:sourcePeriod.id};
+    return {reporting_week_id:selectedWeek,department_id:record.departmentId,...(record.departmentCode?{department_code:record.departmentCode}:{}),metric_key,amount,input_state,source_period_id:sourcePeriod.id};
    });
    const departments=nativeData?.departments||verifiedIdentity?.departments||[];
    const departmentCodes={TWS:'track-warning-systems',Civils:'civils','Rail Operations':'rail-operations',Welding:'welding','Managed Environments':'managed-environments',MMA:'midland-metro','S&T':'signalling',Montel:'montel','HS2 Bird Deterrant':'bird-deterrent','HS2 Fencing':'hs2-fencing'};
@@ -52229,7 +52229,7 @@ financeCheckButton.addEventListener('click',async()=>{
     const targetCode=departmentCodes[record.name];
     const dept=departments.find(d=>norm(d.display_name)===norm(record.name)||norm(d.code)===norm(record.name)||norm(d.name)===norm(record.name)||(targetCode&&norm(d.code)===norm(targetCode)));
     if(!dept)throw Error('Workbook department could not be mapped: '+record.name);
-    record.departmentId=dept.id;return metricValues(record);
+    record.departmentId=dept.id;record.departmentCode=dept.code;return metricValues(record);
    });
    if(rows.length!==financeWorkbook.records.length*4)throw Error('Each mapped finance line must contain four weekly and YTD values.');
    workbookWarnings=[...(financeWorkbook.warnings||[]),...financeWorkbook.records.flatMap(record=>(record.issues||[]).map(issue=>record.name+': '+issue))];

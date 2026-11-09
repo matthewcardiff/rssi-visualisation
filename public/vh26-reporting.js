@@ -1369,6 +1369,12 @@
     dashboard?.addEventListener('change', event => {
       if (!(event.target instanceof HTMLSelectElement) || !event.target.matches('#vh26-week')) return;
       const target = event.target;
+      // Finance owns this selector while its view is active; do not route a
+      // finance week change through the department-report save/replay flow.
+      if (dashboard.classList.contains('vh26-finance-view-active')) {
+        queueMicrotask(() => { lastSelectedWeek = target.value; });
+        return;
+      }
       if (navigationReplay) { queueMicrotask(() => { lastSelectedWeek = target.value; }); return; }
       if (reportingDirty || reportingBusy || appDirtyNeedsClearing) {
         const requestedWeek = target.value;

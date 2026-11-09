@@ -547,3 +547,21 @@ test('Finance week changes refresh the selected-week overview and discard stale 
   assert.match(settledWeekSync,/selectedWeek=select\.value;void loadPublishedFinance\(\);void financeReviewRefresh\(\)/);
   assert.doesNotMatch(settledWeekSync,/selectedWeek===select\.value/);
 });
+
+test('Finance week selection bypasses department-report navigation replay',()=>{
+  const reporting=readFileSync(new URL('../public/vh26-reporting.js',import.meta.url),'utf8');
+  const start=reporting.indexOf("dashboard?.addEventListener('change', event => {");
+  const end=reporting.indexOf("root.addEventListener('input'",start);
+  const handler=reporting.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(handler,/dashboard\.classList\.contains\('vh26-finance-view-active'\)/);
+  assert.ok(handler.indexOf("contains('vh26-finance-view-active')")<handler.indexOf('runNavigation({ kind: \'week\''));
+});
+
+test('Finance review resolves explicitly mapped department codes and canonicalises their ids',()=>{
+  const api=readFileSync(new URL('../netlify/functions/acceptance.mjs',import.meta.url),'utf8');
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  assert.match(api,/r\.department_code\?departments\.find\(d=>normalizeCode\(d\.code\)===normalizeCode\(r\.department_code\)\):null/);
+  assert.match(html,/record\.departmentId=dept\.id;record\.departmentCode=dept\.code;return metricValues\(record\)/);
+  assert.match(html,/department_id:record\.departmentId/);
+});
