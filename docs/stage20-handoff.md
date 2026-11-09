@@ -6,7 +6,7 @@ The original Build 052 application remains disabled. A separate `/acceptance.htm
 
 Configure **Netlify server-side environment variables** (not embedded in the public site):
 
-- `SUPABASE_URL=https://<project-ref>.supabase.co`
+- `SUPABASE_URL` set to the staging project URL in Netlify environment settings (keep the actual URL out of repository documentation).
 - `SUPABASE_PUBLISHABLE_KEY=<Supabase project's publishable key>`
 
 Do not set a service-role or secret key for this harness. The publishable key can be used with RLS, but is kept server-side here. Netlify must build with Node 22 and the repository root contents, not a manual public-folder drag-and-drop, because the acceptance endpoint is a Netlify Function.

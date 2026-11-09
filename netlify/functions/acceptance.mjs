@@ -20,13 +20,7 @@ export default async (request)=>{
       if(!r.ok)return json(401,{error:'Session expired'});const b=await r.json();return json(200,{access_token:b.access_token,refresh_token:b.refresh_token,expires_in:b.expires_in});
     }
     if(data.op==='update_password'){
-      if(typeof data.access_token!=='string'||data.access_token.length<30||data.access_token.length>5000)return json(401,{error:'Password recovery link is invalid or expired'});
-      if(typeof data.password!=='string'||data.password.length<12||data.password.length>128)return json(400,{error:'Choose a password between 12 and 128 characters'});
-      const r=await fetch(url+'/auth/v1/user',{method:'PUT',headers:{...common,authorization:'Bearer '+data.access_token},body:JSON.stringify({password:data.password}),signal:AbortSignal.timeout(12000)});
-      if(!r.ok)return json(r.status===429?429:401,{error:'Password recovery link is invalid, expired, or already used. Request a new link.'});
-      return json(200,{updated:true});
-    }
-    if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
+      if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
     const headers={...common,authorization:'Bearer '+data.access_token};
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
@@ -235,7 +229,7 @@ export default async (request)=>{
         get('departments?select=id,display_name&limit=100'),
         ids.length?get('finance_reconciliation_events?select=finance_import_id,accepted_findings&finance_import_id=in.('+ids.join(',')+')&limit=100'):Promise.resolve([])
       ]);
-      const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=2?periods[i-2].id:null]}));
+      const expectedSource=new Map(weeks.map(w=>{const period=periods.find(p=>p.id===w.rail_period_id);return [w.id,period?.id||null]}));
       const groups=imports.map(imp=>{
         const rows=metrics.filter(r=>r.finance_import_id===imp.id);
         const byDepartment=new Map();
@@ -246,7 +240,7 @@ export default async (request)=>{
         const expectedMapping=imp.reconciliation_status==='pending'?'pending':'reconciled';
         if(rows.some(r=>r.mapping_status!==expectedMapping))problems.push('Metric reconciliation state does not match the import');
         if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
-        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source week differs from management week minus two rail periods');
+        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source period differs from the selected management week');
         if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
@@ -288,7 +282,7 @@ export default async (request)=>{
       if(!Array.isArray(data.rows)||data.rows.length>300||!data.rows.length)return json(400,{error:'Provide 1-300 finance rows'});
       const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Reference data access denied');return r.json()};
       const [departments,periods,weeks]=await Promise.all([
-        get('departments?select=id,code,display_name&limit=100'),
+        get('departments?select=id,code,display_name,active&limit=100'),
         get('rail_calendar_periods?select=id,rail_week,start_date,end_date&order=start_date.asc&limit=200'),
         get('reporting_weeks?select=id,rail_period_id&limit=200')
       ]);
@@ -299,8 +293,9 @@ export default async (request)=>{
         if(!r||typeof r!=='object'){errors.push({line,reason:'Invalid row'});continue}
         const week=weeks.find(w=>w.id===r.reporting_week_id);
         const index=periods.findIndex(p=>p.id===week?.rail_period_id);
-        const source=index>=2?periods[index-2]:null;
-        const dept=departments.find(d=>d.id===r.department_id);
+        const source=index>=0?periods[index]:null;
+        const legacyHs2Source=r.department_code==='hs2'&&source?.rail_week===29&&source?.start_date==='2026-10-17';
+        const dept=departments.find(d=>d.id===r.department_id)||(legacyHs2Source?departments.find(d=>d.code==='hs2'&&d.active===false):null);
         const metric=String(r.metric_key||'').trim();
         const state=String(r.input_state||'').trim();
         const raw=String(r.amount??'').trim();
@@ -309,18 +304,18 @@ export default async (request)=>{
         if(!week)issues.push('Unknown management reporting week');
         if(!dept)issues.push('Unknown department');
         if(!metrics.includes(metric))issues.push('Unknown metric');
-        if(!source)issues.push('Two-week finance source period unavailable');
-        if(!source||r.source_period_id!==source.id)issues.push('Finance source period does not match management week minus two rail weeks');
+        if(!source)issues.push('Selected finance period unavailable');
+        if(!source||r.source_period_id!==source.id)issues.push('Finance source period does not match the selected management week');
         if(!['missing','zero','value'].includes(state))issues.push('Invalid input state');
         if(state==='missing'&&raw!=='')issues.push('Missing must have blank amount');
         if(state==='zero'&&amount!==0)issues.push('Zero must have amount 0');
         if(state==='value'&&(raw===''||!Number.isFinite(amount)))issues.push('Value requires a finite numeric amount');
         if(raw!==''&&!Number.isFinite(amount))issues.push('Invalid amount');
-        const dedupe=[r.reporting_week_id,r.department_id,metric].join('|');
+        const dedupe=[r.reporting_week_id,dept?.id||r.department_code,metric].join('|');
         if(seen.has(dedupe))issues.push('Duplicate department, management week and metric');
         seen.add(dedupe);
         if(issues.length)errors.push({line,reason:issues.join('; ')});
-        else normalized.push({reporting_week_id:week.id,department_id:dept.id,metric_key:metric,amount:state==='missing'?null:amount,input_state:state,source_period_id:source.id,source_rail_week:source.rail_week});
+        else normalized.push({reporting_week_id:week.id,department_id:dept.id,department_name:dept.display_name||dept.code,metric_key:metric,amount:state==='missing'?null:amount,input_state:state,source_period_id:source.id,source_rail_week:source.rail_week});
       }
       const groups=new Map();
       for(const r of normalized){const k=r.reporting_week_id+'|'+r.department_id;groups.set(k,(groups.get(k)||0)+1)}
@@ -331,6 +326,8 @@ export default async (request)=>{
       if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
       const findings=Array.isArray(data.findings)?data.findings:[];
       if(findings.length>100||findings.some(x=>typeof x!=='string'||!x.trim()||x.length>1000))return json(400,{error:'Workbook checks are invalid; review the workbook again',committed:false});
+      const matrixBlock=findings.find(x=>/matrix total|summary worksheet is missing/i.test(x));
+      if(matrixBlock)return json(422,{error:'Company matrix reconciliation failed. Correct the workbook before applying figures.',detail:matrixBlock,committed:false});
       if(findings.length&&data.findings_acknowledged!==true)return json(422,{error:'Review and acknowledge the workbook checks before applying figures',committed:false});
       const weeksInImport=[...new Set(normalized.map(r=>r.reporting_week_id))];
       if(weeksInImport.length!==1)return json(422,{error:'Import one management reporting week at a time'});
@@ -364,13 +361,16 @@ export default async (request)=>{
         if(!r.ok)throw new Error('Finance publication access denied');
         return r.json();
       };
-      const [publications,periods]=await Promise.all([
+      const [publications,departments,periods]=await Promise.all([
         get('finance_publications?select=id,reporting_week_id,department_id,publication_version,published_at,status&status=eq.published&order=publication_version.desc&limit=1000'),
+        get('departments?select=id,code,display_name,active&limit=500'),
         get('rail_calendar_periods?select=id,rail_week,start_date,end_date&order=start_date.desc&limit=150')
       ]);
+      // Keep retired-department finance and metadata for historical company totals.
+      // Active-department navigation and report cards are resolved separately.
       const ids=publications.map(p=>p.id).filter(id=>/^[0-9a-f-]{36}$/i.test(id));
       const values=ids.length?await get('finance_publication_values?select=publication_id,metric_key,amount,source_period_id,input_state&publication_id=in.('+ids.join(',')+')&limit=4000'):[];
-      return json(200,{publications,values,periods});
+      return json(200,{publications,values,periods,departments});
     }
     if(['hsqe_assurance','hsqe_close_calls','hsqe_workforce'].includes(data.op)){
       const paths={

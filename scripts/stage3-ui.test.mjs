@@ -81,7 +81,7 @@ test('Presenter Mode follows the Build 050 centered meeting layout and navigatio
   assert.match(autosave, /\['Weekly budget', presenterMoney\(weeklyBudget\)\]/);
   assert.match(autosave, /\['Weekly revenue', presenterMoney\(weeklyRevenue\)\]/);
   assert.match(autosave, /YTD gap to close/);
-  assert.match(autosave, /two-week lag/);
+  assert.doesNotMatch(autosave, /two.?week lag/i);
   assert.match(autosave, /Not reported/);
   assert.match(autosave, /vh26-presenter-actions-card/);
   assert.match(autosave, /Action \/ decision/);
@@ -111,4 +111,12 @@ test('Safety Moment separates practical reminders from distinct discussion quest
   assert.match(autosave, /section\('Practical reminders', reminders, true\)/);
   assert.match(autosave, /Discussion question/);
   assert.match(autosave, /vh26-presenter-safety-content/);
+});
+
+test('Safety Moment generation sends a persisted rolling history to the novelty check', () => {
+  assert.match(html, /weeklyportal-safety-moment-generated-history/);
+  assert.match(html, /const recent=\[\.\.\.generationHistory\(\),\.\.\.\(valid\(r\)\?\[r\]:\[\]\)\]\.slice\(-12\)/);
+  assert.match(html, /JSON\.stringify\(\{category:select\.value,recent\}\)/);
+  assert.match(html, /rememberGenerated\(generated\)/);
+  assert.match(html, /recent Safety Moments to the AI service to avoid repeats/);
 });

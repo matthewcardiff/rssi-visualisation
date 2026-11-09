@@ -14,7 +14,8 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child>label{display:grid!important;grid-template-rows:auto 1fr!important;gap:7px!important;min-width:0!important;flex:none!important;margin:0!important;color:#263d50!important;font:500 13px/1.35 Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input{box-sizing:border-box!important;width:100%!important;min-width:0!important;min-height:46px!important;padding:12px 14px!important;border:1px solid #cdd7df!important;border-radius:12px!important;background:#fafbfc!important;color:#163247!important;font:400 15px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-card>div:first-child input:focus{outline:3px solid #004d7126!important;border-color:#004d71!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:10px!important;width:100%!important;margin-top:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;width:100%!important;margin-top:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:nth-child(2){display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button{width:100%!important;min-height:46px!important;padding:11px 18px!important;border:1px solid #cbd6de!important;border-radius:12px!important;background:#fff!important;color:#004d71!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:first-child{border-color:#004d71!important;background:#004d71!important;color:#fff!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace .vh26-pipeline-actions button:hover:not(:disabled){filter:brightness(.96)}
@@ -58,12 +59,13 @@
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries input:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-entries textarea:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields input:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields textarea:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-section-notes:focus,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-notes:focus{outline:3px solid #004d7126!important;border-color:#004d71!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>button{justify-self:start!important;align-self:end!important;width:max-content!important;min-width:0!important;min-height:42px!important;padding:10px 16px!important;border:1px solid #cbd6de!important;border-radius:12px!important;background:#fff!important;color:#004d71!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry>button:hover{border-color:#004d71!important;background:#f5f9fb!important}
-    #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:12px!important}
+    #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{box-sizing:border-box!important;display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:12px!important;width:100%!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields[hidden]{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-add-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-ai-review{min-height:42px!important;padding:10px 16px!important;border-radius:12px!important;font:600 14px Inter,Segoe UI,Arial,sans-serif!important}
+    #vh26-connected-dashboard.vh26-workspace-active.vh26-hsqe-report-active #vh26-ai-review{display:none!important}
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-entries .vh26-entry,
     #vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor:not([hidden]) #vh26-generic-section-editor:not([hidden]) #vh26-add-entry{display:none!important}
-    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title owner" "support required" "update update" "remove remove"!important}}
+    @media(max-width:850px){#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-columns:repeat(2,minmax(0,1fr))!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:minmax(0,1fr)!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title owner" "support required" "update update" "remove remove"!important}}
     @media(max-width:560px){#vh26-connected-dashboard.vh26-workspace-active #vh26-section-editor,#vh26-connected-dashboard.vh26-workspace-active #vh26-pipeline-workspace,#vh26-connected-dashboard.vh26-workspace-active #vh26-review-workspace{padding:18px!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry,#vh26-connected-dashboard.vh26-workspace-active #vh26-hsqe-fields{grid-template-columns:1fr!important}#vh26-connected-dashboard.vh26-workspace-active #vh26-entries .vh26-entry{grid-template-areas:"title" "owner" "support" "required" "update" "remove"!important}}
   `;
   document.head.append(reportingFormStyle);
@@ -165,39 +167,6 @@
   else observeFinanceHistory();
   new MutationObserver(observeFinanceHistory).observe(document.documentElement, { childList: true, subtree: true });
 
-  // Finance workbook rows are authoritative for their mapped periods. The
-  // optional WKxx dashboard tabs are historical management snapshots whose
-  // formulas use their own cutoffs; comparing them with the current import's
-  // budget/revenue cells creates false mismatches (especially with the
-  // intentional two-week revenue lag). Keep genuine source-row checks, but
-  // don't block staging on those unrelated dashboard comparisons.
-  const extractFinanceWorkbook = window.vhFinanceExtract;
-  if (typeof extractFinanceWorkbook === 'function' && !window.vhFinanceChecksCorrected) {
-    window.vhFinanceChecksCorrected = true;
-    window.vhFinanceExtract = async (...args) => {
-      const result = await extractFinanceWorkbook(...args);
-      const sourceWeek = Number(result.financialSourceWeek);
-      const dashboardMismatch = new RegExp('^WK' + sourceWeek + '!.* does not match (BUDGET|REVENUE)!');
-      result.warnings = (result.warnings || []).filter(message =>
-        !/^Montel is absent from historical WK\d+ department dashboard; verified against finance source rows only$/.test(message) &&
-        !/^Company overview unavailable: Missing WK\d+ worksheet$/.test(message)
-      );
-      result.records = (result.records || []).map(record => ({
-        ...record,
-        issues: (record.issues || []).filter(issue =>
-          !dashboardMismatch.test(issue) &&
-          !/^Weekly sheet shows calculated £0 from blank revenue source/.test(issue) &&
-          !/^Weekly revenue formula source row must be checked:/.test(issue)
-        ),
-        cachedBudget: null,
-        cachedRevenue: null
-      }));
-      result.acceptanceReady = !!result.weekFound && result.records.length === 10 &&
-        result.records.every(record => record.issues.length === 0) && result.warnings.length === 0;
-      return result;
-    };
-  }
-
   const delay = 650;
   let sectionTimer = 0;
   let sectionSaving = false;
@@ -233,8 +202,14 @@
     if (id) return id;
     if (!reportingBridge()?.canManage?.()) throw Error('A manager must create the first draft before contributors can edit it.');
     const created = await reportingBridge().createReport();
-    id = created.items?.[0]?.id;
+    const report = created.items?.[0];
+    id = report?.id;
     if (!id) throw Error('Draft creation failed.');
+    const data = reportingBridge()?.nativeData?.();
+    if (data) {
+      const index = data.reports.findIndex(item => item.id === id);
+      if (index < 0) data.reports.push(report); else data.reports[index] = { ...data.reports[index], ...report };
+    }
     return id;
   }
 
@@ -271,13 +246,17 @@
         );
         content = { ...old, notes: document.getElementById('vh26-section-notes').value, entries };
       }
-      await reportingBridge().saveSection({ report_id: id, section_key: sectionKey, content });
+      const payload = { report_id: id, section_key: sectionKey, content };
+      const saved = await reportingBridge().saveSection(payload);
+      const data = reportingBridge()?.nativeData?.();
+      if (data) {
+        const row = { ...(saved?.items?.[0] || saved?.item || {}), ...payload };
+        const index = data.sections.findIndex(item => item.report_id === id && item.section_key === sectionKey);
+        if (index < 0) data.sections.push(row); else data.sections[index] = { ...data.sections[index], ...row };
+      }
       reportingDirty = reportingEditVersion !== savedEditVersion;
       if (reportingDirty) status('A newer change is still saving…');
-      else {
-        await reportingBridge().loadNative();
-        status('Saved automatically to Supabase');
-      }
+      else status('Saved automatically to Supabase');
     } catch (error) {
       reportingDirty = true;
       status('Automatic save failed: ' + error.message);
@@ -346,6 +325,11 @@
       field.setAttribute('spellcheck', 'true');
       field.setAttribute('lang', 'en-GB');
     });
+  }
+
+  function updateHsqeReviewControl() {
+    const dashboard = document.getElementById('vh26-connected-dashboard');
+    dashboard?.classList.toggle('vh26-hsqe-report-active', reportingBridge()?.selectedDepartment?.()?.code === 'hsqe');
   }
 
   function navigationIntent(target) {
@@ -421,12 +405,18 @@
       const saveNotes = root.querySelector('#vh26-pipeline-save-notes');
       if (saveNotes && !saveNotes.disabled) {
         const id = await reportId();
-        await reportingBridge().saveSection({
+        const payload = {
           report_id: id,
           section_key: 'pipeline',
           content: { notes: notesValue.trim(), entries: [] }
-        });
-        await reportingBridge().loadNative();
+        };
+        const saved = await reportingBridge().saveSection(payload);
+        const data = reportingBridge()?.nativeData?.();
+        if (data) {
+          const row = { ...(saved?.items?.[0] || saved?.item || {}), ...payload };
+          const index = data.sections.findIndex(item => item.report_id === id && item.section_key === 'pipeline');
+          if (index < 0) data.sections.push(row); else data.sections[index] = { ...data.sections[index], ...row };
+        }
         reportingDirty = false;
         reportingBridge().markSaved?.();
         status('Pipeline section saved');
@@ -676,11 +666,11 @@
 
   function presenterVariance(revenue, budget) {
     if (budget === null || budget === undefined || budget === '' || revenue === null || revenue === undefined || revenue === '') return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
-    const variance = Number(revenue) - Number(budget);
+    const variance = Number(budget) - Number(revenue);
     if (!Number.isFinite(variance)) return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
-    const favourable = variance >= 0;
+    const favourable = variance <= 0;
     const amount = presenterMoney(Math.abs(variance));
-    return { text: (favourable ? '↑ ' : '↓ ') + amount, state: favourable ? 'favourable' : 'adverse', label: amount + (favourable ? ' above budget' : ' below budget') };
+    return { text: (variance < 0 ? '−' : '') + amount, state: favourable ? 'favourable' : 'adverse', label: amount + (favourable ? ' favourable gap' : ' gap to close') };
   }
 
   function presenterDepartmentContext(slide, tabs) {
@@ -759,7 +749,8 @@
         const publication = publications.find(p => p.department_id === department.id);
         if (!publication) { data.textContent = 'No published finance figures are available for this department and week. Figures appear after finance review and publication.'; return; }
         const values = (finance.values || []).filter(v => v.publication_id === publication.id);
-        const get = key => { const item = values.find(v => v.metric_key === key); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
+        const reportPeriod = (finance.periods || []).find(p => p.start_date === context.weekLabel.match(/\b\d{4}-\d{2}-\d{2}/)?.[0]);
+        const get = key => { const item = values.find(v => v.metric_key === key && v.source_period_id === reportPeriod?.id); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
         const weeklyBudget = get('weekly_budget'), weeklyRevenue = get('weekly_revenue');
         const ytdBudget = get('ytd_budget'), ytdRevenue = get('ytd_revenue');
         const metrics = [
@@ -783,7 +774,8 @@
         foot.className = 'vh26-presenter-finance-source';
         const sourceId = values.find(v => v.source_period_id)?.source_period_id;
         const source = (finance.periods || []).find(p => p.id === sourceId);
-        if (source) foot.textContent = 'Finance source NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date + ' · two-week lag';
+        if (source && source.id !== reportPeriod?.id) foot.textContent = 'Published figures do not match this reporting week. Figures are withheld.';
+        else if (reportPeriod) foot.textContent = 'Finance period NRW WK' + reportPeriod.rail_week + ' · ' + reportPeriod.start_date + '–' + reportPeriod.end_date;
         panel.replaceChildren(panel.querySelector('.vh26-presenter-revenue-title'), grid, foot);
       } catch (error) {
         if (panel.isConnected && panel.dataset.signature === signature) data.textContent = error?.message ? 'Finance figures could not load: ' + error.message : 'Finance figures are not available for this week.';
@@ -1019,7 +1011,7 @@
           : '10 of 10 finance departments reported';
       }
       for (const caption of [...slide.querySelectorAll('p')]) {
-        if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
+        if ((caption.textContent || '').trim().startsWith('Finance period:')) caption.classList.add('vh26-presenter-finance-source-caption');
       }
     };
     apply();
@@ -1030,6 +1022,68 @@
     }
   }
 
+  function enhanceFinanceCompanyOverview(slide) {
+    const overview = slide.querySelector('.vh26-presenter-company-overview');
+    const table = [...slide.querySelectorAll('.vh26-presenter-finance-table')].find(candidate => {
+      const headers = [...candidate.querySelectorAll('tr:first-child th')].map(cell => cell.textContent.trim());
+      return headers.includes('Weekly budget') && headers.includes('YTD revenue') && headers.includes('YTD gap to close');
+    });
+    if (!overview || !table) return;
+    const number = value => {
+      if (!value || /not reported/i.test(value)) return null;
+      const parsed = Number(String(value).replace(/[^0-9.-]/g, ''));
+      return Number.isFinite(parsed) ? parsed : null;
+    };
+    const metric = label => {
+      const card = [...overview.querySelectorAll('article')].find(item => item.querySelector('span')?.textContent.trim() === label);
+      return { card, value: number(card?.querySelector('strong')?.textContent || '') };
+    };
+    const ytdBudget = metric('YTD budget'), ytdRevenue = metric('YTD revenue');
+    let percentCard = [...overview.querySelectorAll('article')].find(item => item.querySelector('span')?.textContent.trim() === 'YTD variance %');
+    if (!percentCard) {
+      percentCard = document.createElement('article');
+      percentCard.append(presenterTextElement('span', 'YTD variance %'), presenterTextElement('strong', 'Not reported'));
+      overview.append(percentCard);
+    }
+    const percentValue = ytdBudget.value !== null && ytdRevenue.value !== null && ytdBudget.value !== 0
+      ? (ytdRevenue.value - ytdBudget.value) / Math.abs(ytdBudget.value) * 100 : null;
+    const percentText = percentValue === null ? 'Not reported' : Math.abs(percentValue).toLocaleString('en-GB', { maximumFractionDigits: 0 }) + '%';
+    const percentOutput = percentCard.querySelector('strong');
+    if (percentOutput && percentOutput.textContent !== percentText) percentOutput.textContent = percentText;
+    if (percentOutput) percentOutput.className = percentValue === null ? 'vh26-finance-variance-unavailable' : 'vh26-finance-variance-' + (percentValue >= 0 ? 'favourable' : 'adverse');
+    const ytdCoverage = ytdBudget.card?.querySelector('small');
+    if (ytdCoverage && !percentCard.querySelector('small')) percentCard.append(ytdCoverage.cloneNode(true));
+    const rows = [...table.querySelectorAll('tr')];
+    const bodyRows = rows.slice(1).filter(row => !row.dataset.vh26LegacyHs2);
+    const splitHs2 = bodyRows.filter(row => /hs2\s*(fencing|bird)/i.test(row.querySelector('th')?.textContent || ''));
+    const splitHs2Unreported = splitHs2.length >= 2 && splitHs2.every(row => [...row.querySelectorAll('td')].slice(0, 6).every(cell => /not reported/i.test(cell.textContent || '')));
+    let legacyRow = table.querySelector('tr[data-vh26-legacy-hs2="true"]');
+    if (!splitHs2Unreported) { legacyRow?.remove(); return; }
+    const aggregate = [null, metric('Weekly budget').value, metric('Weekly revenue').value, null, ytdBudget.value, ytdRevenue.value];
+    const columns = [1, 2, 4, 5];
+    for (const index of columns) {
+      const available = bodyRows.map(row => number(row.querySelectorAll('td')[index - 1]?.textContent || '')).filter(value => value !== null);
+      aggregate[index] = aggregate[index] === null ? null : aggregate[index] - available.reduce((sum, value) => sum + value, 0);
+      if (aggregate[index] !== null && Math.abs(aggregate[index]) < 0.005) aggregate[index] = 0;
+    }
+    if (!columns.some(index => aggregate[index] !== null && aggregate[index] !== 0)) { legacyRow?.remove(); return; }
+    if (!legacyRow) { legacyRow = document.createElement('tr'); legacyRow.dataset.vh26LegacyHs2 = 'true'; table.append(legacyRow); }
+    const cell = index => presenterTextElement('td', aggregate[index] === null ? 'Not reported' : presenterMoney(aggregate[index]));
+    const variance = (revenueIndex, budgetIndex) => {
+      const revenue = aggregate[revenueIndex], budget = aggregate[budgetIndex];
+      if (revenue === null || budget === null) { const output = presenterTextElement('td', 'Not reported'); output.className = 'vh26-finance-variance-unavailable'; return output; }
+      const delta = revenue - budget, favourable = delta >= 0, output = presenterTextElement('td', (favourable ? '↑ ' : '↓ ') + presenterMoney(Math.abs(delta)));
+      output.className = 'vh26-finance-variance-' + (favourable ? 'favourable' : 'adverse');
+      output.setAttribute('aria-label', presenterMoney(Math.abs(delta)) + (favourable ? ' above budget' : ' below budget'));
+      return output;
+    };
+    const children = [presenterTextElement('th', 'Historical HS2 (legacy)'), cell(1), cell(2), variance(2, 1), cell(4), cell(5), variance(5, 4)];
+    const unchanged = legacyRow.childElementCount === children.length && children.every((child, index) => {
+      const current = legacyRow.children[index];
+      return current.tagName === child.tagName && current.textContent === child.textContent && current.className === child.className && current.getAttribute('aria-label') === child.getAttribute('aria-label');
+    });
+    if (!unchanged) legacyRow.replaceChildren(...children);
+  }
   function enhancePresenterSlide() {
     const mode = document.getElementById('vh26-presenter-mode');
     const slide = document.getElementById('vh26-presenter-slide');
@@ -1050,6 +1104,7 @@
 
     const slideTitle = (title?.textContent || heading?.querySelector('h1')?.textContent || '').trim();
     const viewKind = slideTitle === 'Meeting readiness' ? 'all' : activeTab === 'Safety Moment' ? 'safety' : activeTab === 'Finance & Commercial' ? 'finance' : 'department';
+    slide.classList.toggle('vh26-presenter-finance-active', viewKind === 'finance');
     const viewKey = JSON.stringify([viewKind, activeTab, slideTitle]);
     if (slide.dataset.vh26ScrollKey !== viewKey) {
       slide.dataset.vh26ScrollKey = viewKey;
@@ -1137,6 +1192,7 @@
         slide.append(panel);
       }
       for (const child of [...slide.children]) if (child !== heading && child !== panel && child.parentElement !== panel) panel.append(child);
+      enhanceFinanceCompanyOverview(slide);
     } else if (viewKind === 'safety') {
       const content = slide.querySelector(':scope > .vh26-presenter-safety-content');
       let panel = slide.querySelector(':scope > .vh26-presenter-safety-panel');
@@ -1226,6 +1282,13 @@
         @media(max-width:850px){#vh26-presenter-mode .vh26-presenter-overview-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
         @media(max-width:700px){#vh26-presenter-mode .vh26-presenter-create-action{grid-template-columns:1fr 1fr!important}#vh26-presenter-mode .vh26-presenter-action-table{min-width:640px!important}#vh26-presenter-mode .vh26-presenter-actions-card{overflow-x:auto!important}}
         @media(max-width:560px){#vh26-presenter-mode #vh26-presenter-slide{width:calc(100% - 28px)!important;padding:10px 0 calc(105px + env(safe-area-inset-bottom))!important}#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-card,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-heading,#vh26-presenter-mode #vh26-presenter-slide>.vh26-presenter-safety-content,#vh26-presenter-mode .vh26-presenter-safety-panel{padding:17px!important}#vh26-presenter-mode .vh26-presenter-tabs{justify-content:flex-start!important;flex-wrap:nowrap!important;overflow-x:auto!important}#vh26-presenter-mode .vh26-presenter-tabs button{flex:0 0 auto!important}#vh26-presenter-mode .vh26-presenter-revenue-grid{grid-template-columns:1fr!important}}
+        #vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide.vh26-presenter-finance-active{box-sizing:border-box!important;width:calc(100% - 44px)!important;max-width:1240px!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview{box-sizing:border-box!important;width:100%!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview>h2{grid-column:1/-1!important}
+        #vh26-presenter-mode .vh26-presenter-company-overview>article{box-sizing:border-box!important;min-width:0!important}
+        #vh26-presenter-mode .vh26-presenter-finance-scroll{box-sizing:border-box!important;width:100%!important;overflow-x:auto!important;overscroll-behavior-inline:contain!important}
+        @media(max-width:800px){#vh26-presenter-mode .vh26-presenter-company-overview{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+        @media(max-width:560px){#vh26-connected-dashboard #vh26-presenter-mode #vh26-presenter-slide.vh26-presenter-finance-active{width:calc(100% - 28px)!important}#vh26-presenter-mode .vh26-presenter-company-overview{grid-template-columns:1fr!important}}
       `;
       document.head.append(style);
     }
@@ -1359,12 +1422,14 @@
     const observer = new MutationObserver(() => {
       hideOpportunitySaveButtons(root);
       applyReportingSpellcheck(root);
+      updateHsqeReviewControl();
       simplifyNarrativeEntries(root);
       suppressInternalStatusMessages(root);
     });
     observer.observe(root, { childList: true, subtree: true });
     hideOpportunitySaveButtons(root);
     applyReportingSpellcheck(root);
+    updateHsqeReviewControl();
     simplifyNarrativeEntries(root);
     suppressInternalStatusMessages(root);
   }
