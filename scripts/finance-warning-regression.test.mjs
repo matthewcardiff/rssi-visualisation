@@ -193,6 +193,11 @@ test('finance Presenter shows YTD variance percent and keeps legacy finance peri
   assert.match(autosave, /vh26-presenter-finance-active/);
   assert.match(autosave, /max-width:1240px/);
 });
+test('legacy HS2 reconciliation reads the full finance table, not the variance table', () => {
+  assert.match(autosave, /const table = \\[\\.\\.\\.slide\\.querySelectorAll\\(\\'\\.vh26-presenter-finance-table\\'\\)\\]\\.find\\(candidate => \\{\\s*const headers = \\[\\.\\.\\.candidate\\.querySelectorAll\\(\\'tr:first-child th\\'\\)\\]\\.map\\(cell => cell\\.textContent\\.trim\\(\\)\\);\\s*return headers\\.includes\\(\\'Weekly budget\\'\\) && headers\\.includes\\(\\'YTD revenue\\'\\) && headers\\.includes\\(\\'YTD gap to close\\'\\);/);
+  assert.match(autosave, /const aggregate = \\[null, metric\\(\\'Weekly budget\\'\\)\\.value, metric\\(\\'Weekly revenue\\'\\)\\.value/);
+  assert.match(autosave, /if \\(!columns\\.some\\(index => aggregate\\[index\\] !== null && aggregate\\[index\\] !== 0\\)\\) \\{ legacyRow\\?\\.remove\\(\\); return; \\}/);
+});
 test('concurrent Presenter redraws share one finance request and failed requests can retry', async () => {
   const helperStart = financeUi.indexOf('function presenterLoadPublishedFinance(weekId)');
   const helperEnd = financeUi.indexOf('function presenterSetView(', helperStart);
