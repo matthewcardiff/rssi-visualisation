@@ -95,17 +95,16 @@ test('selected WK sheets discover mapped department blocks dynamically', () => {
 test('selected WK cached J5 variance is validated and shown consistently', () => {
   assert.match(financeUi, /ytdVariancePercent:'J5'/);
   assert.match(financeUi, /cached YTD variance percentage is missing or invalid/);
-  assert.match(financeUi, /variancePercent:matrixValues\\.ytdVariancePercent/);
-  assert.match(financeUi, /Math\\.abs\\(financeWorkbook\\.companyOverview\\.variancePercent\\)\\*100/);
-  assert.match(financeUi, /Math\\.abs\\(\\(ytdBudgetTotal-ytdRevenueTotal\\)\\/ytdBudgetTotal\\)\\*100/);
-  assert.match(financeUi, /Math\\.abs\\(\\(ytdBudget-ytdRevenue\\)\\/ytdBudget\\)\\*100/);
+  assert.match(financeUi, /variancePercent:matrixValues\.ytdVariancePercent/);
+  assert.match(financeUi, /Math\.abs\(financeWorkbook\.companyOverview\.variancePercent\)\*100/);
+  assert.match(financeUi, /Math\.abs\(\(ytdBudgetTotal-ytdRevenueTotal\)\/ytdBudgetTotal\)\*100/);
+  assert.match(financeUi, /Math\.abs\(\(ytdBudget-ytdRevenue\)\/ytdBudget\)\*100/);
 });
 
 test('finance amount columns retain source precision through publication', () => {
-  assert.match(precisionMigration, /finance_metric_values[\\s\\S]*numeric\\(24,8\\)/);
-  assert.match(precisionMigration, /finance_publication_values[\\s\\S]*numeric\\(24,8\\)/);
+  assert.match(precisionMigration, /finance_metric_values[\s\S]*numeric\(24,8\)/);
+  assert.match(precisionMigration, /finance_publication_values[\s\S]*numeric\(24,8\)/);
 });
-
 test('weekly finance header scan includes the first source-week column', () => {
   const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
   const headerSource = extractor.slice(extractor.indexOf('function weekHeaders(map,expectedRow,tab)'), extractor.indexOf('const budgetCalendar=weekHeaders'));
