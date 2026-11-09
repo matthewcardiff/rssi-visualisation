@@ -20,7 +20,13 @@ export default async (request)=>{
       if(!r.ok)return json(401,{error:'Session expired'});const b=await r.json();return json(200,{access_token:b.access_token,refresh_token:b.refresh_token,expires_in:b.expires_in});
     }
     if(data.op==='update_password'){
-      if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
+      if(typeof data.access_token!=='string'||data.access_token.length<30||data.access_token.length>5000)return json(401,{error:'Password recovery link is invalid or expired'});
+      if(typeof data.password!=='string'||data.password.length<12||data.password.length>128)return json(400,{error:'Choose a password between 12 and 128 characters'});
+      const r=await fetch(url+'/auth/v1/user',{method:'PUT',headers:{...common,authorization:'Bearer '+data.access_token},body:JSON.stringify({password:data.password}),signal:AbortSignal.timeout(12000)});
+      if(!r.ok)return json(r.status===429?429:401,{error:'Password recovery link is invalid, expired, or already used. Request a new link.'});
+      return json(200,{updated:true});
+    }
+    if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
     const headers={...common,authorization:'Bearer '+data.access_token};
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
