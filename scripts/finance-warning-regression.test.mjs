@@ -53,7 +53,9 @@ test('finance extraction uses the selected reporting week for budget, revenue an
   assert.match(extractor, /revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
-  assert.match(extractor, /YTD values use the selected reporting week/);
+  assert.match(extractor, /if\(dashboard&&financePeriod&&sheetWeek===directWeek\)/);
+  assert.match(extractor, /sourcePolicy:'Values come only from the selected WK sheet/);
+  assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /matrix total/);
   assert.match(extractor, /weeklyBudget:'G2',weeklyRevenue:'G3',ytdBudget:'J2',ytdRevenue:'J3'/);
   assert.match(extractor, /Math\.abs\(Number\(expected\)-Number\(actual\)\)>0\.01/);
@@ -164,7 +166,7 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter,/Finance period: NRW WK/);
   assert.match(presenter,/managementPeriodIndex>=0\?financePeriods\[managementPeriodIndex\]:null/);
   assert.match(presenter, /const companyAggregate=key=>/);
-  assert.match(presenter, /Partial total · \$\{result\.reported\} of \$\{result\.total\} departments reported/);
+  assert.match(presenter, /Partial total · \$\{result\.reported\} of \$\{result\.total\} finance lines reported/);
   assert.match(presenter, /const companyVariance=\(revenueKey,budgetKey\)=>/);
   assert.match(autosave, /window\.vhInvalidatePresenterFinanceCache = \(\) => presenterApiCache\.finance\.clear\(\)/);
   assert.match(financeUi, /window\.vhInvalidatePresenterFinanceCache\?\.\(\)/);

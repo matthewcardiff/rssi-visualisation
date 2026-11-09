@@ -281,7 +281,7 @@ export default async (request)=>{
       if(!Array.isArray(data.rows)||data.rows.length>300||!data.rows.length)return json(400,{error:'Provide 1-300 finance rows'});
       const get=async(path)=>{const r=await fetch(url+'/rest/v1/'+path,{headers,signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Reference data access denied');return r.json()};
       const [departments,periods,weeks]=await Promise.all([
-        get('departments?select=id,code,display_name&limit=100'),
+        get('departments?select=id,code,display_name,active&limit=100'),
         get('rail_calendar_periods?select=id,rail_week,start_date,end_date&order=start_date.asc&limit=200'),
         get('reporting_weeks?select=id,rail_period_id&limit=200')
       ]);
@@ -293,7 +293,8 @@ export default async (request)=>{
         const week=weeks.find(w=>w.id===r.reporting_week_id);
         const index=periods.findIndex(p=>p.id===week?.rail_period_id);
         const source=index>=0?periods[index]:null;
-        const dept=departments.find(d=>d.id===r.department_id);
+        const legacyHs2Source=r.department_code==='hs2'&&source?.rail_week===29&&source?.start_date==='2026-10-17';
+        const dept=departments.find(d=>d.id===r.department_id)||(legacyHs2Source?departments.find(d=>d.code==='hs2'&&d.active===false):null);
         const metric=String(r.metric_key||'').trim();
         const state=String(r.input_state||'').trim();
         const raw=String(r.amount??'').trim();
@@ -309,11 +310,11 @@ export default async (request)=>{
         if(state==='zero'&&amount!==0)issues.push('Zero must have amount 0');
         if(state==='value'&&(raw===''||!Number.isFinite(amount)))issues.push('Value requires a finite numeric amount');
         if(raw!==''&&!Number.isFinite(amount))issues.push('Invalid amount');
-        const dedupe=[r.reporting_week_id,r.department_id,metric].join('|');
+        const dedupe=[r.reporting_week_id,dept?.id||r.department_code,metric].join('|');
         if(seen.has(dedupe))issues.push('Duplicate department, management week and metric');
         seen.add(dedupe);
         if(issues.length)errors.push({line,reason:issues.join('; ')});
-        else normalized.push({reporting_week_id:week.id,department_id:dept.id,metric_key:metric,amount:state==='missing'?null:amount,input_state:state,source_period_id:source.id,source_rail_week:source.rail_week});
+        else normalized.push({reporting_week_id:week.id,department_id:dept.id,department_name:dept.display_name||dept.code,metric_key:metric,amount:state==='missing'?null:amount,input_state:state,source_period_id:source.id,source_rail_week:source.rail_week});
       }
       const groups=new Map();
       for(const r of normalized){const k=r.reporting_week_id+'|'+r.department_id;groups.set(k,(groups.get(k)||0)+1)}

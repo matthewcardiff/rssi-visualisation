@@ -15,7 +15,8 @@ async function request(op,extra,responses){
   const previous=globalThis.fetch, calls=[];
   globalThis.fetch=async(url,options)=>{
     calls.push({url,options});
-    const next=responses.shift();
+    const routeIndex=responses.findIndex(response=>response.match&&url.includes(response.match));
+    const next=routeIndex>=0?responses.splice(routeIndex,1)[0]:responses.shift();
     assert.ok(next,'Unexpected upstream request: '+url);
     return new Response(JSON.stringify(next.body),{status:next.status??200,headers:{'content-type':'application/json'}});
   };
@@ -129,9 +130,9 @@ test('finance Apply requires acknowledgement and sends workbook findings to the 
   const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:period,department_id:department,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source}));
   const references=[
     {body:{id}}, {body:[{role:'finance'}]},
-    {body:[{id:department,code:'tws',display_name:'Track Warning Systems'}]},
-    {body:[{id:period,rail_week:32,start_date:'2026-11-07',end_date:'2026-11-13'}]},
-    {body:[{id:period,rail_period_id:period}]}
+    {match:'/departments?select=id,code,display_name,active',body:[{id:department,code:'tws',display_name:'Track Warning Systems',active:true}]},
+    {match:'/rail_calendar_periods?select=id,rail_week,start_date,end_date',body:[{id:period,rail_week:32,start_date:'2026-11-07',end_date:'2026-11-13'}]},
+    {match:'/reporting_weeks?select=id,rail_period_id',body:[{id:period,rail_period_id:period}]}
   ];
   try{
     const unacknowledged=await request('finance_import',{rows,file_name:'week32.xlsx',findings:['HS2: YTD revenue incomplete/unverified']},references.slice());
