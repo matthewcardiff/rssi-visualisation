@@ -228,7 +228,7 @@ export default async (request)=>{
         get('departments?select=id,display_name&limit=100'),
         ids.length?get('finance_reconciliation_events?select=finance_import_id,accepted_findings&finance_import_id=in.('+ids.join(',')+')&limit=100'):Promise.resolve([])
       ]);
-      const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=0?periods[i].id:null]}));
+      const expectedSource=new Map(weeks.map(w=>{const period=periods.find(p=>p.id===w.rail_period_id);return [w.id,period?.id||null]}));
       const groups=imports.map(imp=>{
         const rows=metrics.filter(r=>r.finance_import_id===imp.id);
         const byDepartment=new Map();
@@ -239,7 +239,7 @@ export default async (request)=>{
         const expectedMapping=imp.reconciliation_status==='pending'?'pending':'reconciled';
         if(rows.some(r=>r.mapping_status!==expectedMapping))problems.push('Metric reconciliation state does not match the import');
         if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
-        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance period differs from selected reporting week');
+        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source period differs from the selected management week');
         if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
@@ -303,7 +303,7 @@ export default async (request)=>{
         if(!dept)issues.push('Unknown department');
         if(!metrics.includes(metric))issues.push('Unknown metric');
         if(!source)issues.push('Selected finance period unavailable');
-        if(!source||r.source_period_id!==source.id)issues.push('Finance period does not match selected reporting week');
+        if(!source||r.source_period_id!==source.id)issues.push('Finance source period does not match the selected management week');
         if(!['missing','zero','value'].includes(state))issues.push('Invalid input state');
         if(state==='missing'&&raw!=='')issues.push('Missing must have blank amount');
         if(state==='zero'&&amount!==0)issues.push('Zero must have amount 0');
@@ -324,6 +324,8 @@ export default async (request)=>{
       if(typeof data.file_name!=='string'||!/^[- a-zA-Z0-9_.()]{1,120}\.(?:csv|xlsx)$/i.test(data.file_name))return json(400,{error:'Valid Excel workbook or CSV file name required'});
       const findings=Array.isArray(data.findings)?data.findings:[];
       if(findings.length>100||findings.some(x=>typeof x!=='string'||!x.trim()||x.length>1000))return json(400,{error:'Workbook checks are invalid; review the workbook again',committed:false});
+      const matrixBlock=findings.find(x=>/matrix total|summary worksheet is missing/i.test(x));
+      if(matrixBlock)return json(422,{error:'Company matrix reconciliation failed. Correct the workbook before applying figures.',detail:matrixBlock,committed:false});
       if(findings.length&&data.findings_acknowledged!==true)return json(422,{error:'Review and acknowledge the workbook checks before applying figures',committed:false});
       const weeksInImport=[...new Set(normalized.map(r=>r.reporting_week_id))];
       if(weeksInImport.length!==1)return json(422,{error:'Import one management reporting week at a time'});

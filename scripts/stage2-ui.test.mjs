@@ -110,7 +110,7 @@ test('finance review panel is visible in the staging finance view and explains r
   assert.match(html, /data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
 });
 
-test('finance upload reads separate budget and lagged revenue calendars and submits validated fields', () => {
+test('finance upload reads the selected week for budget and revenue and submits validated fields', () => {
   assert.match(html, /async function vhFinanceExtract\(file,selectedWeek\)/);
   assert.match(html, /weekHeaders\(budget,5,'BUDGET'\)/);
   assert.match(html, /weekHeaders\(revenue,19,'REVENUE'\)/);

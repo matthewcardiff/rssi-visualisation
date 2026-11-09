@@ -36,86 +36,32 @@ function installFinanceCheckCorrection(result) {
   return window;
 }
 
-test('finance import ignores historical dashboard mismatches but retains real missing-source findings', async () => {
-  const records = Array.from({ length: 10 }, (_, index) => ({
-    name: 'Department ' + index,
-    bv: 100 + index,
-    rv: null,
-    revenueInputState: 'blank',
-    ytdBudget: 1000 + index,
-    ytdRevenue: 900 + index,
-    cachedBudget: 1,
-    cachedRevenue: 2,
-    issues: []
-  }));
-  records[0].issues = [
-    'WK30!AL11 budget does not match BUDGET!E6',
-    'WK30!AL12 revenue does not match REVENUE!E6',
-    'Weekly sheet shows calculated £0 from blank revenue source — NOT a confirmed zero',
-    'Weekly revenue formula source row must be checked: AL12',
-    'YTD revenue incomplete/unverified'
-  ];
-  records[7].issues = ['YTD revenue incomplete/unverified'];
-  const window = installFinanceCheckCorrection({
-    financialSourceWeek: 30,
-    weekFound: true,
-    acceptanceReady: false,
-    warnings: [
-      'Montel is absent from historical WK30 department dashboard; verified against finance source rows only',
-      'Company overview unavailable: Missing WK32 worksheet',
-      'Duplicate reporting week 30 appears 2 times in workbook headers.'
-    ],
-    records
-  });
-
-  const result = await window.vhFinanceExtract({}, 'week32');
-  assert.deepEqual(Array.from(result.warnings), ['Duplicate reporting week 30 appears 2 times in workbook headers.']);
-  assert.deepEqual(Array.from(result.records[0].issues), ['YTD revenue incomplete/unverified']);
-  assert.deepEqual(Array.from(result.records[7].issues), ['YTD revenue incomplete/unverified']);
-  assert.equal(result.records[0].bv, 100);
-  assert.equal(result.records[0].revenueInputState, 'blank');
-  assert.equal(result.records[0].cachedBudget, null);
-  assert.equal(result.acceptanceReady, false);
-});
-
-test('finance import is ready when all 10 finance departments have no remaining findings', async () => {
-  const result = {
-    financialSourceWeek: 30,
-    weekFound: true,
-    acceptanceReady: false,
-    warnings: [],
-    records: Array.from({ length: 10 }, (_, index) => ({
-      name: 'Department ' + index,
-      bv: 100 + index,
-      rv: null,
-      revenueInputState: 'blank',
-      ytdBudget: 1000 + index,
-      ytdRevenue: 900 + index,
-      issues: []
-    }))
-  };
-  const window = installFinanceCheckCorrection(result);
-  const reviewed = await window.vhFinanceExtract({}, 'week32');
-  assert.equal(reviewed.acceptanceReady, true);
-  assert.equal(reviewed.records[0].rv, null);
-  assert.equal(reviewed.records[0].revenueInputState, 'blank');
+test('finance matrix mismatches remain blocking and cannot be filtered from validation', () => {
+  assert.match(financeUi, /matrix total/);
+  assert.match(financeUi, /blockingWarnings:warnings\.filter/);
+  assert.match(financeUi, /Company matrix mismatch blocks Apply figures/);
+  assert.match(financeUi, /blockingWarnings\|\|\[\]\)\.length/);
+  assert.match(readFileSync(new URL('../netlify/functions/acceptance.mjs', import.meta.url), 'utf8'), /Company matrix reconciliation failed/);
+  assert.doesNotMatch(autosave, /Finance workbook rows are authoritative for their mapped periods/);
 });
 
 test('finance extraction uses the selected reporting week for budget, revenue and YTD', () => {
   const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
-  assert.match(extractor, /Weekly and year-to-date figures use the selected reporting week/);
+  const period = financeUi.slice(financeUi.indexOf('function vhFinancialSourcePeriod'), financeUi.indexOf('window.vhFinancialSourcePeriod'));
+  assert.match(period, /sourcePeriodId:management\.id/);
   assert.match(extractor, /budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
-  assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\).*revenueIndex/s);
+  assert.match(extractor, /YTD values use the selected reporting week/);
+  assert.match(extractor, /matrix total/);
+  assert.match(extractor, /weeklyBudget:'G2',weeklyRevenue:'G3',ytdBudget:'J2',ytdRevenue:'J3'/);
+  assert.match(extractor, /Math\.abs\(Number\(expected\)-Number\(actual\)\)>0\.01/);
+  assert.match(extractor, /blockingWarnings:warnings\.filter/);
   assert.match(extractor, /for\(let col=1;col<=52;col\+\+\).*index:col-1/);
   assert.match(extractor, /vhFinCol\(1\)\+row\+':'\+vhFinCol\(52\)\+row/);
   assert.doesNotMatch(extractor, /blank inputs sum to £0/);
-  assert.match(extractor, /const matrixMismatches=\[\]/);
-  assert.match(extractor, /dashboardTotals\[key\]/);
-  assert.match(financeFlow, /if\(v\.blockers\?\.length\)/);
-  assert.doesNotMatch(financeUi, /two-week|two-rail-week lag/i);
+  assert.doesNotMatch(financeUi, /two.?week|two rail weeks|minus two/i);
 });
 
 test('weekly finance header scan includes the first source-week column', () => {
@@ -163,18 +109,18 @@ test('finance import action is described as applying validated figures', () => {
 test('finance review and presenters expose all six budget, revenue and gap values', () => {
   assert.match(financeUi, /Weekly gap to close/);
   assert.match(financeUi, /YTD gap to close/);
-  assert.match(financeUi, /Green ↑ means revenue is above budget; red ↓ means it is below/);
-  assert.match(financeUi, /revenue minus budget/);
+  assert.match(financeUi, /Gap to close = budget minus revenue/);
+  assert.match(financeUi, /Department YTD variance = revenue minus budget/);
   assert.match(financeUi, /presenterRenderFinance/);
   assert.match(financeUi, /Applied figures appear here after finance review and publication/);
   assert.match(financeUi, /vh26-finance-review-table/);
   assert.match(financeFlow, /const sourceWeek=managementPeriod\?\.start_date\?\{id:managementPeriod\.start_date\}:null/);
   assert.match(financeFlow, /Company finance overview/);
-  assert.match(financeFlow, /NRW WK/);
+  assert.match(financeFlow, /Finance period NRW WK/);
   assert.match(financeFlow, /selectedOptions\?\.\[0\]\?\.textContent\?\.trim\(\)/);
   assert.match(financeFlow, /Weekly gap to close/);
   assert.match(financeFlow, /YTD gap to close/);
-  assert.match(financeUi, /Company finance overview · Management week/);
+  assert.match(financeUi, /Company finance overview · Reporting week/);
   assert.match(financeUi, /\['Weekly gap to close',gap\('weekly_budget','weekly_revenue'\)\]/);
   assert.match(financeUi, /\['YTD gap to close',gap\('ytd_budget','ytd_revenue'\)\]/);
   assert.match(financeUi, /YTD gap to close \(budget less revenue\)/);
@@ -182,7 +128,7 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(autosave, /\['Weekly gap to close', presenterVariance\(weeklyRevenue, weeklyBudget\)\]/);
   assert.match(autosave, /\['YTD gap to close', presenterVariance\(ytdRevenue, ytdBudget\)\]/);
   assert.match(autosave, /function presenterVariance\(revenue, budget\)/);
-  assert.match(autosave, /variance = Number\(revenue\) - Number\(budget\)/);
+  assert.match(autosave, /variance = Number\(budget\) - Number\(revenue\)/);
   assert.match(autosave, /presenterFinanceCard\(slide, context\)/);
   assert.match(autosave, /DEPARTMENT FINANCIAL OVERVIEW/);
   assert.match(autosave, /No published finance figures are available for this department and week/);
@@ -227,7 +173,16 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(autosave, /if \(op === 'finance_published'\) presenterApiCache\.finance\.clear\(\)/);
 });
 
-test('finance Presenter shows YTD variance percent and the historical HS2 value behind the company total', () => {
+test('Presenter finance refreshes on host week changes and withholds other-period values', () => {
+  assert.match(financeUi, /selectedHostWeekId=event\.target\.value;renderHostReadiness\(\);if\(!document\.getElementById\('vh26-presenter-mode'\)\?\.hidden\)renderPresenterSlide\(\)/);
+  const presenter = financeUi.slice(financeUi.indexOf('async function presenterRenderFinance'), financeUi.indexOf('const renderConnectedPresenterDepartment'));
+  assert.match(presenter, /v\.source_period_id===financeSourcePeriod\?\.id/);
+  assert.match(presenter, /Published figures for another finance period are withheld/);
+  assert.match(autosave, /v\.source_period_id === reportPeriod\?\.id/);
+  assert.match(autosave, /Published figures do not match this reporting week\. Figures are withheld\./);
+});
+
+test('finance Presenter shows YTD variance percent and keeps legacy finance period data guarded', () => {
   assert.match(autosave, /function enhanceFinanceCompanyOverview\(slide\)/);
   assert.match(autosave, /const percentValue = ytdBudget\.value !== null && ytdRevenue\.value !== null/);
   assert.match(autosave, /Historical HS2 \(legacy\)/);
@@ -268,9 +223,6 @@ test('a late finance response cannot overwrite a department Presenter slide', ()
   assert.ok(start >= 0 && end > start);
   const presenter = financeUi.slice(start, end);
   assert.match(presenter, /presenterPublishedFinance=await presenterLoadPublishedFinance\(week\?\.id\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
-});
-test('changing the host reporting week refreshes the open Presenter slide',()=>{
-  assert.match(financeUi,/selectedHostWeekId=event\.target\.value;renderHostReadiness\(\);if\(!document\.getElementById\('vh26-presenter-mode'\)\?\.hidden\)renderPresenterSlide\(\)/);
 });
 test('reloading Presenter readiness preserves the host selected reporting week',()=>{
   assert.match(financeUi,/retainedWeekId=selectedHostWeekId/);

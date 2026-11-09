@@ -167,39 +167,6 @@
   else observeFinanceHistory();
   new MutationObserver(observeFinanceHistory).observe(document.documentElement, { childList: true, subtree: true });
 
-  // Finance workbook rows are authoritative for their mapped periods. The
-  // optional WKxx dashboard tabs are historical management snapshots whose
-  // formulas use their own cutoffs; comparing them with the current import's
-  // budget/revenue cells creates false mismatches (especially with the
-  // historical finance source row checks). Keep genuine source-row checks, but
-  // don't block staging on those unrelated dashboard comparisons.
-  const extractFinanceWorkbook = window.vhFinanceExtract;
-  if (typeof extractFinanceWorkbook === 'function' && !window.vhFinanceChecksCorrected) {
-    window.vhFinanceChecksCorrected = true;
-    window.vhFinanceExtract = async (...args) => {
-      const result = await extractFinanceWorkbook(...args);
-      const sourceWeek = Number(result.financialSourceWeek);
-      const dashboardMismatch = new RegExp('^WK' + sourceWeek + '!.* does not match (BUDGET|REVENUE)!');
-      result.warnings = (result.warnings || []).filter(message =>
-        !/^Montel is absent from historical WK\d+ department dashboard; verified against finance source rows only$/.test(message) &&
-        !/^Company overview unavailable: Missing WK\d+ worksheet$/.test(message)
-      );
-      result.records = (result.records || []).map(record => ({
-        ...record,
-        issues: (record.issues || []).filter(issue =>
-          !dashboardMismatch.test(issue) &&
-          !/^Weekly sheet shows calculated £0 from blank revenue source/.test(issue) &&
-          !/^Weekly revenue formula source row must be checked:/.test(issue)
-        ),
-        cachedBudget: null,
-        cachedRevenue: null
-      }));
-      result.acceptanceReady = !!result.weekFound && result.records.length === 10 &&
-        result.records.every(record => record.issues.length === 0) && result.warnings.length === 0;
-      return result;
-    };
-  }
-
   const delay = 650;
   let sectionTimer = 0;
   let sectionSaving = false;
@@ -699,11 +666,11 @@
 
   function presenterVariance(revenue, budget) {
     if (budget === null || budget === undefined || budget === '' || revenue === null || revenue === undefined || revenue === '') return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
-    const variance = Number(revenue) - Number(budget);
+    const variance = Number(budget) - Number(revenue);
     if (!Number.isFinite(variance)) return { text: 'Not reported', state: 'unavailable', label: 'Gap not reported' };
-    const favourable = variance >= 0;
+    const favourable = variance <= 0;
     const amount = presenterMoney(Math.abs(variance));
-    return { text: (favourable ? '↑ ' : '↓ ') + amount, state: favourable ? 'favourable' : 'adverse', label: amount + (favourable ? ' above budget' : ' below budget') };
+    return { text: (variance < 0 ? '−' : '') + amount, state: favourable ? 'favourable' : 'adverse', label: amount + (favourable ? ' favourable gap' : ' gap to close') };
   }
 
   function presenterDepartmentContext(slide, tabs) {
@@ -782,7 +749,8 @@
         const publication = publications.find(p => p.department_id === department.id);
         if (!publication) { data.textContent = 'No published finance figures are available for this department and week. Figures appear after finance review and publication.'; return; }
         const values = (finance.values || []).filter(v => v.publication_id === publication.id);
-        const get = key => { const item = values.find(v => v.metric_key === key); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
+        const reportPeriod = (finance.periods || []).find(p => p.start_date === context.weekLabel.match(/\b\d{4}-\d{2}-\d{2}/)?.[0]);
+        const get = key => { const item = values.find(v => v.metric_key === key && v.source_period_id === reportPeriod?.id); return item?.input_state === 'missing' ? null : item?.amount ?? null; };
         const weeklyBudget = get('weekly_budget'), weeklyRevenue = get('weekly_revenue');
         const ytdBudget = get('ytd_budget'), ytdRevenue = get('ytd_revenue');
         const metrics = [
@@ -806,7 +774,8 @@
         foot.className = 'vh26-presenter-finance-source';
         const sourceId = values.find(v => v.source_period_id)?.source_period_id;
         const source = (finance.periods || []).find(p => p.id === sourceId);
-        if (source) foot.textContent = 'Finance period NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date;
+        if (source && source.id !== reportPeriod?.id) foot.textContent = 'Published figures do not match this reporting week. Figures are withheld.';
+        else if (reportPeriod) foot.textContent = 'Finance period NRW WK' + reportPeriod.rail_week + ' · ' + reportPeriod.start_date + '–' + reportPeriod.end_date;
         panel.replaceChildren(panel.querySelector('.vh26-presenter-revenue-title'), grid, foot);
       } catch (error) {
         if (panel.isConnected && panel.dataset.signature === signature) data.textContent = error?.message ? 'Finance figures could not load: ' + error.message : 'Finance figures are not available for this week.';
@@ -1042,7 +1011,7 @@
           : '10 of 10 finance departments reported';
       }
       for (const caption of [...slide.querySelectorAll('p')]) {
-        if ((caption.textContent || '').trim().startsWith('Finance source week:')) caption.classList.add('vh26-presenter-finance-source-caption');
+        if ((caption.textContent || '').trim().startsWith('Finance period:')) caption.classList.add('vh26-presenter-finance-source-caption');
       }
     };
     apply();

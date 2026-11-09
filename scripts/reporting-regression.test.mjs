@@ -125,12 +125,12 @@ test('finance import and reconciliation are disabled unless the deploy-scoped st
 });
 test('finance Apply requires acknowledgement and sends workbook findings to the atomic staging RPC',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
-  const period='44444444-4444-4444-8444-444444444444',source='55555555-5555-4555-8555-555555555555',department='66666666-6666-4666-8666-666666666666';
-  const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:period,department_id:department,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:period}));
+  const period='44444444-4444-4444-8444-444444444444',source=period,department='66666666-6666-4666-8666-666666666666';
+  const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:period,department_id:department,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source}));
   const references=[
     {body:{id}}, {body:[{role:'finance'}]},
     {body:[{id:department,code:'tws',display_name:'Track Warning Systems'}]},
-    {body:[{id:source,rail_week:30,start_date:'2026-10-24',end_date:'2026-10-30'},{id:'77777777-7777-4777-8777-777777777777',rail_week:31,start_date:'2026-10-31',end_date:'2026-11-06'},{id:period,rail_week:32,start_date:'2026-11-07',end_date:'2026-11-13'}]},
+    {body:[{id:period,rail_week:32,start_date:'2026-11-07',end_date:'2026-11-13'}]},
     {body:[{id:period,rail_period_id:period}]}
   ];
   try{
@@ -192,9 +192,9 @@ test('finance register exposes only per-import reconciled and publish actions wh
   assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
 });
 test('finance review allows only acknowledged missing-value warnings through to separate reconciliation',async()=>{
-  const period='44444444-4444-4444-8444-444444444444',source='55555555-5555-4555-8555-555555555555',department='66666666-6666-4666-8666-666666666666';
+  const period='44444444-4444-4444-8444-444444444444',source='77777777-7777-4777-8777-777777777777',department='66666666-6666-4666-8666-666666666666';
   const importId='88888888-8888-4888-8888-888888888888';
-  const metricRows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({finance_import_id:importId,department_id:department,reporting_week_id:period,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:'77777777-7777-4777-8777-777777777777',mapping_status:'pending',issues:[]}));
+  const metricRows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({finance_import_id:importId,department_id:department,reporting_week_id:period,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source,mapping_status:'pending',issues:[]}));
   const out=await request('finance_review',{},[
     {body:{id}},{body:[{role:'administrator'}]},
     {body:[{id:importId,file_name:'week32.xlsx',reporting_week_id:period,reconciliation_status:'pending',findings:['HS2: Weekly revenue missing or unverified','HS2: YTD revenue incomplete/unverified'],findings_acknowledged_by:id,findings_acknowledged_at:'2026-11-06T12:00:00Z'}]},
@@ -512,4 +512,17 @@ test('planned reporting weeks lock Pipeline controls and reject save attempts in
   assert.match(pipeline,/const c=context\(\);if\(!c\.editable\)return/);
   assert.match(pipeline,/c\.week\?\.status==='planned'\?'This reporting week is planned/);
   assert.match(html,/document\.getElementById\('vh26-pipeline-add'\)\.addEventListener\('click',\(\)=>\{if\(!context\(\)\.editable\)return;/);
+});
+
+test('Finance & Commercial mirrors the selected-week matrix and signed variance rules',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf('function renderFinance(){'),end=html.indexOf('const oldEnter=window.enter;',start),finance=html.slice(start,end);
+  assert.ok(start>=0&&end>start);
+  assert.match(finance,/Finance figures for the same week/);
+  assert.match(finance,/Weekly gap to close/);
+  assert.match(finance,/YTD variance %/);
+  assert.match(finance,/variance:yb===null\|\|yr===null\?null:yr-yb/);
+  assert.match(finance,/totalValue\('ytdBudget'\)-totalValue\('ytdRevenue'\)/);
+  assert.match(finance,/financeReports=reports\.filter\(\(\{d\}\)=>!\['HSQE','Bids\/RFQs'\]\.includes\(d\)\)/);
+  assert.doesNotMatch(finance,/two-rail-week lag|two-week lag/i);
 });
