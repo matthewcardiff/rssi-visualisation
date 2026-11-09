@@ -541,4 +541,8 @@ test('Finance week changes refresh the selected-week overview and discard stale 
   const financeWeekChange=html.slice(weekStart,weekEnd);
   assert.match(financeWeekChange,/selectedWeek=nextWeek/);
   assert.match(financeWeekChange,/void loadPublishedFinance\(\);void financeReviewRefresh\(\)/);
+  const settledWeekSync=html.slice(weekEnd+4,html.indexOf('financeCheckButton.addEventListener',weekEnd));
+  assert.match(settledWeekSync,/document\.addEventListener\('change',event=>\{/);
+  assert.match(settledWeekSync,/queueMicrotask\(\(\)=>\{/);
+  assert.match(settledWeekSync,/selectedWeek=select\.value;void loadPublishedFinance\(\);void financeReviewRefresh\(\)/);
 });

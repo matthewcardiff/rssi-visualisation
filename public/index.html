@@ -52129,6 +52129,17 @@ document.getElementById('vh26-week').addEventListener('change',()=>{
  const nextWeek=document.getElementById('vh26-week')?.value;if(nextWeek)selectedWeek=nextWeek;
  void loadPublishedFinance();void financeReviewRefresh();
 });
+// The reporting autosave layer can intercept and replay week changes. Re-read
+// the selector after all synchronous confirmation handlers have completed so
+// Finance refreshes for the final selected week on both normal and replayed paths.
+document.addEventListener('change',event=>{
+ if(event.target?.id!=='vh26-week')return;
+ queueMicrotask(()=>{
+  const select=document.getElementById('vh26-week'),dashboard=document.getElementById('vh26-connected-dashboard');
+  if(!select?.value||!dashboard?.classList.contains('vh26-finance-view-active')||selectedWeek===select.value)return;
+  selectedWeek=select.value;void loadPublishedFinance();void financeReviewRefresh();
+ });
+},true);
 financeCheckButton.addEventListener('click',async()=>{
  validatedFinance=null;financeImportButton.disabled=true;financeSetStep(2);financeSetActions('review');
  const status=document.getElementById('vh26-finance-preview-status'),results=document.getElementById('vh26-finance-preview-results');results.replaceChildren();
