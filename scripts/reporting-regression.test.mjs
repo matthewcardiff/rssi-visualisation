@@ -183,14 +183,13 @@ test('finance publication stays server-gated even when staging imports are enabl
   assert.equal(out.status,503);assert.equal(out.body.code,'FINANCE_PUBLICATION_DISABLED');assert.equal(out.calls.length,1);
   }finally{if(prior===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=prior;if(priorPublication===undefined)delete process.env.VH_FINANCE_PUBLICATION_ENABLED;else process.env.VH_FINANCE_PUBLICATION_ENABLED=priorPublication}
 });
-test('finance register exposes only per-import reconciled and publish actions when enabled',()=>{
+test('finance review metadata stays backend-only while the upload flow publishes figures',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
-  assert.match(html,/item\.can_reconcile&&data\.reconciliation_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
-  assert.match(html,/item\.can_publish&&data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
-  assert.match(html,/Ready for finance review\. Confirm the staged values against the approved workbook before reconciling\./);
-  assert.match(html,/Finance review and publication/);
-  assert.match(html,/Enter the review rationale \(at least 8 characters\)/);
-  assert.match(html,/const data=await dataApi\('finance_review'\);const imports=data\.imports\|\|\[\]/);
+  const financeFlow=html.slice(html.indexOf("const financeFile=document.getElementById('vh26-finance-file')"),html.indexOf('async function financeReviewRefresh()'));
+  assert.doesNotMatch(html,/id="vh26-finance-review"/);
+  assert.match(html,/async function financeReviewRefresh\(\)[\s\S]*?dataApi\('finance_review'\)/);
+  assert.match(financeFlow,/dataApi\('finance_reconcile'/);
+  assert.match(financeFlow,/dataApi\('finance_publish'/);
 });
 test('finance review allows only acknowledged missing-value warnings through to separate reconciliation',async()=>{
   const period='44444444-4444-4444-8444-444444444444',source='77777777-7777-4777-8777-777777777777',department='66666666-6666-4666-8666-666666666666';

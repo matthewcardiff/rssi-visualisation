@@ -300,7 +300,10 @@ export default async (request)=>{
         const week=weeks.find(w=>w.id===r.reporting_week_id);
         const index=periods.findIndex(p=>p.id===week?.rail_period_id);
         const source=index>=0?periods[index]:null;
-        const legacyHs2Source=r.department_code==='hs2'&&source?.rail_week===29&&source?.start_date==='2026-10-17';
+        const legacyHs2Source=r.department_code==='hs2'&&(
+          (source?.rail_week===29&&source?.start_date==='2026-10-17'&&source?.end_date==='2026-10-23')||
+          (source?.rail_week===30&&source?.start_date==='2026-10-24'&&source?.end_date==='2026-10-30')
+        );
         const dept=departments.find(d=>d.id===r.department_id)||(legacyHs2Source?departments.find(d=>d.code==='hs2'&&d.active===false):null);
         const metric=String(r.metric_key||'').trim();
         const state=String(r.input_state||'').trim();

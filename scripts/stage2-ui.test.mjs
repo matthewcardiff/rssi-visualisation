@@ -100,14 +100,13 @@ test('spellchecking covers dynamically added UK English text fields only', () =>
   assert.match(autosave, /applyReportingSpellcheck\(root\)/);
 });
 
-test('finance review panel is visible in the staging finance view and explains reconciliation and publication', () => {
+test('finance review runs in the backend without a separate visible register', () => {
   assert.doesNotMatch(autosave, /vh26-finance-view-active #vh26-finance-review\{display:none!important\}/);
-  assert.match(html, /Finance review and publication/);
-  assert.match(html, /Ready for finance review\. Confirm the staged values against the approved workbook before reconciling\./);
+  assert.doesNotMatch(html, /id="vh26-finance-review"/);
+  assert.match(html, /finance_review/);
   assert.match(html, /async function financeReviewRefresh\(\)/);
   assert.match(html, /dataApi\('finance_review'\)/);
-  assert.match(html, /data\.reconciliation_enabled\)action\('Reconcile validated import','finance_reconcile'\)/);
-  assert.match(html, /data\.publication_enabled\)action\('Publish finance figures','finance_publish'\)/);
+  assert.doesNotMatch(html, /id="vh26-finance-review"/);
 });
 
 test('finance upload reads the selected week for budget and revenue and submits validated fields', () => {

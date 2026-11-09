@@ -6,6 +6,7 @@ import vm from 'node:vm';
 const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 const autosaveScript = readFileSync(new URL('../public/autosave.js', import.meta.url), 'utf8');
 const financeUi = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
+const weekImportMigration = readFileSync(new URL('../database/finance_import_hash_per_week_and_add_wk30.sql', import.meta.url), 'utf8');
 const precisionMigration = readFileSync(new URL('../database/finance_preserve_source_precision.sql', import.meta.url), 'utf8');
 const financeFlow = financeUi.slice(financeUi.indexOf("const financeFile=document.getElementById('vh26-finance-file')"), financeUi.indexOf('async function financeReviewRefresh()'));
 
@@ -40,10 +41,17 @@ function installFinanceCheckCorrection(result) {
 test('finance matrix mismatches remain blocking and cannot be filtered from validation', () => {
   assert.match(financeUi, /matrix total/);
   assert.match(financeUi, /blockingWarnings:warnings\.filter/);
-  assert.match(financeUi, /Company matrix mismatch blocks Apply figures/);
+  assert.match(financeUi, /Company matrix mismatch blocks publishing/);
   assert.match(financeUi, /blockingWarnings\|\|\[\]\)\.length/);
   assert.match(readFileSync(new URL('../netlify/functions/acceptance.mjs', import.meta.url), 'utf8'), /Company matrix reconciliation failed/);
   assert.doesNotMatch(autosave, /Finance workbook rows are authoritative for their mapped periods/);
+});
+
+test('legacy HS2 aggregate is accepted only for the verified WK29 and WK30 date ranges', () => {
+  const acceptance = readFileSync(new URL('../netlify/functions/acceptance.mjs', import.meta.url), 'utf8');
+  assert.match(acceptance, /source\?\.rail_week===29&&source\?\.start_date==='2026-10-17'&&source\?\.end_date==='2026-10-23'/);
+  assert.match(acceptance, /source\?\.rail_week===30&&source\?\.start_date==='2026-10-24'&&source\?\.end_date==='2026-10-30'/);
+  assert.doesNotMatch(acceptance, /source\?\.rail_week===31[^\n]*r\.department_code==='hs2'/);
 });
 
 test('finance extraction uses the selected reporting week for budget, revenue and YTD', () => {
@@ -105,6 +113,22 @@ test('finance amount columns retain source precision through publication', () =>
   assert.match(precisionMigration, /finance_metric_values[\s\S]*numeric\(24,8\)/);
   assert.match(precisionMigration, /finance_publication_values[\s\S]*numeric\(24,8\)/);
 });
+
+test('selected WK sheet variance uses cached J5 magnitude across finance views', () => {
+  assert.match(financeUi, /ytdVariancePercent:'J5'/);
+  assert.match(financeUi, /cached YTD variance percentage is missing or invalid/);
+  assert.match(financeUi, /variancePercent:matrixValues\.ytdVariancePercent/);
+  assert.match(financeUi, /Math\.abs\(financeWorkbook\.companyOverview\.variancePercent\)\*100/);
+  assert.match(financeUi, /Math\.abs\(\(ytdBudgetTotal-ytdRevenueTotal\)\/ytdBudgetTotal\)\*100/);
+  assert.match(financeUi, /Math\.abs\(\(ytdBudget-ytdRevenue\)\/ytdBudget\)\*100/);
+});
+
+test('staging can reuse one workbook in separate weeks and registers historical Week 30', () => {
+  assert.match(weekImportMigration, /WHERE file_sha256=p_file_sha256 AND reporting_week_id=p_reporting_week_id/);
+  assert.match(weekImportMigration, /rail_week=30 AND start_date=DATE '2026-10-24' AND end_date=DATE '2026-10-30'/);
+  assert.match(weekImportMigration, /ON CONFLICT \(rail_period_id\) DO NOTHING/);
+});
+
 test('weekly finance header scan includes the first source-week column', () => {
   const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
   const headerSource = extractor.slice(extractor.indexOf('function weekHeaders(map,expectedRow,tab)'), extractor.indexOf('const budgetCalendar=weekHeaders'));
@@ -127,24 +151,28 @@ test('weekly finance header scan includes the first source-week column', () => {
   assert.deepEqual(Array.from(result.weeks.slice(0, sourceIndex + 1), period => period.week), [27, 28, 29]);
 });
 
-test('finance checks and import history are readable without an inner results scrollbar', () => {
+test('finance checks remain readable while the import register stays backend-only', () => {
   assert.match(autosave, /vh26-finance-preview-results\{display:flex!important;flex-direction:column!important;max-height:none!important;overflow:visible!important\}/);
   assert.match(autosave, /vh26-finance-preview-results \.vh26-finance-warning\{order:0!important/);
   assert.match(autosave, /function polishFinanceHistory\(\)/);
   assert.match(autosave, /if \(importId && seen\.has\(importId\)\)/);
-  assert.match(autosave, /Finance files for review/);
+  assert.doesNotMatch(financeUi, /id="vh26-finance-review"/);
   assert.match(autosave, /Only approved and published figures appear in reports/);
   assert.match(autosave, /finance import.*in the register/);
   assert.match(autosave, /They are not approved and are not shown in reports/);
 });
 
-test('finance import action is described as applying validated figures', () => {
-  assert.match(financeUi, /3 · Apply figures/);
-  assert.match(financeUi, /Apply figures/);
-  assert.match(financeUi, /before applying/);
-  assert.match(financeUi, /Apply only the validated department figures/);
-  assert.match(financeUi, /Applying saves figures for finance review/);
-  assert.doesNotMatch(financeUi, /Stage validated figures|3 · Stage figures/);
+test('finance upload, review and publication use one progressive action without an extra prompt', () => {
+  assert.match(financeUi, /1 · Upload workbook/);
+  assert.match(financeUi, /2 · Review figures/);
+  assert.match(financeUi, /3 · Publish figures/);
+  assert.match(financeUi, /id="vh26-finance-action" hidden disabled>Review extracted figures/);
+  assert.match(financeFlow, /action==='review'\?'Review extracted figures':action==='apply'\?'Publish figures'/);
+  assert.match(financeFlow, /financeSetActions\('apply'\)/);
+  assert.match(financeFlow, /financeSetActions\('complete'\)/);
+  assert.match(financeFlow, /Company matrix mismatch blocks publishing/);
+  assert.doesNotMatch(financeUi, /id="vh26-finance-import"|id="vh26-finance-check"/);
+  assert.doesNotMatch(financeFlow, /if\(!confirm\(/);
 });
 
 test('finance review and presenters expose all six budget, revenue and gap values', () => {
@@ -281,14 +309,17 @@ test('connected finance summary resolves the database aliases for TWS, Midland M
   assert.match(financeUi,/window\.vhFinDepartments\|\|\[\['TWS'\]/);
 });
 
-test('finance flow shows one next action and advances to Apply after checks are acknowledged', () => {
-  assert.match(financeUi, /id="vh26-finance-check" disabled/);
-  assert.match(financeUi, /id="vh26-finance-import" hidden disabled>Apply figures/);
+test('finance flow uses the same action button for review and publish', () => {
+  assert.match(financeUi, /id="vh26-finance-action" hidden disabled>Review extracted figures/);
   assert.match(financeFlow, /function financeSetStep\(step\)/);
-  assert.match(financeFlow, /financeSetStep\(check\.checked\?3:2\)/);
   assert.match(financeFlow, /financeSetActions\('apply'\)/);
   assert.match(financeFlow, /Reporting week changed\. Review the workbook again before applying/);
   assert.match(financeFlow, /no weekly revenue recorded in source NRW WK/);
   assert.doesNotMatch(financeFlow, /if\(!confirm\(/);
+  assert.doesNotMatch(financeUi, /class="vh26-finance-department-list"/);
+  assert.match(financeUi, /vh26-presenter-finance-variance-summary/);
+  assert.match(financeUi, /vh26-finance-variance-adverse/);
+  assert.match(financeUi, /vh26-finance-variance-favourable/);
+  assert.match(financeUi, /margin-bottom:26px/);
 });
 
