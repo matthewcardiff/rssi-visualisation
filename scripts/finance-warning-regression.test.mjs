@@ -269,6 +269,9 @@ test('a late finance response cannot overwrite a department Presenter slide', ()
   const presenter = financeUi.slice(start, end);
   assert.match(presenter, /presenterPublishedFinance=await presenterLoadPublishedFinance\(week\?\.id\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
 });
+test('changing the host reporting week refreshes the open Presenter slide',()=>{
+  assert.match(financeUi,/selectedHostWeekId=event\.target\.value;renderHostReadiness\(\);if\(!document\.getElementById\('vh26-presenter-mode'\)\?\.hidden\)renderPresenterSlide\(\)/);
+});
 test('reloading Presenter readiness preserves the host selected reporting week',()=>{
   assert.match(financeUi,/retainedWeekId=selectedHostWeekId/);
   assert.match(financeUi,/hostData\.weeks=result\.items\|\|\[\];if\(retainedWeekId&&hostData\.weeks\.some\(w=>w\.id===retainedWeekId\)\)selectedHostWeekId=retainedWeekId/);

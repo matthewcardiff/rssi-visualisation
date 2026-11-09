@@ -52023,7 +52023,7 @@ presenterStatus.addEventListener('change',presenterRows);
 document.getElementById('vh26-presenter-refresh').addEventListener('click',presenterRefresh);
 document.getElementById('vh26-presenter-export').addEventListener('click',presenterCsv);
 document.getElementById('vh26-presenter-print').addEventListener('click',()=>window.print());
-document.getElementById('vh26-host-week-select').addEventListener('change',event=>{selectedHostWeekId=event.target.value;renderHostReadiness()});document.querySelectorAll('.vh26-host-nav [data-host-view]').forEach(button=>button.addEventListener('click',()=>{const view=button.dataset.hostView;if(view==='actions'&&!presenterActions.length)presenterRefresh();setHostDashboardView(view)}));
+document.getElementById('vh26-host-week-select').addEventListener('change',event=>{selectedHostWeekId=event.target.value;renderHostReadiness();if(!document.getElementById('vh26-presenter-mode')?.hidden)renderPresenterSlide()});document.querySelectorAll('.vh26-host-nav [data-host-view]').forEach(button=>button.addEventListener('click',()=>{const view=button.dataset.hostView;if(view==='actions'&&!presenterActions.length)presenterRefresh();setHostDashboardView(view)}));
 function presenterSetup(identity,visible){
   const host=hostDashboardAllowed(identity),administrator=(identity.roles||[]).some(r=>r.role==='administrator');
   // Administrators need the full department workspace on sign-in; they can
