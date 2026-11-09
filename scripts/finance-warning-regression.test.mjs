@@ -65,6 +65,7 @@ test('finance extraction uses the selected reporting week for budget, revenue an
   assert.match(extractor, /duplicates the mapped department/);
   assert.match(extractor, /else if\(match\)directRecords\.set\(match\[0\],record\)/);
   assert.match(extractor, /if\(directWeek===29\)[\s\S]*?ytdRevenue:1363438,ytdGap:33719,variancePercent:2/);
+  assert.match(extractor, /key==='ytdGap'\?Math\.round\(matrixValues\[key\]\):matrixValues\[key\]/);
   assert.match(extractor, /WK29 confirmed variance is 2%/);
   assert.match(extractor, /confirmed .*Correct the WK29 source/);
   assert.match(extractor, /blockingWarnings:warnings\.filter/);
