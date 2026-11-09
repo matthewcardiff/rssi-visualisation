@@ -112,3 +112,11 @@ test('Safety Moment separates practical reminders from distinct discussion quest
   assert.match(autosave, /Discussion question/);
   assert.match(autosave, /vh26-presenter-safety-content/);
 });
+
+test('Safety Moment generation sends a persisted rolling history to the novelty check', () => {
+  assert.match(html, /weeklyportal-safety-moment-generated-history/);
+  assert.match(html, /const recent=\[\.\.\.generationHistory\(\),\.\.\.\(valid\(r\)\?\[r\]:\[\]\)\]\.slice\(-12\)/);
+  assert.match(html, /JSON\.stringify\(\{category:select\.value,recent\}\)/);
+  assert.match(html, /rememberGenerated\(generated\)/);
+  assert.match(html, /recent Safety Moments to the AI service to avoid repeats/);
+});
