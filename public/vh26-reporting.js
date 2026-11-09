@@ -1024,7 +1024,10 @@
 
   function enhanceFinanceCompanyOverview(slide) {
     const overview = slide.querySelector('.vh26-presenter-company-overview');
-    const table = slide.querySelector('.vh26-presenter-finance-table');
+    const table = [...slide.querySelectorAll('.vh26-presenter-finance-table')].find(candidate => {
+      const headers = [...candidate.querySelectorAll('tr:first-child th')].map(cell => cell.textContent.trim());
+      return headers.includes('Weekly budget') && headers.includes('YTD revenue') && headers.includes('YTD gap to close');
+    });
     if (!overview || !table) return;
     const number = value => {
       if (!value || /not reported/i.test(value)) return null;
