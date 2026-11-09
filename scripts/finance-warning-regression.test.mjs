@@ -101,17 +101,21 @@ test('finance import is ready when all 10 finance departments have no remaining 
   assert.equal(reviewed.records[0].revenueInputState, 'blank');
 });
 
-test('finance extraction applies the workbook two-week cutoff to budget, revenue and YTD', () => {
+test('finance extraction uses the selected reporting week for budget, revenue and YTD', () => {
   const extractor = financeUi.slice(financeUi.indexOf('async function vhFinanceExtract(file,selectedWeek)'), financeUi.indexOf('window.vhFinanceExtract=vhFinanceExtract'));
-  assert.match(extractor, /weekly and YTD formulas use management week - 2/);
+  assert.match(extractor, /Weekly and year-to-date figures use the selected reporting week/);
   assert.match(extractor, /budgetWeek=budgetCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueWeek=revenueCalendar\.weeks\.find\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
   assert.match(extractor, /revenueIndex=revenueCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\)/);
-  assert.match(extractor, /YTD values run through that same source week/);
+  assert.match(extractor, /budgetIndex=budgetCalendar\.weeks\.findIndex\(x=>x\.week===financePeriod\?\.sourceWeek\).*revenueIndex/s);
   assert.match(extractor, /for\(let col=1;col<=52;col\+\+\).*index:col-1/);
   assert.match(extractor, /vhFinCol\(1\)\+row\+':'\+vhFinCol\(52\)\+row/);
   assert.doesNotMatch(extractor, /blank inputs sum to £0/);
+  assert.match(extractor, /const matrixMismatches=\[\]/);
+  assert.match(extractor, /dashboardTotals\[key\]/);
+  assert.match(financeFlow, /if\(v\.blockers\?\.length\)/);
+  assert.doesNotMatch(financeUi, /two-week|two-rail-week lag/i);
 });
 
 test('weekly finance header scan includes the first source-week column', () => {
@@ -166,7 +170,7 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(financeUi, /vh26-finance-review-table/);
   assert.match(financeFlow, /const sourceWeek=managementPeriod\?\.start_date\?\{id:managementPeriod\.start_date\}:null/);
   assert.match(financeFlow, /Company finance overview/);
-  assert.match(financeFlow, /Financial source NRW WK/);
+  assert.match(financeFlow, /NRW WK/);
   assert.match(financeFlow, /selectedOptions\?\.\[0\]\?\.textContent\?\.trim\(\)/);
   assert.match(financeFlow, /Weekly gap to close/);
   assert.match(financeFlow, /YTD gap to close/);
@@ -182,7 +186,7 @@ test('finance review and presenters expose all six budget, revenue and gap value
   assert.match(autosave, /presenterFinanceCard\(slide, context\)/);
   assert.match(autosave, /DEPARTMENT FINANCIAL OVERVIEW/);
   assert.match(autosave, /No published finance figures are available for this department and week/);
-  assert.match(autosave, /Finance source NRW WK/);
+  assert.match(autosave, /Finance period NRW WK/);
   assert.ok(autosave.includes('function cachedPresenterRequest(cache, key, create)'));
   assert.ok(autosave.includes('if (cache.get(key) === request) cache.delete(key)'));
   assert.ok(autosave.includes('else if (cache[key] === request) cache[key] = null'));
@@ -211,8 +215,8 @@ test('finance Presenter shows all departments, partial company totals and refres
   assert.match(presenter, /if\(!pubs\.length\)status\.textContent=/);
   assert.doesNotMatch(presenter, /if\(!pubs\.length\)\{status\.textContent=[^}]+return\}/);
   assert.match(presenter, /for\(const dep of financeDepartments\)/);
-  assert.match(presenter,/Finance source week: NRW WK/);
-  assert.match(presenter,/managementPeriodIndex>=2\?financePeriods\[managementPeriodIndex-2\]:null/);
+  assert.match(presenter,/Finance period: NRW WK/);
+  assert.match(presenter,/managementPeriodIndex>=0\?financePeriods\[managementPeriodIndex\]:null/);
   assert.match(presenter, /const companyAggregate=key=>/);
   assert.match(presenter, /Partial total · \$\{result\.reported\} of \$\{result\.total\} departments reported/);
   assert.match(presenter, /const companyVariance=\(revenueKey,budgetKey\)=>/);

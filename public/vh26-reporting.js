@@ -171,7 +171,7 @@
   // optional WKxx dashboard tabs are historical management snapshots whose
   // formulas use their own cutoffs; comparing them with the current import's
   // budget/revenue cells creates false mismatches (especially with the
-  // intentional two-week revenue lag). Keep genuine source-row checks, but
+  // historical finance source row checks). Keep genuine source-row checks, but
   // don't block staging on those unrelated dashboard comparisons.
   const extractFinanceWorkbook = window.vhFinanceExtract;
   if (typeof extractFinanceWorkbook === 'function' && !window.vhFinanceChecksCorrected) {
@@ -806,7 +806,7 @@
         foot.className = 'vh26-presenter-finance-source';
         const sourceId = values.find(v => v.source_period_id)?.source_period_id;
         const source = (finance.periods || []).find(p => p.id === sourceId);
-        if (source) foot.textContent = 'Finance source NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date + ' · two-week lag';
+        if (source) foot.textContent = 'Finance period NRW WK' + source.rail_week + ' · ' + source.start_date + '–' + source.end_date;
         panel.replaceChildren(panel.querySelector('.vh26-presenter-revenue-title'), grid, foot);
       } catch (error) {
         if (panel.isConnected && panel.dataset.signature === signature) data.textContent = error?.message ? 'Finance figures could not load: ' + error.message : 'Finance figures are not available for this week.';

@@ -81,7 +81,8 @@ test('Presenter Mode follows the Build 050 centered meeting layout and navigatio
   assert.match(autosave, /\['Weekly budget', presenterMoney\(weeklyBudget\)\]/);
   assert.match(autosave, /\['Weekly revenue', presenterMoney\(weeklyRevenue\)\]/);
   assert.match(autosave, /YTD gap to close/);
-  assert.match(autosave, /two-week lag/);
+  assert.match(autosave, /Finance period NRW WK/);
+  assert.doesNotMatch(autosave, /two-week lag/);
   assert.match(autosave, /Not reported/);
   assert.match(autosave, /vh26-presenter-actions-card/);
   assert.match(autosave, /Action \/ decision/);

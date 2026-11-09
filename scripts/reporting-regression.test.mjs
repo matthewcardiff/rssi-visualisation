@@ -63,7 +63,7 @@ test('shared rail calendar import is denied before database mutation for non-hos
   assert.equal(out.status,403);
   assert.equal(out.calls.length,2);
 });
-test('weeks lookup returns all rail periods for lagged finance source validation',async()=>{
+test('weeks lookup returns all rail periods for selected-week finance validation',async()=>{
   const out=await request('weeks',{},[
     {body:{id}},
     {body:[{id,rail_period_id:id,status:'open'}]},
@@ -126,7 +126,7 @@ test('finance import and reconciliation are disabled unless the deploy-scoped st
 test('finance Apply requires acknowledgement and sends workbook findings to the atomic staging RPC',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
   const period='44444444-4444-4444-8444-444444444444',source='55555555-5555-4555-8555-555555555555',department='66666666-6666-4666-8666-666666666666';
-  const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:period,department_id:department,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source}));
+  const rows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({reporting_week_id:period,department_id:department,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:period}));
   const references=[
     {body:{id}}, {body:[{role:'finance'}]},
     {body:[{id:department,code:'tws',display_name:'Track Warning Systems'}]},
@@ -194,7 +194,7 @@ test('finance register exposes only per-import reconciled and publish actions wh
 test('finance review allows only acknowledged missing-value warnings through to separate reconciliation',async()=>{
   const period='44444444-4444-4444-8444-444444444444',source='55555555-5555-4555-8555-555555555555',department='66666666-6666-4666-8666-666666666666';
   const importId='88888888-8888-4888-8888-888888888888';
-  const metricRows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({finance_import_id:importId,department_id:department,reporting_week_id:period,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:source,mapping_status:'pending',issues:[]}));
+  const metricRows=['weekly_budget','weekly_revenue','ytd_budget','ytd_revenue'].map(metric_key=>({finance_import_id:importId,department_id:department,reporting_week_id:period,metric_key,amount:metric_key.includes('revenue')?null:125,input_state:metric_key.includes('revenue')?'missing':'value',source_period_id:'77777777-7777-4777-8777-777777777777',mapping_status:'pending',issues:[]}));
   const out=await request('finance_review',{},[
     {body:{id}},{body:[{role:'administrator'}]},
     {body:[{id:importId,file_name:'week32.xlsx',reporting_week_id:period,reconciliation_status:'pending',findings:['HS2: Weekly revenue missing or unverified','HS2: YTD revenue incomplete/unverified'],findings_acknowledged_by:id,findings_acknowledged_at:'2026-11-06T12:00:00Z'}]},

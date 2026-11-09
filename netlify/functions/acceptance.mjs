@@ -228,7 +228,7 @@ export default async (request)=>{
         get('departments?select=id,display_name&limit=100'),
         ids.length?get('finance_reconciliation_events?select=finance_import_id,accepted_findings&finance_import_id=in.('+ids.join(',')+')&limit=100'):Promise.resolve([])
       ]);
-      const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=2?periods[i-2].id:null]}));
+      const expectedSource=new Map(weeks.map(w=>{const i=periods.findIndex(p=>p.id===w.rail_period_id);return [w.id,i>=0?periods[i].id:null]}));
       const groups=imports.map(imp=>{
         const rows=metrics.filter(r=>r.finance_import_id===imp.id);
         const byDepartment=new Map();
@@ -239,7 +239,7 @@ export default async (request)=>{
         const expectedMapping=imp.reconciliation_status==='pending'?'pending':'reconciled';
         if(rows.some(r=>r.mapping_status!==expectedMapping))problems.push('Metric reconciliation state does not match the import');
         if(!expectedSource.has(imp.reporting_week_id)||!expectedSource.get(imp.reporting_week_id))problems.push('Finance source rail week unavailable');
-        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance source week differs from management week minus two rail periods');
+        if(rows.some(r=>r.source_period_id!==expectedSource.get(r.reporting_week_id)))problems.push('Finance period differs from selected reporting week');
         if(rows.some(r=>r.input_state==='missing'&&r.amount!==null))problems.push('Missing-value state has a non-null amount');
         if(rows.some(r=>r.input_state==='zero'&&Number(r.amount)!==0))problems.push('Zero-value state has a non-zero amount');
         if(rows.some(r=>r.input_state==='value'&&(r.amount===null||!Number.isFinite(Number(r.amount)))))problems.push('Value state has no valid numeric amount');
@@ -292,7 +292,7 @@ export default async (request)=>{
         if(!r||typeof r!=='object'){errors.push({line,reason:'Invalid row'});continue}
         const week=weeks.find(w=>w.id===r.reporting_week_id);
         const index=periods.findIndex(p=>p.id===week?.rail_period_id);
-        const source=index>=2?periods[index-2]:null;
+        const source=index>=0?periods[index]:null;
         const dept=departments.find(d=>d.id===r.department_id);
         const metric=String(r.metric_key||'').trim();
         const state=String(r.input_state||'').trim();
@@ -302,8 +302,8 @@ export default async (request)=>{
         if(!week)issues.push('Unknown management reporting week');
         if(!dept)issues.push('Unknown department');
         if(!metrics.includes(metric))issues.push('Unknown metric');
-        if(!source)issues.push('Two-week finance source period unavailable');
-        if(!source||r.source_period_id!==source.id)issues.push('Finance source period does not match management week minus two rail weeks');
+        if(!source)issues.push('Selected finance period unavailable');
+        if(!source||r.source_period_id!==source.id)issues.push('Finance period does not match selected reporting week');
         if(!['missing','zero','value'].includes(state))issues.push('Invalid input state');
         if(state==='missing'&&raw!=='')issues.push('Missing must have blank amount');
         if(state==='zero'&&amount!==0)issues.push('Zero must have amount 0');
