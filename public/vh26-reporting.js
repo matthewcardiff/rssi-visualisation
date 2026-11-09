@@ -1047,7 +1047,7 @@
     }
     const percentValue = ytdBudget.value !== null && ytdRevenue.value !== null && ytdBudget.value !== 0
       ? (ytdRevenue.value - ytdBudget.value) / Math.abs(ytdBudget.value) * 100 : null;
-    const percentText = percentValue === null ? 'Not reported' : (percentValue >= 0 ? '↑ ' : '↓ ') + Math.abs(percentValue).toLocaleString('en-GB', { maximumFractionDigits: 1 }) + '%';
+    const percentText = percentValue === null ? 'Not reported' : Math.abs(percentValue).toLocaleString('en-GB', { maximumFractionDigits: 0 }) + '%';
     const percentOutput = percentCard.querySelector('strong');
     if (percentOutput && percentOutput.textContent !== percentText) percentOutput.textContent = percentText;
     if (percentOutput) percentOutput.className = percentValue === null ? 'vh26-finance-variance-unavailable' : 'vh26-finance-variance-' + (percentValue >= 0 ? 'favourable' : 'adverse');
