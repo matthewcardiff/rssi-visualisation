@@ -79,7 +79,7 @@ test('AI report review requires department membership and returns the agreed rev
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
-      assert.equal(JSON.parse(options.body).model,'openai/gpt-oss-120b');
+      assert.equal(JSON.parse(options.body).model,'openrouter/free');
       assert.equal(JSON.parse(options.body).stream,false);
       assert.equal(JSON.parse(options.body).temperature,0);
       assert.equal(JSON.parse(options.body).provider.require_parameters,true);
