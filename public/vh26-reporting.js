@@ -46,6 +46,15 @@
     const select = document.getElementById('vh26-host-week-select');
     if (!input || !select || input.dataset.weekSearchReady === 'true') return;
     input.dataset.weekSearchReady = 'true';
+    const syncSelectedWeek = () => {
+      const selected = select.selectedOptions[0];
+      if (!selected) return;
+      input.value = selected.textContent.trim();
+      input.setCustomValidity('');
+    };
+    syncSelectedWeek();
+    select.addEventListener('change', syncSelectedWeek);
+    new MutationObserver(syncSelectedWeek).observe(select, { childList: true, subtree: true });
     input.addEventListener('input', event => {
       event.stopImmediatePropagation();
       const match = matchWeekLabel(input.value);
