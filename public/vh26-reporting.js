@@ -104,10 +104,10 @@
       }
       input.setCustomValidity('');
       input.value = match;
-      const option = hostSelect && [...hostSelect.options].find(item => item.textContent.trim() === match);
-      if (!option) return;
-      hostSelect.value = option.value;
-      hostSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      const currentHostInput = document.getElementById('vh26-host-week-search');
+      if (!currentHostInput) return;
+      currentHostInput.value = match;
+      currentHostInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
   }
 
