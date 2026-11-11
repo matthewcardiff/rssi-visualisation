@@ -36,6 +36,22 @@ test('Reporting week choices are chronological and searchable for long calendars
   assert.match(html, /weekSelect\.dispatchEvent\(new Event\('change',\{bubbles:true\}\)\)/);
 });
 
+test('Presenter Mode week search finds unique week numbers and dates and uses the live week control', () => {
+  assert.match(autosave, /function weekLabels\(\)/);
+  assert.match(autosave, /function matchWeekLabel\(value\)/);
+  assert.match(autosave, /vh26-presenter-week-search/);
+  assert.match(autosave, /vh26-host-week-search/);
+  assert.match(autosave, /hostInput\.dispatchEvent\(new Event\('change', \{ bubbles: true \}\)\)/);
+  assert.match(autosave, /Include a date if a week number appears more than once/);
+});
+
+test('administrator role hides the Department Report navigation item after verified sign-in', () => {
+  assert.match(autosave, /function installAdminDepartmentReportGuard\(\)/);
+  assert.match(autosave, /op: 'whoami', access_token: token/);
+  assert.match(autosave, /role\.role === 'administrator'/);
+  assert.match(autosave, /data-connected-nav=\"report\"/);
+});
+
 test('pipeline action buttons have breathing room and matching outlined styling', () => {
   assert.match(autosave, /\.vh26-pipeline-actions\{gap:16px!important;margin-top:20px!important\}/);
   assert.match(autosave, /\.vh26-pipeline-actions button:first-child\{border-color:#cbd6de!important;background:#fff!important;color:#173448!important\}/);
