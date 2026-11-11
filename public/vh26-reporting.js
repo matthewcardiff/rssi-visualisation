@@ -92,6 +92,8 @@
   }
 
 
+  installPresenterWeekSearch();
+
   const pipelineLayout = document.createElement('style');
   pipelineLayout.id = 'vh26-pipeline-layout';
   pipelineLayout.textContent = `
