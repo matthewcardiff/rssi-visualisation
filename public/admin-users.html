@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'">
+  <title>User management | RSS Infrastructure Visualisation Hub</title>
+  <style>
+    :root{font-family:Inter,Arial,sans-serif;color:#173448;background:#f4f6f8;font-synthesis:none}*{box-sizing:border-box}body{margin:0}.top{background:#004d71;color:#fff;padding:14px clamp(18px,4vw,48px);display:flex;align-items:center;gap:14px;border-bottom:3px solid #ff6b00}.top img{width:112px;height:42px;object-fit:contain;object-position:left center}.top strong{font-size:16px}.top a{margin-left:auto;color:#fff;text-decoration:none;border:1px solid #ffffff80;border-radius:8px;padding:9px 12px;font-size:13px}.wrap{width:min(1180px,100%);margin:0 auto;padding:28px 20px 56px}h1{margin:0;font-size:28px}p{color:#607183;line-height:1.5}.card{background:#fff;border:1px solid #dce5eb;border-radius:14px;padding:22px;margin:18px 0;box-shadow:0 4px 16px #15354e08}.form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.field{display:grid;gap:6px}.field label{font-size:13px;font-weight:700}.field input,.field select{width:100%;min-height:42px;padding:9px 11px;border:1px solid #cbd8df;border-radius:8px;font:inherit;color:inherit;background:#fff}.field select[multiple]{height:150px}.help{font-size:12px;margin:5px 0}.button{min-height:40px;border:1px solid #cbd8df;border-radius:8px;background:#fff;color:#004d71;padding:8px 13px;font:600 13px inherit;cursor:pointer}.button.primary{background:#ff6b00;color:#fff;border-color:#ff6b00}.button.danger{color:#a12a16;border-color:#e5b9ad}.button:disabled{opacity:.55;cursor:wait}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.state{min-height:22px;color:#315b70;font-size:13px}.state.error{color:#a32727}.table-wrap{overflow:auto}table{width:100%;border-collapse:collapse;font-size:13px}th,td{text-align:left;padding:12px 10px;border-bottom:1px solid #e7edf1;vertical-align:top}th{font-size:11px;color:#526a7b;text-transform:uppercase;letter-spacing:.04em}.pill{display:inline-block;margin:2px 4px 2px 0;padding:4px 8px;background:#edf3f6;border-radius:20px;font-size:11px;white-space:nowrap}.pending{color:#8b5100;background:#fff1d9}.inactive{color:#a32727;background:#fae9e6}.empty{padding:20px;text-align:center;color:#607183}@media(max-width:700px){.form-grid{grid-template-columns:1fr}.card{padding:16px}.top img{width:82px}.wrap{padding:20px 12px}}
+  </style>
+</head>
+<body>
+  <header class="top"><img src="/rssi-logo.png" alt="RSS Infrastructure"><strong>Visualisation Hub · User management</strong><a href="/">Return to dashboard</a></header>
+  <main class="wrap">
+    <h1>Manage user access</h1>
+    <p>Invite colleagues, resend account setup or password reset emails, and disable or restore access. Department access is limited to the selected departments.</p>
+    <section class="card" aria-labelledby="add-title">
+      <h2 id="add-title">Add a user</h2>
+      <form id="invite-form">
+        <div class="form-grid">
+          <div class="field"><label for="email">Work email</label><input id="email" name="email" type="email" autocomplete="email" required maxlength="254"></div>
+          <div class="field"><label for="display-name">Name</label><input id="display-name" name="display_name" autocomplete="name" required maxlength="120"></div>
+          <div class="field"><label for="role">Access type</label><select id="role" name="role"><option value="department_manager">Department manager</option><option value="department_contributor">Department contributor</option><option value="finance">Finance</option><option value="administrator">Administrator</option><option value="meeting_host">Meeting host</option><option value="executive">Executive</option></select></div>
+          <div class="field" id="department-field"><label for="departments">Department access</label><select id="departments" name="department_ids" multiple></select><span class="help">Choose one or more departments. Hold Ctrl (Windows) or Command (Mac) to select several.</span></div>
+        </div>
+        <div class="actions"><button class="button primary" id="invite-submit" type="submit">Send invitation</button></div>
+      </form>
+      <p id="invite-status" class="state" role="status" aria-live="polite"></p>
+    </section>
+    <section class="card" aria-labelledby="users-title">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap"><h2 id="users-title">Users</h2><button class="button" id="refresh-users" type="button">Refresh list</button></div>
+      <div class="field" style="max-width:460px;margin:12px 0"><label for="search-users">Find user</label><input id="search-users" type="search" placeholder="Search by name, email or department"></div>
+      <p id="users-status" class="state" role="status" aria-live="polite">Checking administrator access…</p>
+      <div class="table-wrap"><table><thead><tr><th>User</th><th>Role</th><th>Departments</th><th>Account status</th><th>Last sign-in</th><th>Actions</th></tr></thead><tbody id="users-body"><tr><td colspan="6" class="empty">Loading users…</td></tr></tbody></table></div>
+    </section>
+  </main>
+  <script src="/admin-users.js" defer></script>
+</body>
+</html>

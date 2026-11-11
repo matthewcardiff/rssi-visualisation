@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','update_password','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','update_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','update_password','password_recovery','user_admin','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','update_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -26,11 +26,25 @@ export default async (request)=>{
       if(!r.ok)return json(r.status===429?429:401,{error:'Password recovery link is invalid, expired, or already used. Request a new link.'});
       return json(200,{updated:true});
     }
+    if(data.op==='password_recovery'){
+      if(typeof data.email!=='string'||data.email.trim().length>254||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim()))return json(400,{error:'Enter a valid work email address'});
+      const redirectTo=new URL('/reset-password.html',request.url).toString();
+      const recovery=await fetch(url+'/auth/v1/recover?redirect_to='+encodeURIComponent(redirectTo),{method:'POST',headers:common,body:JSON.stringify({email:data.email.trim()}),signal:AbortSignal.timeout(12000)});
+      if(recovery.status===429)return json(429,{error:'A reset email was requested recently. Wait a minute before trying again.'});
+      return json(200,{sent:true,message:'If this email has an account, password setup instructions will be sent.'});
+    }
     if(typeof data.access_token!=='string'||data.access_token.length<30)return json(401,{error:'Authenticated session required'});
     const headers={...common,authorization:'Bearer '+data.access_token};
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
     const user=await userResponse.json();
+    if(data.op==='user_admin'){
+      const allowed=['list','departments','invite','resend_setup','reset','deactivate','reactivate'];
+      if(!allowed.includes(data.admin_op))return json(400,{error:'Unsupported user-management action'});
+      const adminResponse=await fetch(url+'/functions/v1/vh-user-admin',{method:'POST',headers,body:JSON.stringify({op:data.admin_op,email:data.email,display_name:data.display_name,role:data.role,department_ids:data.department_ids,user_id:data.user_id}),signal:AbortSignal.timeout(20000)});
+      const adminBody=await adminResponse.json().catch(()=>({error:'User-management service returned an invalid response'}));
+      return json(adminResponse.status,adminBody);
+    }
     if(data.op==='reopen_report'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       if(!uuid(data.report_id))return json(400,{error:'Valid report required'});
