@@ -46,7 +46,7 @@
     const select = document.getElementById('vh26-host-week-select');
     if (!input || !select || input.dataset.weekSearchReady === 'true') return;
     input.dataset.weekSearchReady = 'true';
-    input.addEventListener('change', event => {
+    input.addEventListener('input', event => {
       event.stopImmediatePropagation();
       const match = matchWeekLabel(input.value);
       const option = match && [...select.options].find(item => item.textContent.trim() === match);
@@ -95,7 +95,7 @@
     if (hostList) new MutationObserver(refreshOptions).observe(hostList, { childList: true, subtree: true });
     hostSelect?.addEventListener('change', refreshOptions);
     refreshOptions();
-    input.addEventListener('change', () => {
+    input.addEventListener('input', () => {
       const match = matchWeekLabel(input.value);
       if (!match) {
         input.setCustomValidity('Choose one reporting week. Include a date if a week number appears more than once.');
