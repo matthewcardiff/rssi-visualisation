@@ -41,6 +41,26 @@
       : label.toLowerCase().includes(query));
     return matches.length === 1 ? matches[0] : null;
   }
+  function installHostWeekSearch() {
+    const input = document.getElementById('vh26-host-week-search');
+    const select = document.getElementById('vh26-host-week-select');
+    if (!input || !select || input.dataset.weekSearchReady === 'true') return;
+    input.dataset.weekSearchReady = 'true';
+    input.addEventListener('change', event => {
+      event.stopImmediatePropagation();
+      const match = matchWeekLabel(input.value);
+      const option = match && [...select.options].find(item => item.textContent.trim() === match);
+      if (!option) {
+        input.setCustomValidity('Choose one available reporting week. Include a date if a week number appears more than once.');
+        input.reportValidity();
+        return;
+      }
+      input.setCustomValidity('');
+      input.value = match;
+      select.value = option.value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    }, true);
+  }
   function installPresenterWeekSearch() {
     const controls = document.querySelector('#vh26-presenter-mode .vh26-presenter-controls');
     if (!controls || controls.querySelector('#vh26-presenter-week-search')) return;
@@ -84,15 +104,23 @@
       }
       input.setCustomValidity('');
       input.value = match;
-      if (hostInput) {
-        hostInput.value = match;
-        hostInput.dispatchEvent(new Event('change', { bubbles: true }));
-      }
+      const option = hostSelect && [...hostSelect.options].find(item => item.textContent.trim() === match);
+      if (!option) return;
+      hostSelect.value = option.value;
+      hostSelect.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
 
 
   installPresenterWeekSearch();
+
+  installHostWeekSearch();
+  installPresenterWeekSearch();
+  const weekSearchObserver = new MutationObserver(() => {
+    installHostWeekSearch();
+    installPresenterWeekSearch();
+  });
+  weekSearchObserver.observe(document.body, { childList: true, subtree: true });
 
   const pipelineLayout = document.createElement('style');
   pipelineLayout.id = 'vh26-pipeline-layout';
