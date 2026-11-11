@@ -10,7 +10,7 @@ function supabaseConfig(){
 }
 function openRouterConfig(config){
   const apiKey=process.env.OPENROUTER_API_KEY;
-  const model=process.env.OPENROUTER_MODEL||'openai/gpt-oss-120b';
+  const model=process.env.OPENROUTER_MODEL||'openrouter/free';
   return apiKey&&/^[a-zA-Z0-9_.:/-]{1,100}$/.test(model)?{...config,apiKey,model}:null;
 }
 
