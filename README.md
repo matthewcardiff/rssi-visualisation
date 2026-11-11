@@ -1,7 +1,7 @@
 # Visualisation Hub — Netlify staging hosting package, Build 052
 
 This package is ready to host the disabled sign-in screen on Netlify. It is NOT
-ready for shared-user acceptance: Supabase accounts/data, Ollama Cloud and Microsoft
+ready for shared-user acceptance: Supabase accounts/data, OpenRouter and Microsoft
 365 email are not connected. It includes the application source for subsequent
 integration. Hosting does not activate these services. No secret values are needed.
 
@@ -49,7 +49,9 @@ Connect Supabase authentication and shared storage together; replace the deny-on
 identity hooks and email-based legacy role assumptions with real memberships and
 database policies. Enable multiple named users per department. Preserve independent
 department submission, nine departments and the intentional two-week finance lag.
-Then configure Netlify server functions, Ollama Cloud and Microsoft365 mail. Keep
+Then configure Netlify server functions, OpenRouter and Microsoft365 mail. Set
+`OPENROUTER_API_KEY` as a server-side Netlify secret; optionally set
+`OPENROUTER_MODEL` (defaults to `openai/gpt-oss-120b`). Keep
 server secrets in service settings. Test two-user isolation, sessions, simultaneous
 edits, finance, action reminders and recovery before inviting users.
 
