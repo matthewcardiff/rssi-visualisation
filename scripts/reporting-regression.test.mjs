@@ -115,14 +115,14 @@ test('submission rejects an incomplete report before changing its status',async(
 test('submitted, inaccessible or concurrently changed report is not falsely submitted',async()=>{
   const out=await request('submit_report',{report_id:id},[{body:{id}},{body:[]}]);assert.equal(out.status,409);
 });
-test('finance import and reconciliation are disabled unless the deploy-scoped staging gate is set',async()=>{
-  const priorWrites=process.env.VH_FINANCE_STAGING_WRITES,priorReconciliation=process.env.VH_FINANCE_RECONCILIATION_ENABLED;
-  delete process.env.VH_FINANCE_STAGING_WRITES;delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;
+test('finance import and reconciliation are disabled unless all deploy-scoped write gates are unset',async()=>{
+  const priorWrites=process.env.VH_FINANCE_STAGING_WRITES,priorProductionWrites=process.env.VH_FINANCE_PRODUCTION_WRITES,priorReconciliation=process.env.VH_FINANCE_RECONCILIATION_ENABLED;
+  delete process.env.VH_FINANCE_STAGING_WRITES;delete process.env.VH_FINANCE_PRODUCTION_WRITES;delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;
   try{for(const op of ['finance_import','finance_reconcile']){
     const out=await request(op,{},[{body:{id}}]);
     const expectedCode={finance_import:'FINANCE_STAGING_WRITES_DISABLED',finance_reconcile:'FINANCE_RECONCILIATION_DISABLED'}[op];
     assert.equal(out.status,503);assert.equal(out.body.code,expectedCode);assert.equal(out.calls.length,1);
-  }}finally{if(priorWrites===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=priorWrites;if(priorReconciliation===undefined)delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;else process.env.VH_FINANCE_RECONCILIATION_ENABLED=priorReconciliation}
+  }}finally{if(priorWrites===undefined)delete process.env.VH_FINANCE_STAGING_WRITES;else process.env.VH_FINANCE_STAGING_WRITES=priorWrites;if(priorProductionWrites===undefined)delete process.env.VH_FINANCE_PRODUCTION_WRITES;else process.env.VH_FINANCE_PRODUCTION_WRITES=priorProductionWrites;if(priorReconciliation===undefined)delete process.env.VH_FINANCE_RECONCILIATION_ENABLED;else process.env.VH_FINANCE_RECONCILIATION_ENABLED=priorReconciliation}
 });
 test('finance Apply requires acknowledgement and sends workbook findings to the atomic staging RPC',async()=>{
   const prior=process.env.VH_FINANCE_STAGING_WRITES;process.env.VH_FINANCE_STAGING_WRITES='enabled';
