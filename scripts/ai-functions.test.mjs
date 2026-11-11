@@ -100,6 +100,21 @@ test('AI report review requires department membership and returns the agreed rev
   assert.equal(providerCalls,1);
 }));
 
+test('a paid OpenRouter model retries once through the free router after HTTP 402',async()=>withEnv(async()=>{
+  let models=[];
+  const upstream=supabaseMock();
+  globalThis.fetch=async(input,options={})=>{
+    if(String(input)==='https://openrouter.ai/api/v1/chat/completions'){
+      const model=JSON.parse(options.body).model;models.push(model);
+      return model==='openrouter/free'?Response.json({choices:[{message:{content:JSON.stringify(review)}}]}):Response.json({error:'insufficient credits'},{status:402});
+    }
+    return upstream(input,options);
+  };
+  const response=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
+  assert.equal(response.status,200);
+  assert.deepEqual(models,['google/gemma-3-27b-it','openrouter/free']);
+}));
+
 test('AI provider failures return actionable diagnostics without exposing provider response bodies',async()=>withEnv(async()=>{
   const upstream=supabaseMock();
   for(const [status,expected] of [[401,/OPENROUTER_API_KEY/],[404,/OPENROUTER_MODEL/],[400,/JSON-schema structured output/]]){
