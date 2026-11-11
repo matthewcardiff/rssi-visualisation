@@ -44,8 +44,8 @@ test('Presenter Mode week search finds unique week numbers and dates and uses th
   assert.match(autosave, /function matchWeekLabel\(value\)/);
   assert.match(autosave, /vh26-presenter-week-search/);
   assert.match(autosave, /vh26-host-week-search/);
-  assert.match(autosave, /hostSelect\.value = option\.value/);
-  assert.match(autosave, /hostSelect\.dispatchEvent\(new Event\('change', \{ bubbles: true \}\)\)/);
+  assert.match(autosave, /currentHostInput\.value = match/);
+  assert.match(autosave, /currentHostInput\.dispatchEvent\(new Event\('input', \{ bubbles: true \}\)\)/);
   assert.match(autosave, /input\.addEventListener\('input', event =>/);
   assert.match(autosave, /Include a date if a week number appears more than once/);
 });
