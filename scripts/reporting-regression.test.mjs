@@ -474,12 +474,12 @@ test('Presenter full-window fallback keeps fullscreen control usable without the
 test('administrators can manage department reports and week status across periods',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   const reporting=readFileSync(new URL('../public/vh26-reporting.js',import.meta.url),'utf8');
-  assert.match(html,/function isAdminUser\\(identity=verifiedIdentity\\)/);
-  assert.match(html,/function canManage\\(\\)\\{return isAdminUser\\(\\)\\|\\|/);
-  assert.match(html,/function canEdit\\(\\)\\{return isAdminUser\\(\\)\\|\\|/);
-  assert.match(html,/editable:canEdit\\(\\)&&\\(isAdminUser\\(\\)\\|\\|week\\?\\.status==='open'\\)/);
-  assert.match(html,/dataApi\\('update_week'/);
-  assert.match(html,/reopen\\.hidden=\\!\\(reportRecord\\?\\.status==='submitted'&&\\(isAdminUser\\(\\)\\|\\|/);
+  assert.match(html,/function isAdminUser\(identity=verifiedIdentity\)/);
+  assert.match(html,/function canManage\(\)\{return isAdminUser\(\)\|\|/);
+  assert.match(html,/function canEdit\(\)\{return isAdminUser\(\)\|\|/);
+  assert.match(html,/editable:canEdit\(\)&&\(isAdminUser\(\)\|\|week\?\.status==='open'\)/);
+  assert.match(html,/dataApi\('update_week'/);
+  assert.match(html,/reopen\.hidden=\!\(reportRecord\?\.status==='submitted'&&\(isAdminUser\(\)\|\|/);
   assert.doesNotMatch(reporting,/installAdminDepartmentReportGuard/);
 });
 test('administrator lands in the department workspace and retains an explicit Meeting Overview route',()=>{
