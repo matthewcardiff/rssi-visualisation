@@ -6,6 +6,99 @@
   document.head.append(brandFix);
   document.querySelectorAll('#login .brand .rss-logo, #chooser .choose-head .rss-logo').forEach(el => el.style.setProperty('display', 'block', 'important'));
 
+
+  function weekLabels() {
+    return [...document.querySelectorAll('#vh26-host-week-options option')].map(option => option.value).filter(Boolean);
+  }
+  function matchWeekLabel(value) {
+    const query = String(value || '').trim().toLowerCase();
+    if (!query) return null;
+    const labels = weekLabels();
+    const exact = labels.find(label => label.toLowerCase() === query);
+    if (exact) return exact;
+    const weekNumber = query.match(/^(?:(?:nrw|rail)\s*)?(?:week|wk|w)?\s*#?\s*(\d{1,2})$/)?.[1];
+    const matches = labels.filter(label => weekNumber
+      ? new RegExp(`\\bweek\\s+0?${weekNumber}\\b`, 'i').test(label)
+      : label.toLowerCase().includes(query));
+    return matches.length === 1 ? matches[0] : null;
+  }
+  function installPresenterWeekSearch() {
+    const controls = document.querySelector('#vh26-presenter-mode .vh26-presenter-controls');
+    if (!controls || controls.querySelector('#vh26-presenter-week-search')) return;
+    const label = document.createElement('label');
+    label.id = 'vh26-presenter-week-picker';
+    label.textContent = 'Reporting week';
+    const input = document.createElement('input');
+    input.id = 'vh26-presenter-week-search';
+    input.type = 'search';
+    input.setAttribute('list', 'vh26-presenter-week-options');
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('aria-label', 'Search reporting weeks');
+    input.placeholder = 'Search week number or date';
+    const list = document.createElement('datalist');
+    list.id = 'vh26-presenter-week-options';
+    label.append(input, list);
+    controls.prepend(label);
+    const styles = document.createElement('style');
+    styles.textContent = '#vh26-presenter-week-picker{display:grid;gap:3px;color:#fff;font-size:11px;font-weight:650}#vh26-presenter-week-search{box-sizing:border-box;min-width:220px;min-height:40px;padding:8px 10px;border:1px solid #d4e1e7;border-radius:8px;background:#fff;color:#173448;font:600 13px Inter,Segoe UI,Arial,sans-serif}@media(max-width:650px){#vh26-presenter-week-search{width:100%}}';
+    document.head.append(styles);
+    const hostList = document.getElementById('vh26-host-week-options');
+    const hostInput = document.getElementById('vh26-host-week-search');
+    const hostSelect = document.getElementById('vh26-host-week-select');
+    const refreshOptions = () => {
+      list.replaceChildren(...weekLabels().map(value => {
+        const option = document.createElement('option');
+        option.value = value;
+        return option;
+      }));
+      if (hostSelect?.selectedOptions[0]) input.value = hostSelect.selectedOptions[0].textContent || '';
+    };
+    if (hostList) new MutationObserver(refreshOptions).observe(hostList, { childList: true, subtree: true });
+    hostSelect?.addEventListener('change', refreshOptions);
+    refreshOptions();
+    input.addEventListener('change', () => {
+      const match = matchWeekLabel(input.value);
+      if (!match) {
+        input.setCustomValidity('Choose one reporting week. Include a date if a week number appears more than once.');
+        input.reportValidity();
+        return;
+      }
+      input.setCustomValidity('');
+      input.value = match;
+      if (hostInput) {
+        hostInput.value = match;
+        hostInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+    });
+  }
+  function installAdminDepartmentReportGuard() {
+    const dashboard = document.getElementById('vh26-connected-dashboard');
+    if (!dashboard || dashboard.dataset.adminReportGuard === 'ready') return;
+    dashboard.dataset.adminReportGuard = 'ready';
+    let checkedToken = '';
+    const check = async () => {
+      if (dashboard.hidden || !dashboard.querySelector('[data-connected-nav="report"]')) return;
+      const token = await window.vhGetAIReviewToken?.();
+      if (!token || token === checkedToken) return;
+      checkedToken = token;
+      try {
+        const response = await fetch('/api/acceptance', {
+          method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
+          body: JSON.stringify({ op: 'whoami', access_token: token }), signal: AbortSignal.timeout(12000)
+        });
+        if (!response.ok) return;
+        const identity = await response.json();
+        if ((identity.roles || []).some(role => role.role === 'administrator')) {
+          dashboard.querySelector('[data-connected-nav="report"]')?.remove();
+        }
+      } catch { /* Keep department navigation if role lookup is temporarily unavailable. */ }
+    };
+    new MutationObserver(() => { void check(); }).observe(dashboard, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+    void check();
+  }
+  installPresenterWeekSearch();
+  installAdminDepartmentReportGuard();
+
   const pipelineLayout = document.createElement('style');
   pipelineLayout.id = 'vh26-pipeline-layout';
   pipelineLayout.textContent = `
