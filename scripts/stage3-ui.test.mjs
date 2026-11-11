@@ -38,6 +38,9 @@ test('Reporting week choices are chronological and searchable for long calendars
 
 test('Presenter Mode week search finds unique week numbers and dates and uses the live week control', () => {
   assert.match(autosave, /function weekLabels\(\)/);
+  assert.match(autosave, /querySelectorAll\('#vh26-host-week-select option'\)/);
+  assert.match(autosave, /function refreshHostWeekOptions\(\)/);
+  assert.match(autosave, /new MutationObserver\(refreshHostWeekOptions\)\.observe\(hostWeekSelect/);
   assert.match(autosave, /function matchWeekLabel\(value\)/);
   assert.match(autosave, /vh26-presenter-week-search/);
   assert.match(autosave, /vh26-host-week-search/);
