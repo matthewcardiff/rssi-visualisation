@@ -193,8 +193,8 @@ export default async (request)=>{
       return json(503,{error:'Finance publication is disabled for this deployment',code:'FINANCE_PUBLICATION_DISABLED'});
     if(data.op==='finance_reconcile' && process.env.VH_FINANCE_RECONCILIATION_ENABLED !== 'enabled')
       return json(503,{error:'Finance reconciliation is disabled until workbook review findings are persisted',code:'FINANCE_RECONCILIATION_DISABLED'});
-    if(['finance_import','finance_reconcile'].includes(data.op) && process.env.VH_FINANCE_STAGING_WRITES !== 'enabled')
-      return json(503,{error:'Finance figure saving is not enabled for this preview. No figures were saved.',code:'FINANCE_STAGING_WRITES_DISABLED',committed:false});
+    if(['finance_import','finance_reconcile'].includes(data.op) && (process.env.VH_FINANCE_STAGING_WRITES !== 'enabled' && process.env.VH_FINANCE_PRODUCTION_WRITES !== 'enabled'))
+      return json(503,{error:'Finance figure saving is not enabled for this deployment. No figures were saved.',code:'FINANCE_STAGING_WRITES_DISABLED',committed:false});
     if(data.op==='finance_reconcile'){
       const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
       if(!uuid(data.import_id)||data.confirm!==true||typeof data.comment!=='string'||data.comment.trim().length<8||data.comment.length>2000)
@@ -273,7 +273,7 @@ export default async (request)=>{
         const warnings=findings?.length?findings:(Array.isArray(reconciliation?.accepted_findings)?reconciliation.accepted_findings:[]);
         return {id:imp.id,file_name:imp.file_name,reporting_week_id:imp.reporting_week_id,imported_at:imp.imported_at,reconciliation_status:imp.reconciliation_status,ready_for_review:ready,can_reconcile:ready&&imp.reconciliation_status==='pending',can_publish:ready&&imp.reconciliation_status==='reconciled',metric_count:rows.length,department_count:byDepartment.size,issues:problems,warnings,publication_count:linked.length,published_count:linked.filter(x=>x.status==='published').length};
       });
-      const approvalEnabled=process.env.VH_FINANCE_STAGING_WRITES==='enabled';
+      const approvalEnabled=process.env.VH_FINANCE_STAGING_WRITES==='enabled'||process.env.VH_FINANCE_PRODUCTION_WRITES==='enabled';
       const reconciliationEnabled=approvalEnabled&&process.env.VH_FINANCE_RECONCILIATION_ENABLED==='enabled';
       const publicationEnabled=process.env.VH_FINANCE_PUBLICATION_ENABLED==='enabled';
       const notice=(reconciliationEnabled?'Reconciliation requires a separate review confirmation.':'Reconciliation is disabled until workbook review findings are persisted.')+(publicationEnabled?'':' Publication is disabled for this deployment.');
