@@ -71,33 +71,7 @@
       }
     });
   }
-  function installAdminDepartmentReportGuard() {
-    const dashboard = document.getElementById('vh26-connected-dashboard');
-    if (!dashboard || dashboard.dataset.adminReportGuard === 'ready') return;
-    dashboard.dataset.adminReportGuard = 'ready';
-    let checkedToken = '';
-    const check = async () => {
-      if (dashboard.hidden || !dashboard.querySelector('[data-connected-nav="report"]')) return;
-      const token = await window.vhGetAIReviewToken?.();
-      if (!token || token === checkedToken) return;
-      checkedToken = token;
-      try {
-        const response = await fetch('/api/acceptance', {
-          method: 'POST', headers: { 'content-type': 'application/json' }, cache: 'no-store',
-          body: JSON.stringify({ op: 'whoami', access_token: token }), signal: AbortSignal.timeout(12000)
-        });
-        if (!response.ok) return;
-        const identity = await response.json();
-        if ((identity.roles || []).some(role => role.role === 'administrator')) {
-          dashboard.querySelector('[data-connected-nav="report"]')?.remove();
-        }
-      } catch { /* Keep department navigation if role lookup is temporarily unavailable. */ }
-    };
-    new MutationObserver(() => { void check(); }).observe(dashboard, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
-    void check();
-  }
-  installPresenterWeekSearch();
-  installAdminDepartmentReportGuard();
+
 
   const pipelineLayout = document.createElement('style');
   pipelineLayout.id = 'vh26-pipeline-layout';
