@@ -51,9 +51,9 @@ test('Presenter Mode week search finds unique week numbers and dates and uses th
 });
 
 test('Presenter week changes replace the saved preference so restoration cannot revert the selection', () => {
-  assert.match(autosave, /sessionStorage\\.setItem\\('vh26-presenter-week-preference', target\\.value\\)/);
-  assert.match(autosave, /delete presenter\\.dataset\\.vh26WeekRestoreFor/);
-  assert.match(autosave, /delete presenter\\.dataset\\.vh26WeekRestoreAttempts/);
+  assert.match(autosave, /sessionStorage\.setItem\\('vh26-presenter-week-preference', target\\.value\\)/);
+  assert.match(autosave, /delete presenter\.dataset\\.vh26WeekRestoreFor/);
+  assert.match(autosave, /delete presenter\.dataset\\.vh26WeekRestoreAttempts/);
 });
 
 test('administrator keeps the Department Report navigation item after verified sign-in', () => {
