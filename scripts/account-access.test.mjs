@@ -9,7 +9,9 @@ test('sign-in page sends users to the password setup flow and routes invitation 
   const api = read('../netlify/functions/acceptance.mjs');
   assert.match(page, /id="vh-password-recovery"/);
   assert.match(page, /reset-password\.html/);
-  assert.match(page, /params\.get\('access_token'\).*type/);
+  assert.match(page, /params\.get\('access_token'\).*authError/);
+  assert.match(page, /params\.has\('error_code'\)/);
+  assert.match(page, /sessionStorage\.setItem\('vh-password-setup-email',address\)/);
   assert.match(api, /auth\/v1\/recover\?redirect_to=/);
   assert.match(api, /new URL\('\/reset-password\.html',request\.url\)/);
 });
@@ -20,6 +22,8 @@ test('password setup supports invitation, recovery and email-request steps throu
   assert.match(page, /Accept invitation and set password/);
   assert.match(page, /request-form/);
   assert.match(page, /Open the email link to return here/);
+  assert.match(page, /This setup link has expired or was already used/);
+  assert.match(page, /vh-password-setup-email/);
   assert.match(page, /Continue to sign in/);
 });
 
