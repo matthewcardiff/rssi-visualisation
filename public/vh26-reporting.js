@@ -1454,15 +1454,13 @@
       const target = event.target;
       if (!(target instanceof HTMLSelectElement) || target.id !== 'vh26-host-week-select') return;
       const presenter = document.getElementById('vh26-presenter-mode');
-      // Keep the user's choice while the host dashboard is active. Presenter rendering
-      // can reinitialize the host selector; those programmatic changes must not replace it.
-      if (!presenter || presenter.hidden) {
-        try { sessionStorage.setItem('vh26-presenter-week-preference', target.value); } catch {}
-        if (presenter) {
-          delete presenter.dataset.vh26WeekRestoreFor;
-          delete presenter.dataset.vh26WeekRestoreAttempts;
-          delete presenter.dataset.vh26WeekRestoreTimer;
-        }
+      // Keep the latest choice in both views. Presenter restoration can otherwise
+      // replay an older host selection and undo a week chosen from Presenter Mode.
+      try { sessionStorage.setItem('vh26-presenter-week-preference', target.value); } catch {}
+      if (presenter) {
+        delete presenter.dataset.vh26WeekRestoreFor;
+        delete presenter.dataset.vh26WeekRestoreAttempts;
+        delete presenter.dataset.vh26WeekRestoreTimer;
       }
     }, true);
     dashboard?.addEventListener('click', event => {
