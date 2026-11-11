@@ -5,7 +5,7 @@ export default async (request)=>{
   const key=process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_PUBLISHABLE_KEY;
   if(!url||!key||!/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url))return json(503,{error:'Supabase staging configuration missing'});
   let data;try{data=await request.json()}catch{return json(400,{error:'Invalid JSON'})}
-  if(!data||!['login','refresh','update_password','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
+  if(!data||!['login','refresh','update_password','whoami','reports','actions','weeks','sections','items','pipeline','create_report','save_section','submit_report','create_pipeline','update_pipeline','create_week','update_week','calendar_import','create_action','update_action','hsqe_assurance','hsqe_close_calls','hsqe_workforce','hsqe_add_assurance','hsqe_update_assurance','hsqe_add_close_call','hsqe_set_workforce','finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish','reopen_report'].includes(data.op))return json(400,{error:'Unsupported operation'});
   const common={'apikey':key,'content-type':'application/json'};
   try{
     if(data.op==='login'){
@@ -41,8 +41,8 @@ export default async (request)=>{
       return json(200,{items:result});
     }
     if(data.op==='create_week'){
-      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=eq.meeting_host',{headers,signal:AbortSignal.timeout(12000)});
-      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only the meeting host may create a reporting week'});
+      const rolesResponse=await fetch(url+'/rest/v1/user_roles?select=role&role=in.(meeting_host,administrator)',{headers,signal:AbortSignal.timeout(12000)});
+      if(!rolesResponse.ok||!(await rolesResponse.json()).length)return json(403,{error:'Only an administrator or meeting host may create a reporting week'});
       const [weeksResponse,periodsResponse]=await Promise.all([
         fetch(url+'/rest/v1/reporting_weeks?select=id,rail_period_id&limit=500',{headers,signal:AbortSignal.timeout(12000)}),
         fetch(url+'/rest/v1/rail_calendar_periods?select=id,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
@@ -56,11 +56,29 @@ export default async (request)=>{
       const next=ordered[nextIndex];
       if(!next)return json(409,{error:'The supplied rail calendar has no later period. Load the next official calendar before creating a reporting week.'});
       if(created.has(next.id))return json(409,{error:'A reporting week already exists for this rail period'});
-      const insert=await fetch(url+'/rest/v1/reporting_weeks',{method:'POST',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({rail_period_id:next.id,status:'open',creation_method:'manual'}),signal:AbortSignal.timeout(12000)});
+      const insert=await fetch(url+'/rest/v1/reporting_weeks',{method:'POST',headers:{...headers,prefer:'return=representation'},body:JSON.stringify({rail_period_id:next.id,status:'open',opened_at:new Date().toISOString(),created_by:user.id,creation_method:'manual'}),signal:AbortSignal.timeout(12000)});
       const result=await insert.json().catch(()=>[]);
       if(!insert.ok)return json(insert.status===403?403:409,{error:'Reporting week creation was rejected. Refresh to check whether it was created by another host.'});
       if(!Array.isArray(result)||result.length!==1)return json(409,{error:'Reporting week creation returned no record. Refresh before retrying.'});
       return json(200,{items:result});
+    }
+    if(data.op==='update_week'){
+      const uuid=x=>typeof x==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(x);
+      if(!uuid(data.week_id)||!['planned','open','closed'].includes(data.status))return json(400,{error:'Valid reporting week and status required'});
+      const [rolesResponse,profileResponse]=await Promise.all([
+        fetch(url+'/rest/v1/user_roles?select=role&role=eq.administrator',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/profiles?select=id,active&id=eq.'+encodeURIComponent(user.id)+'&active=eq.true',{headers,signal:AbortSignal.timeout(12000)})
+      ]);
+      if(!rolesResponse.ok||!profileResponse.ok)return json(403,{error:'Administrator permission could not be verified'});
+      if(!(await rolesResponse.json()).length||!(await profileResponse.json()).length)return json(403,{error:'Only an active administrator may change a reporting week'});
+      const changes={status:data.status};
+      if(data.status==='open')changes.opened_at=new Date().toISOString();
+      if(data.status==='planned')changes.opened_at=null;
+      const response=await fetch(url+'/rest/v1/reporting_weeks?id=eq.'+encodeURIComponent(data.week_id),{method:'PATCH',headers:{...headers,prefer:'return=representation'},body:JSON.stringify(changes),signal:AbortSignal.timeout(12000)});
+      const items=await response.json().catch(()=>[]);
+      if(!response.ok)return json(response.status===403?403:409,{error:'Reporting week update was rejected; refresh and verify the latest status'});
+      if(!Array.isArray(items)||items.length!==1)return json(404,{error:'Reporting week was not found'});
+      return json(200,{items});
     }
     if(data.op==='calendar_import'){
       if(!Array.isArray(data.periods)||data.periods.length<1||data.periods.length>300)return json(400,{error:'Upload 1–300 rail calendar periods'});

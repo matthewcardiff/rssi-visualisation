@@ -25,7 +25,7 @@ async function request(op,extra,responses){
     return {status:response.status,body:await response.json(),calls};
   }finally{globalThis.fetch=previous}
 }
-test('next reporting week is host-only and uses the next chronological rail calendar period',async()=>{
+test('an administrator or meeting host can create the next chronological rail period',async()=>{
   const previous='22222222-2222-4222-8222-222222222222',next='33333333-3333-4333-8333-333333333333';
   const out=await request('create_week',{},[
     {body:{id}},
@@ -37,12 +37,34 @@ test('next reporting week is host-only and uses the next chronological rail cale
   assert.equal(out.status,200);
   assert.equal(out.body.items[0].rail_period_id,next);
   assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
-  assert.deepEqual(JSON.parse(out.calls.at(-1).options.body),{rail_period_id:next,status:'open',creation_method:'manual'});
+  const inserted=JSON.parse(out.calls.at(-1).options.body);assert.equal(inserted.rail_period_id,next);assert.equal(inserted.status,'open');assert.equal(inserted.created_by,id);assert.equal(inserted.creation_method,'manual');assert.ok(Number.isFinite(Date.parse(inserted.opened_at)));
 });
-test('reporting week creation is denied before calendar lookup for non-host roles',async()=>{
+test('reporting week creation is denied before calendar lookup for non-admin roles',async()=>{
   const out=await request('create_week',{},[{body:{id}},{body:[]}]);
   assert.equal(out.status,403);
   assert.equal(out.calls.length,2);
+});
+test('an active administrator can change a reporting week status',async()=>{
+  const out=await request('update_week',{week_id:id,status:'closed'},[
+    {body:{id}},
+    {body:[{role:'administrator'}]},
+    {body:[{id,active:true}]},
+    {body:[{id,status:'closed'}]}
+  ]);
+  assert.equal(out.status,200);
+  assert.match(out.calls.at(-1).url,/reporting_weeks\?id=eq\./);
+  assert.equal(out.calls.at(-1).options.method,'PATCH');
+  assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
+  assert.deepEqual(JSON.parse(out.calls.at(-1).options.body),{status:'closed'});
+});
+test('a non-administrator cannot change a reporting week status',async()=>{
+  const out=await request('update_week',{week_id:id,status:'open'},[
+    {body:{id}},
+    {body:[]},
+    {body:[{id,active:true}]}
+  ]);
+  assert.equal(out.status,403);
+  assert.equal(out.calls.length,3);
 });
 test('shared rail calendar import is host-authorised and sent to the atomic database function',async()=>{
   const periods=[{week_number:40,start_date:'2027-12-25',end_date:'2027-12-31'}];
@@ -449,6 +471,17 @@ test('Presenter full-window fallback keeps fullscreen control usable without the
   assert.match(html,/vh26-presenter-fullscreen/);
 });
 
+test('administrators can manage department reports and week status across periods',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const reporting=readFileSync(new URL('../public/vh26-reporting.js',import.meta.url),'utf8');
+  assert.match(html,/function isAdminUser\(identity=verifiedIdentity\)/);
+  assert.match(html,/function canManage\(\)\{return isAdminUser\(\)\|\|/);
+  assert.match(html,/function canEdit\(\)\{return isAdminUser\(\)\|\|/);
+  assert.match(html,/editable:canEdit\(\)&&\(isAdminUser\(\)\|\|week\?\.status==='open'\)/);
+  assert.match(html,/dataApi\('update_week'/);
+  assert.match(html,/reopen\.hidden=\!\(reportRecord\?\.status==='submitted'&&\(isAdminUser\(\)\|\|/);
+  assert.doesNotMatch(reporting,/installAdminDepartmentReportGuard/);
+});
 test('administrator lands in the department workspace and retains an explicit Meeting Overview route',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.match(html,/const host=hostDashboardAllowed\(identity\),administrator=\(identity\.roles\|\|\[\]\)\.some\(r=>r\.role==='administrator'\);[\s\S]{0,260}setHostHomeVisible\(host&&!administrator\)/);
