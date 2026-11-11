@@ -52,7 +52,7 @@ test('an active administrator can change a reporting week status',async()=>{
     {body:[{id,status:'closed'}]}
   ]);
   assert.equal(out.status,200);
-  assert.match(out.calls.at(-1).url,/reporting_weeks\\?id=eq\\./);
+  assert.match(out.calls.at(-1).url,/reporting_weeks\?id=eq\./);
   assert.equal(out.calls.at(-1).options.method,'PATCH');
   assert.equal(out.calls.at(-1).options.headers.authorization,'Bearer '+token);
   assert.deepEqual(JSON.parse(out.calls.at(-1).options.body),{status:'closed'});
