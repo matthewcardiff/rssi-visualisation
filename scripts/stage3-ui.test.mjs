@@ -45,11 +45,10 @@ test('Presenter Mode week search finds unique week numbers and dates and uses th
   assert.match(autosave, /Include a date if a week number appears more than once/);
 });
 
-test('administrator role hides the Department Report navigation item after verified sign-in', () => {
-  assert.match(autosave, /function installAdminDepartmentReportGuard\(\)/);
-  assert.match(autosave, /op: 'whoami', access_token: token/);
-  assert.match(autosave, /role\.role === 'administrator'/);
-  assert.match(autosave, /data-connected-nav=\"report\"/);
+test('administrator keeps the Department Report navigation item after verified sign-in', () => {
+  assert.doesNotMatch(autosave, /installAdminDepartmentReportGuard/);
+  assert.match(html, /function isAdminUser\(identity=verifiedIdentity\)/);
+  assert.match(html, /data-connected-nav=\"report\"/);
 });
 
 test('pipeline action buttons have breathing room and matching outlined styling', () => {
