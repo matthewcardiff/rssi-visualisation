@@ -24,9 +24,13 @@ test('Action Log hides duplicate period subtitle and silent loading status while
 
 test('Reporting week choices are chronological and searchable for long calendars', () => {
   assert.match(html, /id="vh26-week-search" type="search" list="vh26-week-options"/);
+  assert.match(html, /id="vh26-host-week-search" type="search" list="vh26-host-week-options"/);
   assert.match(html, /placeholder="Search by week number or date"/);
   assert.match(html, /function orderedRailWeeks\(weeks\)/);
   assert.match(html, /start_date\|\|a\?\.start_date/);
+  assert.match(html, /function orderedHostWeeks\(\)\{return \[\.\.\.\(hostData\?\.weeks\|\|\[\]\)\]\.sort\(\(a,b\)=>String\(a\.rail_calendar_periods\?\.start_date\|\|''\)\.localeCompare\(String\(b\.rail_calendar_periods\?\.start_date\|\|''\)\)\)\}/);
+  assert.match(html, /function hostWeek\(\)\{const weeks=orderedHostWeeks\(\);return weeks\.find\(w=>w\.id===selectedHostWeekId\)\|\|weeks\.find\(w=>w\.status==='open'\)\|\|weeks\.at\(-1\)\|\|null\}/);
+  assert.match(html, /vh26-host-week-search'\)\.addEventListener\('change'/);
   assert.match(html, /function populateWeekPicker\(select,weeks\)/);
   assert.match(html, /weekSearch\?\.addEventListener\('change'/);
   assert.match(html, /weekSelect\.dispatchEvent\(new Event\('change',\{bubbles:true\}\)\)/);
