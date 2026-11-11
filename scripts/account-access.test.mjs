@@ -4,19 +4,23 @@ import { readFileSync } from 'node:fs';
 
 const read = path => readFileSync(new URL(path, import.meta.url), 'utf8');
 
-test('sign-in page provides a password setup link and requests recovery with the entered work email', () => {
+test('sign-in page sends users to the password setup flow and routes invitation tokens to it', () => {
   const page = read('../public/index.html');
   const api = read('../netlify/functions/acceptance.mjs');
   assert.match(page, /id="vh-password-recovery"/);
-  assert.match(page, /op:'password_recovery',email:address/);
+  assert.match(page, /reset-password\.html/);
+  assert.match(page, /params\.get\('access_token'\).*type/);
   assert.match(api, /auth\/v1\/recover\?redirect_to=/);
   assert.match(api, /new URL\('\/reset-password\.html',request\.url\)/);
 });
 
-test('password setup accepts invitation, signup and recovery links', () => {
+test('password setup supports invitation, recovery and email-request steps through to sign-in', () => {
   const page = read('../public/reset-password.html');
   assert.match(page, /\['recovery', 'invite', 'signup'\]\.includes\(recoveryType\)/);
-  assert.match(page, /Invitation verified\. Choose a password/);
+  assert.match(page, /Accept invitation and set password/);
+  assert.match(page, /request-form/);
+  assert.match(page, /Open the email link to return here/);
+  assert.match(page, /Continue to sign in/);
 });
 
 test('administrator-only user management supports invites, reset links and reversible deactivation', () => {
