@@ -6,7 +6,7 @@ const html = readFileSync(new URL('../public/index.html', import.meta.url), 'utf
 const autosave = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
 
 test('department report autosaves through the existing authenticated Supabase operation', () => {
-  assert.match(html, /<script defer src="\/vh26-reporting\.js"><\/script>/);
+  assert.match(html, /<script defer src="\/vh26-reporting\.js(?:\?[^\"]+)?"><\/script>/);
   assert.match(autosave, /reportContext\(\)\.editable/);
   assert.match(autosave, /reportingBridge\(\)\.saveSection/);
   assert.match(autosave, /reportingBridge\(\)\.createReport/);
