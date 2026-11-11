@@ -7,7 +7,7 @@ const userId='4dc09629-3a17-48b5-8a82-622c1cb4f012';
 const departmentId='66fc03cf-e42c-4f7a-881c-b12e2c5508de';
 const organisationId='6d50a120-aa9b-43af-b059-34c64db370db';
 const token='local-test-session-not-a-secret-value';
-const config={SUPABASE_URL:'https://staging-project.supabase.co',SUPABASE_ANON_KEY:'test',OLLAMA_API_KEY:'server-only-test-key',OLLAMA_MODEL:'gemma4:31b'};
+const config={SUPABASE_URL:'https://staging-project.supabase.co',SUPABASE_ANON_KEY:'test',OPENROUTER_API_KEY:'server-only-test-key',OPENROUTER_MODEL:'google/gemma-3-27b-it'};
 const review={assessment:'Clear and concise; add a dated milestone.',suggestions:['Name the milestone date.'],questions:['What is the forecast date?'],draft:'Delivery is progressing; the next milestone is due on the confirmed date.'};
 const safety={topic:'Situational awareness',why:'Changing conditions can affect safe decisions.',scenario:'Illustrative example: a worksite condition changes.',points:['Pause when conditions change.','Reconfirm the plan with the team.','Use approved briefings and controls.'],questions:['What changed?','Who needs to know?'],takeaway:'Pause, communicate and follow approved controls.'};
 
@@ -40,22 +40,22 @@ test('AI endpoints require POST, valid request bodies and configured server cred
   const invalid=await safetyMoment(request('safety-moment',{category:'unapproved'}));
   assert.equal(invalid.status,400);
   await withEnv(async()=>{
-    delete process.env.OLLAMA_API_KEY;
+    delete process.env.OPENROUTER_API_KEY;
     globalThis.fetch=supabaseMock();
     const unavailable=await reviewReport(request('review-report',{section:'delivery',text:'Update',department:'Managed Environments',week:'2026-W45'}));
     assert.equal(unavailable.status,503);
   });
 });
 
-test('Safety Moment reports missing Ollama API key without calling the provider',async()=>withEnv(async()=>{
-  delete process.env.OLLAMA_API_KEY;
+test('Safety Moment reports missing OpenRouter API key without calling the provider',async()=>withEnv(async()=>{
+  delete process.env.OPENROUTER_API_KEY;
   globalThis.fetch=supabaseMock({roles:[{role:'meeting_host',organisation_id:organisationId}]});
   const response=await safetyMoment(request('safety-moment',{category:'Rail operations'}));
   assert.equal(response.status,503);
-  assert.match((await response.json()).error,/OLLAMA_API_KEY/);
+  assert.match((await response.json()).error,/OPENROUTER_API_KEY/);
 }));
 
-test('AI report review rejects missing, inactive and out-of-scope sessions before calling Ollama',async()=>withEnv(async()=>{
+test('AI report review rejects missing, inactive and out-of-scope sessions before calling OpenRouter',async()=>withEnv(async()=>{
   globalThis.fetch=async url=>String(url).endsWith('/auth/v1/user')?Response.json({}):Response.json([],{status:403});
   assert.equal((await reviewReport(request('review-report',{section:'delivery',text:'update',department:'Managed Environments',week:'2026-W45'},null))).status,401);
   assert.equal((await reviewReport(request('review-report',{section:'delivery',text:'update',department:'Managed Environments',week:'2026-W45'}))).status,401);
@@ -66,24 +66,26 @@ test('AI report review rejects missing, inactive and out-of-scope sessions befor
     if(u.includes('/rest/v1/user_roles?'))return Response.json([]);
     if(u.includes('/rest/v1/departments?'))return Response.json([{id:departmentId,display_name:'Managed Environments',organisation_id:organisationId,active:true}]);
     if(u.includes('/rest/v1/department_memberships?'))return Response.json([]);
-    throw new Error('Ollama must not be called');
+    throw new Error('OpenRouter must not be called');
   };
   assert.equal((await reviewReport(request('review-report',{section:'delivery',text:'update',department:'Managed Environments',week:'2026-W45'}))).status,403);
 }));
 
 test('AI report review requires department membership and returns the agreed review shape',async()=>withEnv(async()=>{
-  delete process.env.OLLAMA_MODEL;
+  delete process.env.OPENROUTER_MODEL;
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
-    if(url==='https://ollama.com/api/chat'){
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
-      assert.equal(JSON.parse(options.body).model,'gpt-oss:120b');
+      assert.equal(JSON.parse(options.body).model,'openai/gpt-oss-120b');
       assert.equal(JSON.parse(options.body).stream,false);
-      assert.equal(JSON.parse(options.body).options.temperature,0);
-      assert.deepEqual(JSON.parse(options.body).format.required,['assessment','suggestions','questions','draft']);
-      return Response.json({message:{content:JSON.stringify(review)}});
+      assert.equal(JSON.parse(options.body).temperature,0);
+      assert.equal(JSON.parse(options.body).provider.require_parameters,true);
+      assert.deepEqual(JSON.parse(options.body).response_format.json_schema.schema.required,['assessment','suggestions','questions','draft']);
+      assert.equal(JSON.parse(options.body).response_format.json_schema.strict,true);
+      return Response.json({choices:[{message:{content:JSON.stringify(review)}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
@@ -100,27 +102,27 @@ test('AI report review requires department membership and returns the agreed rev
 
 test('AI provider failures return actionable diagnostics without exposing provider response bodies',async()=>withEnv(async()=>{
   const upstream=supabaseMock();
-  for(const [status,expected] of [[401,/OLLAMA_API_KEY/],[404,/OLLAMA_MODEL/],[400,/structured JSON output/]]){
-    globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?Response.json({error:'secret=provider-detail'}, {status}):upstream(input,options);
+  for(const [status,expected] of [[401,/OPENROUTER_API_KEY/],[404,/OPENROUTER_MODEL/],[400,/JSON-schema structured output/]]){
+    globalThis.fetch=async(input,options)=>String(input)==='https://openrouter.ai/api/v1/chat/completions'?Response.json({error:'secret=provider-detail'}, {status}):upstream(input,options);
     const response=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
     assert.equal(response.status,502);
     const error=(await response.json()).error;
     assert.match(error,expected);
     assert.doesNotMatch(error,/secret=provider-detail/);
   }
-  globalThis.fetch=async(input,options)=>{if(String(input)==='https://ollama.com/api/chat')throw Object.assign(new TypeError('fetch failed'),{cause:{code:'ENOTFOUND'}});return upstream(input,options)};
+  globalThis.fetch=async(input,options)=>{if(String(input)==='https://openrouter.ai/api/v1/chat/completions')throw Object.assign(new TypeError('fetch failed'),{cause:{code:'ENOTFOUND'}});return upstream(input,options)};
   const network=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   assert.equal(network.status,502);
   assert.match((await network.json()).error,/ENOTFOUND/);
-  globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?new Response('<html>blocked</html>',{status:200}):upstream(input,options);
+  globalThis.fetch=async(input,options)=>String(input)==='https://openrouter.ai/api/v1/chat/completions'?new Response('<html>blocked</html>',{status:200}):upstream(input,options);
   const unreadable=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   assert.match((await unreadable.json()).error,/non-JSON response/);
-  globalThis.fetch=async(input,options)=>String(input)==='https://ollama.com/api/chat'?Response.json({message:{content:JSON.stringify({assessment:'ok',suggestions:'not an array',questions:[],draft:'private text must not appear'})}}):upstream(input,options);
+  globalThis.fetch=async(input,options)=>String(input)==='https://openrouter.ai/api/v1/chat/completions'?Response.json({choices:[{message:{content:JSON.stringify({assessment:'ok',suggestions:'not an array',questions:[],draft:'private text must not appear'})}}]}):upstream(input,options);
   const malformed=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   const malformedError=(await malformed.json()).error;
   assert.match(malformedError,/suggestions=string/);
   assert.doesNotMatch(malformedError,/private text/);
-  globalThis.fetch=async(input,options)=>{if(String(input)==='https://ollama.com/api/chat')return Object.defineProperty({},'status',{get(){throw new TypeError('provider diagnostic test')}});return upstream(input,options)};
+  globalThis.fetch=async(input,options)=>{if(String(input)==='https://openrouter.ai/api/v1/chat/completions')return Object.defineProperty({},'status',{get(){throw new TypeError('provider diagnostic test')}});return upstream(input,options)};
   const unexpected=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
   assert.match((await unexpected.json()).error,/TypeError: provider diagnostic test/);
 }));
@@ -129,15 +131,15 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
-    if(url==='https://ollama.com/api/chat'){
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
       assert.match(JSON.parse(options.body).messages[0].content,/must never be presented as an approved procedure/);
       assert.match(JSON.stringify(JSON.parse(options.body)),/practical reminders distinct from discussion questions/);
       assert.match(JSON.stringify(JSON.parse(options.body)),/must not restate the reminders/);
-      assert.equal(JSON.parse(options.body).options.temperature,0.8);
-      assert.equal(JSON.parse(options.body).options.top_p,0.9);
-      return Response.json({message:{content:JSON.stringify(safety)}});
+      assert.equal(JSON.parse(options.body).temperature,0.8);
+      assert.equal(JSON.parse(options.body).top_p,0.9);
+      return Response.json({choices:[{message:{content:JSON.stringify(safety)}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
@@ -155,12 +157,12 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
   let providerCalls=0;const seeds=new Set();const varied={...safety,topic:'Changing storage arrangements',scenario:'Illustrative example: a delivery team changes the temporary storage area after a weather update.',points:['Recheck the agreed route with the team.','Keep people clear while the change is reviewed.','Ask a supervisor to confirm the approved arrangement.'],questions:['Who needs the revised information?','What should pause until the arrangement is clear?'],takeaway:'Confirm the revised arrangement before work resumes.'};
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
-    if(url==='https://ollama.com/api/chat'){
-      providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.options.seed);
-      assert.equal(requestBody.options.temperature,0.8);assert.equal(requestBody.options.top_p,0.9);
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
+      providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);
+      assert.equal(requestBody.temperature,0.8);assert.equal(requestBody.top_p,0.9);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<3?safety:varied;
-      return Response.json({message:{content:JSON.stringify(result)}});
+      return Response.json({choices:[{message:{content:JSON.stringify(result)}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
@@ -176,7 +178,7 @@ test('Safety Moment returns a clear error rather than repeating after three dupl
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
-    if(url==='https://ollama.com/api/chat'){providerCalls++;return Response.json({message:{content:JSON.stringify(safety)}})}
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){providerCalls++;return Response.json({choices:[{message:{content:JSON.stringify(safety)}}]})}
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
     if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'meeting_host',organisation_id:organisationId}]);
