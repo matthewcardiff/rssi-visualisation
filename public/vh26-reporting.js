@@ -8,7 +8,26 @@
 
 
   function weekLabels() {
-    return [...document.querySelectorAll('#vh26-host-week-options option')].map(option => option.value).filter(Boolean);
+    return [...document.querySelectorAll('#vh26-host-week-select option')].map(option => option.textContent.trim()).filter(Boolean);
+  }
+  function refreshHostWeekOptions() {
+    const select = document.getElementById('vh26-host-week-select');
+    const list = document.getElementById('vh26-host-week-options');
+    if (!select || !list) return;
+    const labels = [...select.options].map(option => option.textContent.trim()).filter(Boolean);
+    const existing = [...list.options].map(option => option.value);
+    if (labels.length === existing.length && labels.every((label, index) => label === existing[index])) return;
+    list.replaceChildren(...labels.map(value => {
+      const option = document.createElement('option');
+      option.value = value;
+      return option;
+    }));
+  }
+  const hostWeekSelect = document.getElementById('vh26-host-week-select');
+  refreshHostWeekOptions();
+  if (hostWeekSelect) {
+    new MutationObserver(refreshHostWeekOptions).observe(hostWeekSelect, { childList: true, subtree: true });
+    hostWeekSelect.addEventListener('change', refreshHostWeekOptions);
   }
   function matchWeekLabel(value) {
     const query = String(value || '').trim().toLowerCase();
