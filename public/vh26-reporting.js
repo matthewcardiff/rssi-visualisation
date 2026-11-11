@@ -104,10 +104,11 @@
       }
       input.setCustomValidity('');
       input.value = match;
-      const currentHostInput = document.getElementById('vh26-host-week-search');
-      if (!currentHostInput) return;
-      currentHostInput.value = match;
-      currentHostInput.dispatchEvent(new Event('input', { bubbles: true }));
+      const currentHostSelect = document.getElementById('vh26-host-week-select');
+      const option = currentHostSelect && [...currentHostSelect.options].find(item => item.textContent.trim() === match);
+      if (!option) return;
+      currentHostSelect.value = option.value;
+      currentHostSelect.dispatchEvent(new Event('change', { bubbles: true }));
     });
   }
 
