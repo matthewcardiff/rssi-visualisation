@@ -299,10 +299,10 @@ test('a late finance response cannot overwrite a department Presenter slide', ()
   const presenter = financeUi.slice(start, end);
   assert.match(presenter, /presenterPublishedFinance=await presenterLoadPublishedFinance\(week\?\.id\);[\s\S]*?if\(renderGeneration!==presenterSlideRenderGeneration\|\|presenterModeView!=='finance'\|\|hostWeek\(\)\?\.id!==week\?\.id\)return;/);
 });
-test('reloading Presenter readiness preserves the host selected reporting week',()=>{
-  assert.match(financeUi,/retainedWeekId=selectedHostWeekId/);
-  assert.match(financeUi,/hostData\.weeks=result\.items\|\|\[\];if\(retainedWeekId&&hostData\.weeks\.some\(w=>w\.id===retainedWeekId\)\)selectedHostWeekId=retainedWeekId/);
-});
+test('a readiness refresh keeps the latest week selection made while weeks are loading',()=>{
+  assert.doesNotMatch(financeUi,/retainedWeekId=selectedHostWeekId/);
+  assert.match(financeUi,/hostData\\.weeks=result\\.items\\|\\|\\[\\];hostCalendarPeriods=/);
+});;
 test('connected finance summary resolves the database aliases for TWS, Midland Metro and Signalling',()=>{
   assert.match(financeUi,/const financeAliases=\{TWS:\['TRACKWARNINGSYSTEMS'\],'MMA':\['MIDLANDMETRO'\],'S&T':\['SIGNALLING'\],'HS2 Bird Deterrant':\['BIRDDETERRENT','BIRDDETERENT'\]\}/);
   assert.match(financeUi,/\[d\.display_name,d\.code,d\.name\]\.some\(value=>wanted\.includes\(normalise\(value\)\)\)/);
