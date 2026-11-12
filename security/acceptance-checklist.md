@@ -13,7 +13,7 @@ Last audit: 12 November 2026. This checklist separates verified staging fixes fr
 - [x] Reviewed the four SECURITY DEFINER RPCs flagged by the security advisor. Anonymous EXECUTE is false for all; exposed finance/calendar functions check the caller identity and finance/administrator or meeting-host/administrator role. The publish wrapper gates publication and delegates to an internal function that performs the role check.
 - [x] Reviewed the 11 RLS-enabled/no-policy informational findings. Anonymous and authenticated users have no SELECT grants on those internal tables.
 
-These checks establish staging source/database state only. The latest Netlify deployment has not been verified. The Supabase security advisor still reports the leaked-password protection setting as disabled.
+These checks establish staging source/database state only. The latest Netlify deployment has not been verified. The Supabase security advisor still reports leaked-password protection disabled.
 
 ## Release tests still required
 
@@ -32,6 +32,6 @@ These checks establish staging source/database state only. The latest Netlify de
 - [ ] Test finance upload, extraction, review, reconciliation and publication using a dedicated synthetic staging week. Do not use Weeks 29–33 or publish synthetic data in production.
 - [ ] Run the complete `npm test` and `npm run build` suites and retain their results.
 - [ ] Confirm the staging Netlify deployment contains the accepted source commit.
-- [ ] Enable Supabase leaked-password protection on staging and rerun the security advisor. Dashboard sign-in is currently stopped at hCaptcha; the setting has not been changed.
+- [ ] Enable leaked-password protection on staging and rerun the security advisor. Supabase marks the control disabled on the current Free plan; the official feature requires Pro or above. Do not change the organization plan without a separate billing decision.
 - [ ] Review staging/production differences and select a narrow change set for release. The staging branch is diverged; do not merge it wholesale.
 - [ ] After staging acceptance and explicit approval, plan production rollout separately. No production data, schema or app was changed in this audit.
