@@ -914,10 +914,63 @@
     if (window.__vhSafetyMomentDiagnosticsInstalled || typeof window.fetch !== 'function') return;
     window.__vhSafetyMomentDiagnosticsInstalled = true;
     const originalFetch = window.fetch.bind(window);
+    const historyKey = 'weeklyportal-safety-moment-generated-history';
+    const validHistoryItem = item => item && typeof item === 'object' && typeof item.topic === 'string' && typeof item.scenario === 'string';
+    const readHistory = () => {
+      try {
+        const value = JSON.parse(localStorage.getItem(historyKey) || '[]');
+        return Array.isArray(value) ? value.filter(validHistoryItem).slice(-20) : [];
+      } catch { return []; }
+    };
+    const signature = item => [item?.topic, item?.scenario].map(value => String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()).join('|');
+    const uniqueRecent = items => {
+      const seen = new Set();
+      return items.filter(validHistoryItem).filter(item => {
+        const key = signature(item);
+        if (!key || seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    };
+    const currentMoment = () => {
+      const content = document.querySelector('#vh26-presenter-mode .vh26-presenter-safety-content');
+      if (!content) return null;
+      const sectionValue = title => {
+        const heading = [...content.querySelectorAll('h3')].find(item => item.textContent.trim() === title);
+        const value = heading?.nextElementSibling;
+        if (!value) return '';
+        return value.tagName === 'UL' ? [...value.querySelectorAll('li')].map(item => item.textContent.trim()).filter(Boolean) : value.textContent.trim();
+      };
+      const topic = content.querySelector('h2')?.textContent.trim() || '';
+      const scenario = sectionValue('Illustrative scenario');
+      if (!topic || !scenario) return null;
+      return {
+        topic, scenario,
+        points: sectionValue('Practical reminders'),
+        questions: sectionValue('Discussion questions'),
+        takeaway: sectionValue('Takeaway / agreed action')
+      };
+    };
+    const remember = item => {
+      try {
+        const history = uniqueRecent([...readHistory(), item]);
+        localStorage.setItem(historyKey, JSON.stringify(history.slice(-20)));
+      } catch { /* Keep generation available if local history is unavailable. */ }
+    };
     window.fetch = async function (input, init) {
       const url = typeof input === 'string' ? input : input?.url || '';
       const isSafetyMoment = String(url).includes('/.netlify/functions/safety-moment');
-      const response = await originalFetch(input, init);
+      let requestInit = init;
+      if (isSafetyMoment && typeof init?.body === 'string') {
+        try {
+          const body = JSON.parse(init.body);
+          if (body && typeof body === 'object' && !Array.isArray(body)) {
+            body.recent = uniqueRecent([...(Array.isArray(body.recent) ? body.recent : []), ...readHistory(), currentMoment()].filter(Boolean)).slice(-12);
+            requestInit = { ...init, body: JSON.stringify(body) };
+          }
+        } catch { /* Leave malformed requests untouched for the function's normal validation. */ }
+      }
+      const response = await originalFetch(input, requestInit);
       if (!isSafetyMoment) return response;
       const contentType = response.headers.get('content-type') || 'unknown content type';
       let payload = null;
@@ -929,7 +982,10 @@
         && Array.isArray(payload.points) && payload.points.length === 3
         && Array.isArray(payload.questions) && payload.questions.length === 2;
       if (!response.ok && hasError) return response;
-      if (response.ok && validResult) return response;
+      if (response.ok && validResult) {
+        remember(payload);
+        return response;
+      }
       const message = !response.ok
         ? 'Safety Moment function returned HTTP ' + response.status + ' (' + contentType + '). Check the branch deployment and Netlify function logs.'
         : 'Safety Moment function returned an invalid response (HTTP ' + response.status + ', ' + contentType + '). Check the branch deployment and Netlify function logs.';
