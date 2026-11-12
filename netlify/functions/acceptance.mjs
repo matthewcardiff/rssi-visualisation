@@ -38,7 +38,7 @@ export default async (request)=>{
     const userResponse=await fetch(url+'/auth/v1/user',{headers,signal:AbortSignal.timeout(12000)});
     if(!userResponse.ok)return json(401,{error:'Session invalid'});
     const user=await userResponse.json();
-    const financeOperations=new Set(['finance_published','finance_preview','finance_import','finance_review','finance_reconcile','finance_publish']);
+    const financeOperations=new Set(['finance_published']);
     if(financeOperations.has(data.op)){
       const roleResponse=await fetch(url+'/rest/v1/user_roles?select=role&user_id=eq.'+encodeURIComponent(user.id),{headers,signal:AbortSignal.timeout(12000)});
       if(!roleResponse.ok)return json(403,{error:'Finance role lookup denied'});
