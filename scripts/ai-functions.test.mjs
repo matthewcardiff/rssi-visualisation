@@ -127,7 +127,7 @@ test('a paid OpenRouter model retries once through the free router after HTTP 40
 
 test('AI provider failures return actionable diagnostics without exposing provider response bodies',async()=>withEnv(async()=>{
   const upstream=supabaseMock();
-  for(const [status,expected] of [[401,/OPENROUTER_API_KEY/],[404,/OPENROUTER_MODEL/],[400,/JSON-schema structured output/]]){
+  for(const [status,expected] of [[401,/OPENROUTER_API_KEY/],[404,/OPENROUTER_MODEL/],[400,/OpenRouter rejected the structured-output request/]]){
     globalThis.fetch=async(input,options)=>String(input)==='https://openrouter.ai/api/v1/chat/completions'?Response.json({error:'secret=provider-detail'}, {status}):upstream(input,options);
     const response=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
     assert.equal(response.status,502);
