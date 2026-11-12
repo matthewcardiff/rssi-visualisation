@@ -437,7 +437,7 @@ export default async (request)=>{
     }
     if(data.op==='weeks'){
       const [weeksResponse,periodsResponse]=await Promise.all([
-        fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)}),
+        fetch(url+'/rest/v1/reporting_weeks?select=id,status,rail_period_id,creation_method,rail_calendar_periods(rail_year,rail_week,start_date,end_date,source_version)&order=created_at.desc&limit=100',{headers,signal:AbortSignal.timeout(12000)}),
         fetch(url+'/rest/v1/rail_calendar_periods?select=id,rail_year,rail_week,start_date,end_date&order=start_date.asc&limit=500',{headers,signal:AbortSignal.timeout(12000)})
       ]);
       if(!weeksResponse.ok||!periodsResponse.ok)return json(502,{error:'Reporting week and calendar lookup failed',status:!weeksResponse.ok?weeksResponse.status:periodsResponse.status});

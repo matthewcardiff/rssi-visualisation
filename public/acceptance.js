@@ -34,8 +34,9 @@ function renderDashboard(){
  shortcuts.querySelectorAll('[data-department]').forEach(b=>{b.classList.toggle('selected',b.dataset.department===dep.value);b.setAttribute('aria-pressed',String(b.dataset.department===dep.value))});
  if(activeView==='pipeline'&&!dep.value&&depts.length===1)dep.value=depts[0].id;
  wk.replaceChildren(option('','All reporting weeks'));
- weeks.forEach(w=>{const p=w.rail_calendar_periods||{};wk.append(option(w.id,`${p.rail_year||'?'} W${String(p.rail_week||'?').padStart(2,'0')} — ${w.status} (${p.start_date||'?'} to ${p.end_date||'?'})`))});
+ weeks.forEach(w=>{const p=w.rail_calendar_periods||{};const label=`${p.rail_year||'?'} W${String(p.rail_week||'?').padStart(2,'0')} — ${w.status} (${p.start_date||'?'} to ${p.end_date||'?'})${/synthetic/i.test(p.source_version||'')?' [SYNTHETIC TEST]':''}`;wk.append(option(w.id,label))});
  if([...wk.options].some(o=>o.value===oldWeek))wk.value=oldWeek;
+ else if(!snapshot.identity.roles.some(r=>['administrator','executive','meeting_host'].includes(r.role))){const current=weeks.find(w=>w.status==='open'&&!/synthetic/i.test(w.rail_calendar_periods?.source_version||''));if(current)wk.value=current.id;}
  const rs=reports.filter(r=>(!dep.value||r.department_id===dep.value)&&(!wk.value||r.reporting_week_id===wk.value));
  const as=actions.filter(a=>!dep.value||a.department_id===dep.value);
  const reportIds=new Set(rs.map(r=>r.id));
@@ -88,13 +89,13 @@ function renderEditor(){
  $('create-draft').disabled=!writable||!!c.report||c.member.membership_role!=='manager';
  $('save-draft').disabled=!writable||(!c.report&&c.member.membership_role!=='manager');
  $('save-draft').textContent=c.report?'Save section':'Create draft and save section';
- $('editor-status').textContent=c.report?.status==='submitted'?'This report has been submitted and is read-only. Contact an authorised administrator to request reopening.':(c.report?'':'No draft exists. Save will create a draft first for a department manager.');
+ $('editor-status').textContent=c.report?.status==='submitted'?'This report has been submitted and is read-only. Contact an authorised administrator to request reopening.':(c.w.status!=='open'?'This reporting week is closed. Select the current open week to edit.':(c.report?'':'No draft exists. Save will create a draft first for a department manager.'));
  const complete=reportCompletion(c);
  $('section-progress-fill').style.width=complete.percent+'%';
  $('section-progress-text').textContent=complete.count+' of '+complete.total+' sections complete';
  $('submit-report').hidden=!(complete.count===complete.total&&writable&&c.report&&c.member.membership_role==='manager');
  $('submit-report').disabled=complete.count!==complete.total||!writable||!c.report||c.member.membership_role!=='manager';
- $('save-draft').title=!writable?'Submitted or closed reports cannot be edited.':'';
+ $('save-draft').title=!writable?(c.report?.status==='submitted'?'This report has been submitted and is read-only.':'This reporting week is closed; select the current open week.') : '';
  $('submit-report').title=!writable?'This report is read-only.':'';
  const sec=snapshot.sections.find(s=>s.report_id===c.report?.id&&s.section_key===$('section-select').value);
  $('section-notes').value=sec?.content?.notes||'';
