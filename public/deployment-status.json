@@ -1,1 +1,9 @@
-{"build":"Build 052 finance XLSX staging acceptance","status":"Authenticated staging branch; XLSX extraction, finance review, reconciliation and publication enabled for staging; production remains unchanged"}
+{
+  "build": "Build 052",
+  "release": "Production release — department reporting permissions",
+  "status": "Production source is main. Includes cross-department report-section navigation and department-scoped manager action editing.",
+  "sourceBranch": "main",
+  "sourceCommit": "a6f786a01f6f71d66ff67a587e851b6956e3ccbb",
+  "deploymentMarker": "prod-20261112-department-access-actions",
+  "productionChanged": true
+}
