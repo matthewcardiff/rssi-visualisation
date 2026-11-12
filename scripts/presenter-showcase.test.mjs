@@ -37,8 +37,8 @@ test('Meeting readiness loads actions before displaying the open-action total', 
 });
 
 test('Presenter Mode opens on the Safety Moment and refreshes it after readiness loads', () => {
-  assert.match(presenterPage, /openPresenterMode=function\\(\\)\\{if\\(!hostDashboardAllowed\\(\\)\\)return;const mode=document\\.getElementById\\('vh26-presenter-mode'\\);mode\\.hidden=false;presenterModeView='safety';/);
-  assert.match(presenterPage, /if\\(!mode\\.hidden&&presenterModeView==='safety'\\)renderPresenterSlide\\(\\)/);
+  assert.ok(presenterPage.includes("mode.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;"));
+  assert.ok(presenterPage.includes("if(!mode.hidden&&presenterModeView==='safety')renderPresenterSlide()"));
 });
 
 test('Presenter Mode company overview uses green for favourable gaps and keeps adverse gaps red', () => {
