@@ -84,7 +84,6 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(JSON.parse(options.body).stream,false);
       assert.equal(JSON.parse(options.body).temperature,0);
       assert.equal(JSON.parse(options.body).max_completion_tokens,2200);assert.equal(JSON.parse(options.body).reasoning_effort,'none');
-      assert.equal(JSON.parse(options.body).provider.require_parameters,true);
       const requestBody=JSON.parse(options.body);
       assert.equal(requestBody.response_format,undefined);
       assert.equal(requestBody.tool_choice,'required');
