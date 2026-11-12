@@ -228,7 +228,7 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);selectedFocus=safetyFocusFromOptions(options);
       assert.notEqual(selectedFocus,'fatigue-alertness');
-      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1000);assert.equal(requestBody.reasoning_effort,'none');
+      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1000);assert.equal(requestBody.reasoning_effort,undefined);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify({...result,focus:selectedFocus})}}]});
