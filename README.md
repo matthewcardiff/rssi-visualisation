@@ -1,62 +1,43 @@
-# Visualisation Hub — Netlify staging hosting package, Build 052
+# RSS Infrastructure Visualisation Hub
 
-This package is ready to host the disabled sign-in screen on Netlify. It is NOT
-ready for shared-user acceptance: Supabase accounts/data, Ollama Cloud and Microsoft
-365 email are not connected. It includes the application source for subsequent
-integration. Hosting does not activate these services. No secret values are needed.
+This repository contains the Visualisation Hub application and its Netlify Functions. The active review environment is the `build052-visual-restoration` branch. Build 050 is the approved visual and functional baseline. Staging is connected to Supabase and supports departmental reporting, Presenter Mode, actions, and a staged finance workflow.
 
-## Deploy manually
+## Current staging release status
 
-1. Extract this ZIP completely.
-2. Sign in to Netlify and choose the option to add a project/site using manual deployment.
-3. Upload or drag the **public** folder, which contains index.html. Do not upload
-   the enclosing project folder, the earlier Build050 file, or a saved data copy.
-4. Open the generated URL. Expect the RSS branding, Build 052 badge, disabled
-   email/password fields, disabled Sign in and an account-service connection message.
-5. Verify /deployment-status.json reports Build 052 with all connections false.
-6. Check /robots.txt and the response headers (listed in public/_headers).
+As of 12 November 2026, the branch contains fixes for the AI Review department-membership check, Action Log first-open rendering, and the misleading “Authenticated staging account” login label. The staging Supabase project also has unnecessary anonymous grants removed from the HSQE tables and totals view.
 
-Manual deployments do not execute build checks. Checks have been run on the
-included public folder. After editing, run `node scripts/verify.cjs` before uploading.
+The current source commit is `f9911c29730a8cef2d0c9013775388d38bde5d69`. The Netlify deployment containing these changes has not been verified. The leaked-password protection setting is still pending: Supabase Dashboard sign-in reached an hCaptcha challenge. Production has not been changed.
 
-## Deploy from a Git repository
+The staging branch is intentionally isolated from `main`; it is 6 commits ahead and 48 behind. Do not merge the branch wholesale. Review any eventual release as a narrow, explicitly selected change set.
 
-Commit this package's contents at the repository root, then import that repository
-into Netlify. Base directory: leave empty. Build command: `node scripts/verify.cjs`.
-Publish directory: `public`. No framework preset or install dependencies required.
-netlify.toml supplies the same settings. Only public/ is published; docs/scripts
-remain outside it. No site or repository has been created by this preparation.
+## Local checks
 
-## Expected limitations and next work
+Use Node.js 22 or later.
 
-- Sign-in and navigation are deliberately disabled, including with JavaScript off.
-- There is no hosted authentication, database connection or secure shared reporting.
-- The in-page gate is a preparation control, not a security boundary for data.
-- No passwords, API keys, demo accounts or saved operational data are supplied.
-- No live emails, scheduled tasks or AI requests can run from this deployment.
-- Search indexing is discouraged; robots/noindex are not access control. Configure
-  Netlify's site access protection separately if the URL must be restricted.
-- HTTP headers are applied by Netlify; local file preview cannot verify them.
-- Security policy deliberately blocks outbound connections and form submission.
-  Update it to precise approved service endpoints as part of backend integration.
-- Inline scripts/styles remain for compatibility with the existing single-file app.
-- Legacy browser-storage feature code remains for migration; do not enable the UI
-  until shared persistence, authenticated membership, server policies and tests pass.
+```sh
+npm test
+npm run build
+```
 
-## Before operational staging acceptance
+Netlify uses the staging branch build context and runs the test suite before publishing `public/`. Build and test results for the current audit changes are pending; do not infer a green build from a successful commit.
 
-Connect Supabase authentication and shared storage together; replace the deny-only
-identity hooks and email-based legacy role assumptions with real memberships and
-database policies. Enable multiple named users per department. Preserve independent
-department submission, nine departments and the intentional two-week finance lag.
-Then configure Netlify server functions, Ollama Cloud and Microsoft365 mail. Keep
-server secrets in service settings. Test two-user isolation, sessions, simultaneous
-edits, finance, action reminders and recovery before inviting users.
+## Deployment and acceptance
 
-No deployment or live service configuration was performed. Syntax, package and
-isolated gate checks pass. Full Edge/browser and hosted HTTP checks remain pending.
+The staging site is:
 
-Official references:
-- https://docs.netlify.com/deploy/create-deploys/
-- https://docs.netlify.com/build/configure-builds/file-based-configuration/
-- https://docs.netlify.com/manage/routing/headers/
+https://build052-visual-restoration--rssi-visualisation.netlify.app/
+
+Verify the deployed commit or visible build marker before treating a source fix as deployed. Run acceptance using authorized test accounts. Finance upload/review/reconciliation/publication must use a dedicated synthetic staging week; Weeks 29–33 contain operational or existing data and must not be used for synthetic publication. Do not publish test figures into production.
+
+The full release gate is tracked in [security/acceptance-checklist.md](security/acceptance-checklist.md). Key outstanding items include the full regression/build run, account-role and cross-department acceptance, the end-to-end finance workflow in an isolated week, and leaked-password protection in staging. Production release requires explicit acceptance after staging results are reviewed.
+
+## Application structure
+
+- `public/index.html` — authenticated meeting portal and host/presenter views.
+- `public/acceptance.html`, `acceptance.js`, `acceptance.css` — departmental reporting interface.
+- `netlify/functions/` — authenticated API handlers, including AI Review and Safety Moment.
+- `database/` — SQL migrations and reviewed finance workflows.
+- `scripts/` — regression tests and build checks.
+- `public/deployment-status.json` — source release status, including deployment verification state.
+
+Keep operational data and secrets out of source control. Netlify and Supabase environment settings hold deployment credentials.
