@@ -138,6 +138,7 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
       requestBody.provider={require_parameters:true};
       requestBody.response_format={type:'json_object'};
     }else{
+      requestBody.reasoning_effort='low';
       requestBody.provider={require_parameters:true};
       requestBody.plugins=[{id:'response-healing'}];
       requestBody.response_format={type:'json_schema',json_schema:schema};
@@ -201,7 +202,7 @@ export async function safetyMoment(request){
   const requirements='Return JSON only, including the exact focus ID supplied. Give a topic, why it matters, a clearly illustrative scenario, exactly three concise practical reminders, exactly two distinct discussion questions that invite reflection rather than repeat a reminder, and one takeaway or agreed action. Stay on the assigned focus lane, choose a specific setting and discussion angle within it, and do not reuse or paraphrase recent examples. Do not invent a procedure or technical control.';
   let data=null;const rejected=[];
   for(let attempt=0;attempt<2;attempt++){
-    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recent,...rejected].slice(-15)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:1000}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
+    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recent,...rejected].slice(-15)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:2000}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
     if(result.response){
       if(attempt===0&&result.response.status===502){
         const failure=await result.response.clone().json().catch(()=>null);
