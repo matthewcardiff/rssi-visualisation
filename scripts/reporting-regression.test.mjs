@@ -548,3 +548,14 @@ test('Finance week changes refresh the selected-week overview and discard stale 
   assert.match(settledWeekSync,/selectedWeek=select\.value;void loadPublishedFinance\(\);void financeReviewRefresh\(\)/);
   assert.doesNotMatch(settledWeekSync,/selectedWeek===select\.value/);
 });
+
+test('host Action Log renders preloaded actions when opening the route',()=>{
+  const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
+  const start=html.indexOf("document.querySelectorAll('.vh26-host-nav [data-host-view]')");
+  const end=html.indexOf('function presenterSetup(identity,visible)',start);
+  assert.ok(start>0&&end>start);
+  const route=html.slice(start,end);
+  assert.match(route,/if\(view==='actions'\)\{if\(presenterActions\.length\)presenterRows\(\);else presenterRefresh\(\)\}/);
+  assert.doesNotMatch(html,/Authenticated staging account/);
+  assert.match(html,/id="vh26-account">Authenticated account/);
+});
