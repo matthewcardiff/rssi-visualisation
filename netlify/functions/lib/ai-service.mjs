@@ -90,12 +90,13 @@ function valueType(value){return Array.isArray(value)?'array':value===null?'null
 function responseShape(value){return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value).slice(0,12).map(([key,item])=>key+'='+valueType(item)).join(', '):valueType(value)}
 function boundedText(value,max){return typeof value==='string'?value.trim().slice(0,max):''}
 function openRouterSchema(properties,required){return {name:'visualisation_ai_response',strict:true,schema:{type:'object',properties,required,additionalProperties:false}}}
-function providerError(status,model){
-  if(status===401||status===403)return 'OpenRouter rejected the API key or account access (HTTP '+status+'). Check OPENROUTER_API_KEY in Netlify and redeploy.';
-  if(status===402)return model==='openrouter/free'?'OpenRouter free-model routing is unavailable for this request. Check the free-model limits and account balance; a negative balance blocks free requests.':'The configured OpenRouter model has no available credits. The app retried with openrouter/free, which also failed; check free-model limits and account balance.';
-  if(status===404)return 'OpenRouter could not find model '+model+' (HTTP 404). Set OPENROUTER_MODEL to a model available on OpenRouter, then redeploy.';
-  if(status===400)return 'OpenRouter rejected the request for model '+model+' (HTTP 400). Check that the model supports JSON-schema structured output.';
-  return 'OpenRouter returned HTTP '+status+'. Check OpenRouter service status and retry.';
+function providerError(status,model,detail=''){
+  const diagnostic=detail?' Provider detail: '+detail:'';
+  if(status===401||status===403)return 'OpenRouter rejected the API key or account access (HTTP '+status+'). Check OPENROUTER_API_KEY in Netlify and redeploy.'+diagnostic;
+  if(status===402)return model==='openrouter/free'?'OpenRouter free-model routing is unavailable for this request. Check the free-model limits and account balance; a negative balance blocks free requests.'+diagnostic:'The configured OpenRouter model has no available credits. The app retried with openrouter/free, which also failed; check free-model limits and account balance.'+diagnostic;
+  if(status===404)return 'OpenRouter could not find model '+model+' (HTTP 404). Set OPENROUTER_MODEL to a model available on OpenRouter, then redeploy.'+diagnostic;
+  if(status===400)return 'OpenRouter rejected the '+(detail.includes('tool')?'tool-call':'structured-output')+' request for model '+model+' (HTTP 400).'+diagnostic+' Check model compatibility and try again.';
+  return 'OpenRouter returned HTTP '+status+'.'+diagnostic+' Check OpenRouter service status and retry.';
 }
 function safeRuntimeError(error){
   const code=error?.cause?.code;
@@ -130,12 +131,14 @@ function chooseSafetyFocus(recent){
 async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let response,requestModel=config.model;
   const callModel=model=>{
-    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,reasoning_effort:'none',provider:options.structuredMode==='tool'?undefined:{require_parameters:true},plugins:[{id:'response-healing'}],messages:[{role:'system',content:system},{role:'user',content:prompt}]};
+    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,messages:[{role:'system',content:system},{role:'user',content:prompt}]};
     if(options.structuredMode==='tool'){
       requestBody.tools=[{type:'function',function:{name:schema.name,description:'Return a response matching the supplied report review schema.',parameters:schema.schema}}];
-      requestBody.tool_choice='required';
-      requestBody.parallel_tool_calls=false;
+      requestBody.tool_choice={type:'function',function:{name:schema.name}};
     }else{
+      requestBody.reasoning_effort='none';
+      requestBody.provider={require_parameters:true};
+      requestBody.plugins=[{id:'response-healing'}];
       requestBody.response_format={type:'json_schema',json_schema:schema};
     }
     return fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+config.apiKey,'content-type':'application/json',accept:'application/json','http-referer':'https://rssi-visualisation.netlify.app','x-title':'RSSI Visualisation Hub'},body:JSON.stringify(requestBody),signal:AbortSignal.timeout(35000)});
@@ -149,8 +152,14 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
     return {response:json(timedOut?504:502,{error:detail})};
   }
   if(response.status===429)return {response:json(429,{error:'Review limit reached. Please try later.'})};
-  if(!response.ok)return {response:json(response.status===429?429:502,{error:providerError(response.status,requestModel)})};
-  let body;try{body=await response.json()}catch{return {response:json(502,{error:'OpenRouter returned a non-JSON response (HTTP '+response.status+'). Check OpenRouter endpoint access and Netlify outbound connectivity.'})}}
+  let body;try{body=await response.json()}catch{body=null}
+  if(!response.ok){
+    const rawDetail=body?.error?.message||body?.message||'';
+    const detail=typeof rawDetail==='string'?rawDetail.replace(/Bearer\\s+\\S+/gi,'Bearer [redacted]').replace(/[\\u0000-\\u001f\\u007f]/g,' ').replace(/\\s+/g,' ').trim().slice(0,220):'';
+    if(detail)console.warn('OpenRouter rejected request:',JSON.stringify({status:response.status,model:requestModel,structuredMode:options.structuredMode||'json_schema',detail}));
+    return {response:json(502,{error:providerError(response.status,requestModel,detail)})};
+  }
+  if(!body)return {response:json(502,{error:'OpenRouter returned a non-JSON response (HTTP '+response.status+'). Check OpenRouter endpoint access and Netlify outbound connectivity.'})}
   const parsed=parseStructuredResponse(body);
   if(parsed)return {data:parsed};
   console.warn('OpenRouter structured response parse failure:',JSON.stringify(openRouterResponseDiagnostic(body,requestModel)));
