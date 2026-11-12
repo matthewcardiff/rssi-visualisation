@@ -306,7 +306,7 @@ test('Presenter Mode uses the embedded Build 050 logo and renders authorised dep
 test('Presenter Mode lists Safety Moment first, HSQE next and Bids/RFQs last while readiness loads',()=>{
   const html=readFileSync(new URL('../public/index.html',import.meta.url),'utf8');
   assert.ok(html.includes("document.getElementById('vh26-presenter-launch').addEventListener('click',()=>openPresenterMode())"));
-  assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='finance';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
+  assert.match(html,/openPresenterMode=function\(\)\{if\(!hostDashboardAllowed\(\)\)return;const mode=document\.getElementById\('vh26-presenter-mode'\);mode\.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments\(\);renderPresenterTabs\(\);renderPresenterSlide\(\);Promise\.resolve\(loadHostReadiness\(\)\)/);
   assert.match(html,/add\('Safety Moment','safety'\);const hsqeIndex=presenterDepartments\.findIndex\(isHsqePresenterDepartment\)/);
   assert.match(html,/add\('Finance & Commercial','finance'\);presenterDepartments\.forEach/);
   assert.match(html,/const financeDepartments=presenterDepartments\.filter\(d=>!\['hsqe','bids-rfqs'\]\.includes\(String\(d\.code\|\|''\)\.toLowerCase\(\)\)\)/);

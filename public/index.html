@@ -52493,7 +52493,7 @@ async function presenterRenderFinance(root,renderGeneration=presenterSlideRender
  }catch(e){status.textContent='Published finance figures unavailable: '+e.message}
 }
 const renderConnectedPresenterDepartment=renderPresenterSlide;renderPresenterSlide=function(){const root=document.getElementById('vh26-presenter-slide');root.replaceChildren();const generation=++presenterSlideRenderGeneration,week=hostWeek();document.getElementById('vh26-presenter-week').textContent=week?hostWeekLabel(week):'Reporting week not available';const dept=presenterDepartments[presenterDepartmentIndex];document.getElementById('vh26-presenter-department-label').textContent=dept?.display_name||'Department';renderPresenterTabs();if(presenterModeView==='all'){renderPresenterOverview(root);return}if(presenterModeView==='safety'){presenterRenderSafety(root);return}if(presenterModeView==='finance'){presenterRenderFinance(root,generation);return}renderConnectedPresenterDepartment()};
-openPresenterMode=function(){if(!hostDashboardAllowed())return;const mode=document.getElementById('vh26-presenter-mode');mode.hidden=false;presenterModeView='finance';presenterDepartmentIndex=0;syncPresenterDepartments();renderPresenterTabs();renderPresenterSlide();Promise.resolve(loadHostReadiness()).then(()=>{if(!mode.hidden&&presenterModeView==='finance')renderPresenterSlide()})};
+openPresenterMode=function(){if(!hostDashboardAllowed())return;const mode=document.getElementById('vh26-presenter-mode');mode.hidden=false;presenterModeView='safety';presenterDepartmentIndex=0;syncPresenterDepartments();renderPresenterTabs();renderPresenterSlide();Promise.resolve(loadHostReadiness()).then(()=>{if(!mode.hidden&&presenterModeView==='safety')renderPresenterSlide()})};
 
 enable();restore();
 })();
