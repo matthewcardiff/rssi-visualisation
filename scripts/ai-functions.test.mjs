@@ -163,6 +163,7 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
       assert.equal(requestBody.provider.sort,'latency');
       assert.equal(requestBody.temperature,0.9);
       assert.equal(requestBody.top_p,0.95);
+      assert.equal(requestBody.max_completion_tokens,1000);
       return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus:selectedFocus})}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
@@ -242,10 +243,10 @@ test('Safety Moment bounds history sent to OpenRouter while keeping server dupli
   const recent=Array.from({length:12},(_,i)=>({focus:'fatigue-alertness',topic:'Previous topic '+i,scenario:'Previous illustrative scenario '+i+' '+('detail '.repeat(90)),points:['Reminder one','Reminder two','Reminder three']}));
   const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent}));
   assert.equal(response.status,200);
-  assert.equal(recentExamples.length,8);
+  assert.equal(recentExamples.length,4);
   for(const example of recentExamples){
     assert.deepEqual(Object.keys(example).sort(),['focus','scenario','topic']);
-    assert.ok(example.scenario.length<=320);
+    assert.ok(example.scenario.length<=180);
     assert.ok(!('points'in example));
   }
 }));
@@ -257,7 +258,8 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);selectedFocus=safetyFocusFromOptions(options);
       assert.notEqual(selectedFocus,'fatigue-alertness');
-      assert.equal(requestBody.model,'openai/gpt-4.1-mini');assert.equal(requestBody.provider.sort,'latency');assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1600);assert.equal(requestBody.reasoning_effort,undefined);
+      assert.equal(requestBody.model,'openai/gpt-4.1-mini');assert.equal(requestBody.provider.sort,'latency');assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);
+      assert.equal(requestBody.max_completion_tokens,1000);assert.equal(requestBody.max_completion_tokens,1000);assert.equal(requestBody.reasoning_effort,undefined);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify({...result,focus:selectedFocus})}}]});
