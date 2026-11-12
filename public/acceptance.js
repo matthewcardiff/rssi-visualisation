@@ -34,9 +34,9 @@ function renderDashboard(){
  shortcuts.querySelectorAll('[data-department]').forEach(b=>{b.classList.toggle('selected',b.dataset.department===dep.value);b.setAttribute('aria-pressed',String(b.dataset.department===dep.value))});
  if(activeView==='pipeline'&&!dep.value&&depts.length===1)dep.value=depts[0].id;
  wk.replaceChildren(option('','All reporting weeks'));
- weeks.forEach(w=>{const p=w.rail_calendar_periods||{};wk.append(option(w.id,`${p.rail_year||'?'} W${String(p.rail_week||'?').padStart(2,'0')} — ${w.status} (${p.start_date||'?'} to ${p.end_date||'?'})`))});
+ weeks.forEach(w=>{const p=w.rail_calendar_periods||{};const marker=/synthetic/i.test(p.source_version||'')?'[SYNTHETIC TEST] ':'';wk.append(option(w.id,`${marker}${p.rail_year||'?'} W${String(p.rail_week||'?').padStart(2,'0')} — ${w.status} (${p.start_date||'?'} to ${p.end_date||'?'})`))});
  if([...wk.options].some(o=>o.value===oldWeek))wk.value=oldWeek;
- else if(!isHost){const currentOpen=weeks.filter(w=>w.status==='open').sort((a,b)=>(b.rail_calendar_periods?.start_date||'').localeCompare(a.rail_calendar_periods?.start_date||''))[0];if(currentOpen)wk.value=currentOpen.id;}
+ else if(!isHost){const currentOpen=weeks.filter(w=>w.status==='open'&&!/synthetic/i.test(w.rail_calendar_periods?.source_version||'')).sort((a,b)=>(b.rail_calendar_periods?.start_date||'').localeCompare(a.rail_calendar_periods?.start_date||''))[0];if(currentOpen)wk.value=currentOpen.id;}
  const rs=reports.filter(r=>(!dep.value||r.department_id===dep.value)&&(!wk.value||r.reporting_week_id===wk.value));
  const as=actions.filter(a=>!dep.value||a.department_id===dep.value);
  const reportIds=new Set(rs.map(r=>r.id));
