@@ -91,12 +91,11 @@ function responseShape(value){return value&&typeof value==='object'&&!Array.isAr
 function boundedText(value,max){return typeof value==='string'?value.trim().slice(0,max):''}
 function openRouterSchema(properties,required){return {name:'visualisation_ai_response',strict:true,schema:{type:'object',properties,required,additionalProperties:false}}}
 function providerError(status,model,detail=''){
-  const diagnostic=detail?' Provider detail: '+detail:'';
-  if(status===401||status===403)return 'OpenRouter rejected the API key or account access (HTTP '+status+'). Check OPENROUTER_API_KEY in Netlify and redeploy.'+diagnostic;
-  if(status===402)return model==='openrouter/free'?'OpenRouter free-model routing is unavailable for this request. Check the free-model limits and account balance; a negative balance blocks free requests.'+diagnostic:'The configured OpenRouter model has no available credits. The app retried with openrouter/free, which also failed; check free-model limits and account balance.'+diagnostic;
-  if(status===404)return 'OpenRouter could not find model '+model+' (HTTP 404). Set OPENROUTER_MODEL to a model available on OpenRouter, then redeploy.'+diagnostic;
-  if(status===400)return 'OpenRouter rejected the '+(detail.includes('tool')?'tool-call':'structured-output')+' request for model '+model+' (HTTP 400).'+diagnostic+' Check model compatibility and try again.';
-  return 'OpenRouter returned HTTP '+status+'.'+diagnostic+' Check OpenRouter service status and retry.';
+  if(status===401||status===403)return 'OpenRouter rejected the API key or account access (HTTP '+status+'). Check OPENROUTER_API_KEY in Netlify and redeploy.';
+  if(status===402)return model==='openrouter/free'?'OpenRouter free-model routing is unavailable for this request. Check the free-model limits and account balance; a negative balance blocks free requests.':'The configured OpenRouter model has no available credits. The app retried with openrouter/free, which also failed; check free-model limits and account balance.';
+  if(status===404)return 'OpenRouter could not find model '+model+' (HTTP 404). Set OPENROUTER_MODEL to a model available on OpenRouter, then redeploy.';
+  if(status===400)return 'OpenRouter rejected the '+(detail.includes('tool')?'tool-call':'structured-output')+' request for model '+model+' (HTTP 400). Check model compatibility and try again.';
+  return 'OpenRouter returned HTTP '+status+'. Check OpenRouter service status and retry.';
 }
 function safeRuntimeError(error){
   const code=error?.cause?.code;
