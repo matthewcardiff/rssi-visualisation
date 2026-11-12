@@ -10,6 +10,7 @@ const token='local-test-session-not-a-secret-value';
 const config={SUPABASE_URL:'https://staging-project.supabase.co',SUPABASE_ANON_KEY:'test',OPENROUTER_API_KEY:'server-only-test-key',OPENROUTER_MODEL:'google/gemma-3-27b-it'};
 const review={assessment:'Clear and concise; add a dated milestone.',suggestions:['Name the milestone date.'],questions:['What is the forecast date?'],draft:'Delivery is progressing; the next milestone is due on the confirmed date.'};
 const safety={topic:'Situational awareness',why:'Changing conditions can affect safe decisions.',scenario:'Illustrative example: a worksite condition changes.',points:['Pause when conditions change.','Reconfirm the plan with the team.','Use approved briefings and controls.'],questions:['What changed?','Who needs to know?'],takeaway:'Pause, communicate and follow approved controls.'};
+function safetyFocusFromOptions(options){const body=JSON.parse(options.body);return JSON.parse(body.messages[1].content).focus.id;}
 
 function withEnv(fn){
   const before={};for(const key of Object.keys(config)){before[key]=process.env[key];process.env[key]=config[key]}
@@ -144,18 +145,19 @@ test('AI provider failures return actionable diagnostics without exposing provid
 }));
 
 test('Safety Moment generation is restricted to presenter roles and produces exactly three points and two questions',async()=>withEnv(async()=>{
-  let providerCalls=0;
+  let providerCalls=0,selectedFocus='';
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;
+      const requestBody=JSON.parse(options.body);selectedFocus=safetyFocusFromOptions(options);
       assert.match(options.headers.authorization,/^Bearer server-only-test-key$/);
-      assert.match(JSON.parse(options.body).messages[0].content,/must never be presented as an approved procedure/);
-      assert.match(JSON.stringify(JSON.parse(options.body)),/practical reminders distinct from discussion questions/);
-      assert.match(JSON.stringify(JSON.parse(options.body)),/must not restate the reminders/);
-      assert.equal(JSON.parse(options.body).temperature,0.8);
-      assert.equal(JSON.parse(options.body).top_p,0.9);
-      return Response.json({choices:[{message:{content:JSON.stringify(safety)}}]});
+      assert.match(requestBody.messages[0].content,/must never be presented as an approved procedure/);
+      assert.match(JSON.stringify(requestBody),/practical reminders distinct from discussion questions/);
+      assert.match(JSON.stringify(requestBody),/must not restate the reminders/);
+      assert.equal(requestBody.temperature,0.9);
+      assert.equal(requestBody.top_p,0.95);
+      return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus:selectedFocus})}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
@@ -165,20 +167,22 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
   };
   const response=await safetyMoment(request('safety-moment',{category:'Rail operations'}));
   assert.equal(response.status,200);
-  assert.deepEqual(await response.json(),safety);
+  const generated=await response.json();assert.equal(generated.focus,selectedFocus);delete generated.focus;
+  assert.deepEqual(generated,safety);
   assert.equal(providerCalls,1);
 }));
 
 test('Safety Moment retries recent duplicates and accepts a different scenario',async()=>withEnv(async()=>{
-  let providerCalls=0;const seeds=new Set();const varied={...safety,topic:'Changing storage arrangements',scenario:'Illustrative example: a delivery team changes the temporary storage area after a weather update.',points:['Recheck the agreed route with the team.','Keep people clear while the change is reviewed.','Ask a supervisor to confirm the approved arrangement.'],questions:['Who needs the revised information?','What should pause until the arrangement is clear?'],takeaway:'Confirm the revised arrangement before work resumes.'};
+  let providerCalls=0,selectedFocus='';const seeds=new Set();const varied={...safety,topic:'Changing storage arrangements',scenario:'Illustrative example: a delivery team changes the temporary storage area after a weather update.',points:['Recheck the agreed route with the team.','Keep people clear while the change is reviewed.','Ask a supervisor to confirm the approved arrangement.'],questions:['Who needs the revised information?','What should pause until the arrangement is clear?'],takeaway:'Confirm the revised arrangement before work resumes.'};
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
-      providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);
-      assert.equal(requestBody.temperature,0.8);assert.equal(requestBody.top_p,0.9);assert.equal(requestBody.max_completion_tokens,1000);
+      providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);selectedFocus=safetyFocusFromOptions(options);
+      assert.notEqual(selectedFocus,'fatigue-alertness');
+      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1000);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
-      return Response.json({choices:[{message:{content:JSON.stringify(result)}}]});
+      return Response.json({choices:[{message:{content:JSON.stringify({...result,focus:selectedFocus})}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
@@ -186,15 +190,15 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     if(url.includes('/rest/v1/departments?'))return Response.json([]);
     throw new Error('Unexpected fetch URL: '+url);
   };
-  const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent:[safety]}));
-  assert.equal(response.status,200);assert.deepEqual(await response.json(),varied);assert.equal(providerCalls,2);assert.equal(seeds.size,2);
+  const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent:[{...safety,focus:'fatigue-alertness'}]}));
+  assert.equal(response.status,200);const generated=await response.json();assert.equal(generated.focus,selectedFocus);delete generated.focus;assert.deepEqual(generated,varied);assert.equal(providerCalls,2);assert.equal(seeds.size,2);
 }));
 
 test('Safety Moment returns a clear error rather than repeating after two duplicate candidates',async()=>withEnv(async()=>{
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
-    if(url==='https://openrouter.ai/api/v1/chat/completions'){providerCalls++;return Response.json({choices:[{message:{content:JSON.stringify(safety)}}]})}
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){providerCalls++;return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus:safetyFocusFromOptions(options)})}}]})}
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
     if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
     if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'meeting_host',organisation_id:organisationId}]);
