@@ -71,6 +71,23 @@ test('AI report review rejects missing, inactive and out-of-scope sessions befor
   assert.equal((await reviewReport(request('review-report',{section:'delivery',text:'update',department:'Managed Environments',week:'2026-W45'}))).status,403);
 }));
 
+test('organisation-scoped department managers must also belong to the requested department',async()=>withEnv(async()=>{
+  let providerCalls=0;
+  globalThis.fetch=async(input,options={})=>{
+    const url=String(input);
+    if(url==='https://ollama.com/api/chat'){providerCalls++;return Response.json({message:{content:JSON.stringify(review)}});}
+    if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
+    if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
+    if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'department_manager',organisation_id:organisationId}]);
+    if(url.includes('/rest/v1/departments?'))return Response.json([{id:departmentId,display_name:'Managed Environments',organisation_id:organisationId,active:true}]);
+    if(url.includes('/rest/v1/department_memberships?'))return Response.json([]);
+    throw new Error('Unexpected fetch URL: '+url);
+  };
+  const response=await reviewReport(request('review-report',{section:'delivery',text:'Progress update',department:'Managed Environments',week:'2026-W45'}));
+  assert.equal(response.status,403);
+  assert.equal(providerCalls,0);
+}));
+
 test('AI report review requires department membership and returns the agreed review shape',async()=>withEnv(async()=>{
   delete process.env.OLLAMA_MODEL;
   let providerCalls=0;
