@@ -860,9 +860,9 @@ async function vhFinanceExtract(file,selectedWeek){
   else if(calculatedVariancePercent===null||Math.abs(Math.abs(matrixValues.ytdVariancePercent)-calculatedVariancePercent)>0.0001)warnings.push(dashboard.name+'!J5 cached YTD variance percentage does not match the reconciled YTD gap and budget.');
   const gapSignCaution=[['weeklyGap','G4'],['ytdGap','J4']].some(([key])=>matrixValues[key]!==null&&reconciledTotals[key]!==null&&Math.abs(Math.abs(matrixValues[key])-Math.abs(reconciledTotals[key]))<=0.01&&Math.sign(matrixValues[key])!==Math.sign(reconciledTotals[key]))?['The source matrix reverses the gap sign for this week; published gaps use budget minus revenue.']:[];
   if(directWeek===29){
-   const confirmed={ytdRevenue:1363438,ytdGap:33719,variancePercent:2};
-   const confirmedValues={ytdRevenue:matrixValues.ytdRevenue,ytdGap:reconciledTotals.ytdGap};
-   for(const key of ['ytdRevenue','ytdGap'])if(confirmedValues[key]===null||Math.round(confirmedValues[key])!==confirmed[key])warnings.push('WK29 confirmed '+key+' is £'+confirmed[key].toLocaleString('en-GB')+'; selected-sheet cached value is '+(confirmedValues[key]===null?'Not reported':money(confirmedValues[key]))+'. Correct the WK29 source before applying.');
+   const confirmed={weeklyRevenue:396341,weeklyGap:69378,ytdRevenue:1363438,ytdGap:33719,variancePercent:2};
+   const confirmedValues={weeklyRevenue:matrixValues.weeklyRevenue,weeklyGap:reconciledTotals.weeklyGap,ytdRevenue:matrixValues.ytdRevenue,ytdGap:reconciledTotals.ytdGap};
+   for(const key of ['weeklyRevenue','weeklyGap','ytdRevenue','ytdGap'])if(confirmedValues[key]===null||Math.round(confirmedValues[key])!==confirmed[key])warnings.push('WK29 confirmed '+key+' is £'+confirmed[key].toLocaleString('en-GB')+'; selected-sheet cached value is '+(confirmedValues[key]===null?'Not reported':money(confirmedValues[key]))+'. Correct the WK29 source before applying.');
    const variancePercent=matrixValues.ytdVariancePercent===null?null:Math.round(Math.abs(matrixValues.ytdVariancePercent)*100);
    if(variancePercent!==confirmed.variancePercent)warnings.push('WK29 confirmed variance is 2%; selected-sheet cached budget and gap calculate to '+(variancePercent===null?'Not reported':variancePercent+'%')+'. Correct the WK29 source before applying.');
   }
