@@ -138,7 +138,6 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
       requestBody.provider={require_parameters:true};
       requestBody.response_format={type:'json_object'};
     }else{
-      requestBody.reasoning_effort='none';
       requestBody.provider={require_parameters:true};
       requestBody.plugins=[{id:'response-healing'}];
       requestBody.response_format={type:'json_schema',json_schema:schema};
