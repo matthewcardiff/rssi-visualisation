@@ -221,6 +221,33 @@ test('Safety Moment retries once when OpenRouter returns malformed structured co
   assert.equal(providerCalls,2);
 }));
 
+test('Safety Moment bounds history sent to OpenRouter while keeping server duplicate checks',async()=>withEnv(async()=>{
+  let recentExamples=[];
+  globalThis.fetch=async(input,options={})=>{
+    const url=String(input);
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
+      const requestBody=JSON.parse(options.body);
+      recentExamples=JSON.parse(requestBody.messages[1].content).recent_examples;
+      const focus=safetyFocusFromOptions(options);
+      return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus,topic:'A fresh topic about team communication',scenario:'A hypothetical shift handover introduces a new, clearly distinct discussion angle.'})}}]});
+    }
+    if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
+    if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
+    if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'meeting_host',organisation_id:organisationId}]);
+    if(url.includes('/rest/v1/departments?'))return Response.json([]);
+    throw new Error('Unexpected fetch URL: '+url);
+  };
+  const recent=Array.from({length:12},(_,i)=>({focus:'fatigue-alertness',topic:'Previous topic '+i,scenario:'Previous illustrative scenario '+i+' '+('detail '.repeat(90)),points:['Reminder one','Reminder two','Reminder three']}));
+  const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent}));
+  assert.equal(response.status,200);
+  assert.equal(recentExamples.length,8);
+  for(const example of recentExamples){
+    assert.deepEqual(Object.keys(example).sort(),['focus','scenario','topic']);
+    assert.ok(example.scenario.length<=320);
+    assert.ok(!('points'in example));
+  }
+}));
+
 test('Safety Moment retries recent duplicates and accepts a different scenario',async()=>withEnv(async()=>{
   let providerCalls=0,selectedFocus='';const seeds=new Set();const varied={...safety,topic:'Changing storage arrangements',scenario:'Illustrative example: a delivery team changes the temporary storage area after a weather update.',points:['Recheck the agreed route with the team.','Keep people clear while the change is reviewed.','Ask a supervisor to confirm the approved arrangement.'],questions:['Who needs the revised information?','What should pause until the arrangement is clear?'],takeaway:'Confirm the revised arrangement before work resumes.'};
   globalThis.fetch=async(input,options={})=>{
