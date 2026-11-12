@@ -36,6 +36,7 @@ function renderDashboard(){
  wk.replaceChildren(option('','All reporting weeks'));
  weeks.forEach(w=>{const p=w.rail_calendar_periods||{};wk.append(option(w.id,`${p.rail_year||'?'} W${String(p.rail_week||'?').padStart(2,'0')} — ${w.status} (${p.start_date||'?'} to ${p.end_date||'?'})`))});
  if([...wk.options].some(o=>o.value===oldWeek))wk.value=oldWeek;
+ else if(!isHost){const currentOpen=weeks.filter(w=>w.status==='open').sort((a,b)=>(b.rail_calendar_periods?.start_date||'').localeCompare(a.rail_calendar_periods?.start_date||''))[0];if(currentOpen)wk.value=currentOpen.id;}
  const rs=reports.filter(r=>(!dep.value||r.department_id===dep.value)&&(!wk.value||r.reporting_week_id===wk.value));
  const as=actions.filter(a=>!dep.value||a.department_id===dep.value);
  const reportIds=new Set(rs.map(r=>r.id));
@@ -79,6 +80,13 @@ function editorContext(){
  const report=snapshot.reports.find(r=>r.department_id===dep&&r.reporting_week_id===week);
  return {dep,week,member,w,report};
 }
+function editorLockReason(c){
+ if(!c?.w)return 'Select a reporting week to edit this report.';
+ if(c.report?.status==='submitted')return 'This report has been submitted and is read-only. Contact an authorised administrator to request reopening.';
+ if(c.w.status!=='open')return `This reporting week is ${c.w.status} and is read-only. Select the current open week to enter data.`;
+ if(c.report&&!['draft','reopened'].includes(c.report.status))return `This report is ${c.report.status} and is read-only.`;
+ return '';
+}
 function renderEditor(){
  const c=editorContext(),e=$('editor');
  e.hidden=activeView!=='reports'||!c?.member||!c?.w||!c.dep||!c.week||['hsqe','bids-rfqs'].includes(snapshot.identity.departments.find(d=>d.id===c.dep)?.code);
@@ -88,13 +96,13 @@ function renderEditor(){
  $('create-draft').disabled=!writable||!!c.report||c.member.membership_role!=='manager';
  $('save-draft').disabled=!writable||(!c.report&&c.member.membership_role!=='manager');
  $('save-draft').textContent=c.report?'Save section':'Create draft and save section';
- $('editor-status').textContent=c.report?.status==='submitted'?'This report has been submitted and is read-only. Contact an authorised administrator to request reopening.':(c.report?'':'No draft exists. Save will create a draft first for a department manager.');
+ $('editor-status').textContent=editorLockReason(c)||(c.report?'':'No draft exists. Save will create a draft first for a department manager.');
  const complete=reportCompletion(c);
  $('section-progress-fill').style.width=complete.percent+'%';
  $('section-progress-text').textContent=complete.count+' of '+complete.total+' sections complete';
  $('submit-report').hidden=!(complete.count===complete.total&&writable&&c.report&&c.member.membership_role==='manager');
  $('submit-report').disabled=complete.count!==complete.total||!writable||!c.report||c.member.membership_role!=='manager';
- $('save-draft').title=!writable?'Submitted or closed reports cannot be edited.':'';
+ $('save-draft').title=!writable?editorLockReason(c):'';
  $('submit-report').title=!writable?'This report is read-only.':'';
  const sec=snapshot.sections.find(s=>s.report_id===c.report?.id&&s.section_key===$('section-select').value);
  $('section-notes').value=sec?.content?.notes||'';
@@ -212,7 +220,7 @@ function renderSpecialDepartments(){
  const box=$('hsqe-editor');box.hidden=!(activeView==='reports'&&code==='hsqe'&&c?.member&&c?.w);
  if(box.hidden)return;
  const writable=c.w.status==='open'&&(!c.report||['draft','reopened'].includes(c.report.status));
- $('hsqe-context').textContent=`Week: ${c.w.status} · Report: ${c.report?.status||'not created'}${writable?'':' — Submitted / Read Only'}`;
+ $('hsqe-context').textContent=`Week: ${c.w.status} · Report: ${c.report?.status||'not created'}${writable?'':' — '+editorLockReason(c)}`;
  const host=$('hsqe-fields');host.replaceChildren();
  const selector=document.createElement('select');selector.id='hsqe-section-select';
  hsqeSections.forEach(x=>selector.append(option(x.key,x.title)));selector.value=hsqeSectionKey;
@@ -227,7 +235,7 @@ function renderSpecialDepartments(){
   el.value=saved[id]??'';el.disabled=!writable;wrap.append(el);host.append(wrap);
  }
  $('hsqe-save').disabled=!writable||(!c.report&&c.member.membership_role!=='manager');
- $('hsqe-message').textContent=writable?'Save each section separately.':'Submitted reports cannot be edited.';
+ $('hsqe-message').textContent=writable?'Save each section separately.':editorLockReason(c);
 }
 $('hsqe-save').addEventListener('click',async()=>{
  const c=editorContext();if(!c?.member||c.w?.status!=='open'||(c.report&&!['draft','reopened'].includes(c.report.status)))return;
