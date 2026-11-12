@@ -155,7 +155,7 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let body;try{body=await response.json()}catch{body=null}
   if(!response.ok){
     const rawDetail=body?.error?.message||body?.message||'';
-    const detail=typeof rawDetail==='string'?rawDetail.replace(/Bearer\\s+\\S+/gi,'Bearer [redacted]').replace(/[\\u0000-\\u001f\\u007f]/g,' ').replace(/\\s+/g,' ').trim().slice(0,220):'';
+    const detail=typeof rawDetail==='string'?rawDetail.replace(/Bearer\s+\S+/gi,'Bearer [redacted]').replace(/[\u0000-\u001f\u007f]/g,' ').replace(/\s+/g,' ').trim().slice(0,220):'';
     if(detail)console.warn('OpenRouter rejected request:',JSON.stringify({status:response.status,model:requestModel,structuredMode:options.structuredMode||'json_schema',detail}));
     return {response:json(502,{error:providerError(response.status,requestModel,detail)})};
   }
