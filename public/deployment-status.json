@@ -1,7 +1,7 @@
 {
   "build": "052",
   "release": "Build 052 staging acceptance",
-  "status": "Staging source updated from the 12 November audit. The latest Netlify deployment is not verified. Staging HSQE grant cleanup and redundant action-policy cleanup are applied. Full regression, role acceptance and the isolated synthetic finance workflow remain open. Production unchanged.",
+  "status": "Staging source updated from the 12 November audit. The latest Netlify deployment is not verified. Staging HSQE grant cleanup and redundant action-policy cleanup are applied. Leaked-password protection is disabled and plan-gated on the current Free organization. Full regression, role acceptance and the isolated synthetic finance workflow remain open. Production unchanged.",
   "sourceBranch": "build052-visual-restoration",
   "sourceCommit": "f9911c29730a8cef2d0c9013775388d38bde5d69",
   "signInEnabled": true,
