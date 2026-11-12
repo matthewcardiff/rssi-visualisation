@@ -77,8 +77,14 @@ function parseObject(content){
 }
 function parseStructuredResponse(body){
   const message=body?.choices?.[0]?.message;
-  for(const candidate of [message?.parsed,message?.content]){const value=parseObject(candidate);if(value)return value}
+  const candidates=[message?.parsed,message?.content,message?.function_call?.arguments];
+  for(const call of Array.isArray(message?.tool_calls)?message.tool_calls:[])candidates.push(call?.function?.arguments);
+  for(const candidate of candidates){const value=parseObject(candidate);if(value)return value}
   return null;
+}
+function openRouterResponseDiagnostic(body,model){
+  const choice=body?.choices?.[0],message=choice?.message,content=message?.content;
+  return {model,finishReason:choice?.finish_reason||null,messageKeys:message&&typeof message==='object'?Object.keys(message):[],contentType:Array.isArray(content)?'array':content===null?'null':typeof content,contentLength:typeof content==='string'?content.length:Array.isArray(content)?content.length:null,refusal:typeof message?.refusal==='string',toolCallCount:Array.isArray(message?.tool_calls)?message.tool_calls.length:0,completionTokens:body?.usage?.completion_tokens??null};
 }
 function valueType(value){return Array.isArray(value)?'array':value===null?'null':typeof value}
 function responseShape(value){return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value).slice(0,12).map(([key,item])=>key+'='+valueType(item)).join(', '):valueType(value)}
@@ -136,7 +142,9 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
   if(!response.ok)return {response:json(response.status===429?429:502,{error:providerError(response.status,requestModel)})};
   let body;try{body=await response.json()}catch{return {response:json(502,{error:'OpenRouter returned a non-JSON response (HTTP '+response.status+'). Check OpenRouter endpoint access and Netlify outbound connectivity.'})}}
   const parsed=parseStructuredResponse(body);
-  return parsed?{data:parsed}:{response:json(502,{error:'OpenRouter returned an invalid structured response (choices[0].message.content was not a JSON object)'})};
+  if(parsed)return {data:parsed};
+  console.warn('OpenRouter structured response parse failure:',JSON.stringify(openRouterResponseDiagnostic(body,requestModel)));
+  return {response:json(502,{error:'OpenRouter returned an invalid structured response (choices[0].message.content was not a JSON object)'})};
 }
 
 export async function reviewReport(request){

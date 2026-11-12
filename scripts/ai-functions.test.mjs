@@ -172,6 +172,28 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
   assert.equal(providerCalls,1);
 }));
 
+test('Safety Moment accepts structured JSON returned through an OpenRouter tool call',async()=>withEnv(async()=>{
+  let providerCalls=0;
+  globalThis.fetch=async(input,options={})=>{
+    const url=String(input);
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
+      providerCalls++;
+      const focus=safetyFocusFromOptions(options);
+      return Response.json({choices:[{finish_reason:'tool_calls',message:{content:null,tool_calls:[{type:'function',function:{name:'visualisation_ai_response',arguments:JSON.stringify({...safety,focus})}}]}}]});
+    }
+    if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
+    if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
+    if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'meeting_host',organisation_id:organisationId}]);
+    if(url.includes('/rest/v1/departments?'))return Response.json([]);
+    throw new Error('Unexpected fetch URL: '+url);
+  };
+  const response=await safetyMoment(request('safety-moment',{category:'Rail operations'}));
+  assert.equal(response.status,200);
+  const generated=await response.json();assert.ok(generated.focus);delete generated.focus;
+  assert.deepEqual(generated,safety);
+  assert.equal(providerCalls,1);
+}));
+
 test('Safety Moment retries once when OpenRouter returns malformed structured content',async()=>withEnv(async()=>{
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
