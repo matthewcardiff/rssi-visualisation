@@ -1,1 +1,8 @@
-{"build":"Build 052 finance XLSX staging acceptance","status":"Authenticated staging branch; XLSX extraction, finance review, reconciliation and publication enabled for staging; production remains unchanged"}
+{
+  "build": "Build 052 staging acceptance",
+  "status": "Staging source updated from the 12 November audit; latest Netlify deployment not verified. Staging security grant cleanup is applied. Full regression, role acceptance and isolated synthetic finance workflow remain open. Production unchanged.",
+  "sourceBranch": "build052-visual-restoration",
+  "sourceCommit": "f9911c29730a8cef2d0c9013775388d38bde5d69",
+  "deploymentVerified": false,
+  "productionChanged": false
+}
