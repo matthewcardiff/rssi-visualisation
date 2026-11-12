@@ -92,7 +92,8 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(requestBody.tools.length,1);
       assert.equal(requestBody.tools[0].function.name,'visualisation_ai_response');
       assert.deepEqual(requestBody.tools[0].function.parameters.required,['assessment','suggestions','questions','draft']);
-      assert.equal(requestBody.tools[0].function.strict,true);
+      assert.equal(requestBody.tools[0].function.strict,undefined);
+      assert.equal(requestBody.provider,undefined);
       return Response.json({choices:[{finish_reason:'tool_calls',message:{content:null,tool_calls:[{type:'function',function:{name:'visualisation_ai_response',arguments:JSON.stringify(review)}}]}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
