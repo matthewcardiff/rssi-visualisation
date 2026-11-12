@@ -176,7 +176,7 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);
       assert.equal(requestBody.temperature,0.8);assert.equal(requestBody.top_p,0.9);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
-      const result=providerCalls<3?safety:varied;
+      const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify(result)}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
@@ -186,10 +186,10 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     throw new Error('Unexpected fetch URL: '+url);
   };
   const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent:[safety]}));
-  assert.equal(response.status,200);assert.deepEqual(await response.json(),varied);assert.equal(providerCalls,3);assert.equal(seeds.size,3);
+  assert.equal(response.status,200);assert.deepEqual(await response.json(),varied);assert.equal(providerCalls,2);assert.equal(seeds.size,2);
 }));
 
-test('Safety Moment returns a clear error rather than repeating after three duplicate candidates',async()=>withEnv(async()=>{
+test('Safety Moment returns a clear error rather than repeating after two duplicate candidates',async()=>withEnv(async()=>{
   let providerCalls=0;
   globalThis.fetch=async(input,options={})=>{
     const url=String(input);
@@ -201,5 +201,5 @@ test('Safety Moment returns a clear error rather than repeating after three dupl
     throw new Error('Unexpected fetch URL: '+url);
   };
   const response=await safetyMoment(request('safety-moment',{category:'Rail operations',recent:[safety]}));
-  assert.equal(response.status,409);assert.match((await response.json()).error,/sufficiently different.*three attempts/i);assert.equal(providerCalls,3);
+  assert.equal(response.status,409);assert.match((await response.json()).error,/sufficiently different.*two attempts/i);assert.equal(providerCalls,2);
 }));

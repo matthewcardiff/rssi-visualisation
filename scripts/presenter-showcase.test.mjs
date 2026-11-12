@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../public/vh26-reporting.js', import.meta.url), 'utf8');
+const indexSource = readFileSync(new URL('../public/index.html', import.meta.url), 'utf8');
 
 test('Presenter uses saved staging reports instead of an illustrative overlay', () => {
   assert.doesNotMatch(source, /Show illustrative examples|Hide illustrative examples|presenterShowcase|ILLUSTRATIVE EXAMPLE/);
@@ -39,4 +40,10 @@ test('Presenter Mode company overview uses green for favourable gaps and keeps a
   assert.ok(presenterPage.includes('number.className=\'vh26-finance-variance-\'+(value<=0?\'favourable\':\'adverse\')'));
   assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-favourable{color:#17633c!important}'));
   assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-adverse{color:#a12a16!important}'));
+});
+
+test('Presenter Safety Moment sends and remembers recent generated topics', () => {
+  assert.match(indexSource, /category:cat\.value,recent:/);
+  assert.match(indexSource, /weeklyportal-safety-moment-generated-history/);
+  assert.match(indexSource, /presenterSafetyDraft=\{\.\.\.data,category:cat\.value,week:week\?\.id\}/);
 });
