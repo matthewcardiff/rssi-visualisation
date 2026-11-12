@@ -836,7 +836,7 @@ async function vhFinanceExtract(file,selectedWeek){
   const directRecords=new Map(),legacy=[];
   for(const [labelCol,valueCol] of sourceBlocks){
    const label=String(dashboard.map.get(labelCol+'7')?.value||'').trim(),normal=normLabel(label);if(!normal)continue;
-   const match=vhFinDepartments.find(([name])=>(aliases[name]||[normLabel(name)]).includes(normal));
+   const match=vhFinDepartments.find(([name])=>[normLabel(name),...(aliases[name]||[])].includes(normal));
    const record={name:match?.[0]||label,bv:cachedAmount(valueCol+'11'),rv:cachedAmount(valueCol+'12'),ytdBudget:cachedAmount(valueCol+'15'),ytdRevenue:cachedAmount(valueCol+'16'),sourceRows:{sheet:dashboard.name,weeklyBudget:valueCol+'11',weeklyRevenue:valueCol+'12',ytdBudget:valueCol+'15',ytdRevenue:valueCol+'16'},issues:[],revenueInputState:cachedAmount(valueCol+'12')===null?'blank':'numeric'};
    if(match&&directRecords.has(match[0]))warnings.push(dashboard.name+'!'+labelCol+'7 duplicates the mapped department '+match[0]+'.');
    else if(match)directRecords.set(match[0],record);
@@ -892,7 +892,7 @@ async function vhFinanceExtract(file,selectedWeek){
  const splitFinancePeriod=Number(financePeriod?.sourceWeek)>=29;
  const explicitRows={'HS2 Bird Deterrant':{budget:splitFinancePeriod?[15]:[],revenue:splitFinancePeriod?[15]:[]},'HS2 Fencing':{budget:splitFinancePeriod?[13]:[],revenue:splitFinancePeriod?[13]:[]}};
  function rowsFor(map,name){
-  const wanted=aliases[name]||[normLabel(name)];let found=null;
+  const wanted=[normLabel(name),...(aliases[name]||[])];let found=null;
   for(let row=6;row<=17;row++){const label=map.get('A'+row)?.value;if(wanted.includes(normLabel(label))){found=row;break}}
   return found?[found]:[];
  }
