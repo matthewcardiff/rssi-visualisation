@@ -36,6 +36,11 @@ test('Meeting readiness loads actions before displaying the open-action total', 
   assert.ok(presenterPage.includes("if(hostData?.loading?.actions||errors.actions)actionsNode.textContent='—'"));
 });
 
+test('Presenter Mode opens on the Safety Moment and refreshes it after readiness loads', () => {
+  assert.match(presenterPage, /openPresenterMode=function\\(\\)\\{if\\(!hostDashboardAllowed\\(\\)\\)return;const mode=document\\.getElementById\\('vh26-presenter-mode'\\);mode\\.hidden=false;presenterModeView='safety';/);
+  assert.match(presenterPage, /if\\(!mode\\.hidden&&presenterModeView==='safety'\\)renderPresenterSlide\\(\\)/);
+});
+
 test('Presenter Mode company overview uses green for favourable gaps and keeps adverse gaps red', () => {
   assert.ok(presenterPage.includes('number.className=\'vh26-finance-variance-\'+(value<=0?\'favourable\':\'adverse\')'));
   assert.ok(presenterPage.includes('.vh26-presenter-company-overview article strong.vh26-finance-variance-favourable{color:#17633c!important}'));
