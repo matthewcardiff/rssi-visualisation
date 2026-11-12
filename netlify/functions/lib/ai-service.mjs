@@ -130,9 +130,9 @@ function chooseSafetyFocus(recent){
 async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let response,requestModel=config.model;
   const callModel=model=>{
-    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,reasoning_effort:'none',provider:{require_parameters:true},plugins:[{id:'response-healing'}],messages:[{role:'system',content:system},{role:'user',content:prompt}]};
+    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,reasoning_effort:'none',provider:options.structuredMode==='tool'?undefined:{require_parameters:true},plugins:[{id:'response-healing'}],messages:[{role:'system',content:system},{role:'user',content:prompt}]};
     if(options.structuredMode==='tool'){
-      requestBody.tools=[{type:'function',function:{name:schema.name,description:'Return a response matching the supplied report review schema.',parameters:schema.schema,strict:true}}];
+      requestBody.tools=[{type:'function',function:{name:schema.name,description:'Return a response matching the supplied report review schema.',parameters:schema.schema}}];
       requestBody.tool_choice='required';
       requestBody.parallel_tool_calls=false;
     }else{
