@@ -42,7 +42,7 @@ async function authorize(request,config,departmentName){
   if(departmentName){
     const department=departments.find(d=>d.display_name===departmentName);
     if(!department)return {response:json(403,{error:'Department not found or inactive'})};
-    if(!(isAdmin||isHost||orgRoles.some(r=>r.organisation_id===department.organisation_id&&r.role==='department_manager'))){
+    if(!isAdmin&&!isHost){
       try{memberships=await call('/rest/v1/department_memberships?select=department_id,membership_role,active&user_id=eq.'+encodeURIComponent(user.id)+'&department_id=eq.'+encodeURIComponent(department.id)+'&active=eq.true')}catch{return {response:json(502,{error:'Permission service unavailable'})}}
       if(!memberships?.some(m=>m.department_id===department.id))return {response:json(403,{error:'You do not have permission to review this department'})};
     }
