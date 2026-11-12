@@ -19,7 +19,7 @@ function withEnv(fn){
 function request(path,body,auth=token,method='POST'){
   return new Request('https://example.test/.netlify/functions/'+path,{method,headers:{...(auth?{authorization:'Bearer '+auth}:{}),'content-type':'application/json'},body:method==='POST'?JSON.stringify(body):undefined});
 }
-function supabaseMock({roles=[{role:'department_manager',organisation_id:organisationId}],memberships=[]}={}){
+function supabaseMock({roles=[{role:'department_manager',organisation_id:organisationId}],memberships=[{department_id:departmentId,membership_role:'manager',active:true}]}={}){
   return async(input)=>{
     const url=String(input);
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId,email:'manager@example.test'});
@@ -82,6 +82,7 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(JSON.parse(options.body).model,'openrouter/free');
       assert.equal(JSON.parse(options.body).stream,false);
       assert.equal(JSON.parse(options.body).temperature,0);
+      assert.equal(JSON.parse(options.body).max_completion_tokens,2200);
       assert.equal(JSON.parse(options.body).provider.require_parameters,true);
       assert.deepEqual(JSON.parse(options.body).response_format.json_schema.schema.required,['assessment','suggestions','questions','draft']);
       assert.equal(JSON.parse(options.body).response_format.json_schema.strict,true);
@@ -174,7 +175,7 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     const url=String(input);
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);
-      assert.equal(requestBody.temperature,0.8);assert.equal(requestBody.top_p,0.9);
+      assert.equal(requestBody.temperature,0.8);assert.equal(requestBody.top_p,0.9);assert.equal(requestBody.max_completion_tokens,1000);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify(result)}}]});
