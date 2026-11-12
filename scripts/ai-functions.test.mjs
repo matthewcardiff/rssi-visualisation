@@ -83,11 +83,13 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(JSON.parse(options.body).model,'openrouter/free');
       assert.equal(JSON.parse(options.body).stream,false);
       assert.equal(JSON.parse(options.body).temperature,0);
-      assert.equal(JSON.parse(options.body).max_completion_tokens,2200);assert.equal(JSON.parse(options.body).reasoning_effort,'none');
+      assert.equal(JSON.parse(options.body).max_completion_tokens,2200);
       const requestBody=JSON.parse(options.body);
+      assert.equal(requestBody.reasoning_effort,undefined);
+      assert.equal(requestBody.plugins,undefined);
       assert.equal(requestBody.response_format,undefined);
-      assert.equal(requestBody.tool_choice,'required');
-      assert.equal(requestBody.parallel_tool_calls,false);
+      assert.deepEqual(requestBody.tool_choice,{type:'function',function:{name:'visualisation_ai_response'}});
+      assert.equal(requestBody.parallel_tool_calls,undefined);
       assert.equal(requestBody.tools.length,1);
       assert.equal(requestBody.tools[0].function.name,'visualisation_ai_response');
       assert.deepEqual(requestBody.tools[0].function.parameters.required,['assessment','suggestions','questions','draft']);
