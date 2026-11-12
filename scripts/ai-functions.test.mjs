@@ -159,6 +159,8 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
       assert.match(requestBody.messages[0].content,/must never be presented as an approved procedure/);
       assert.match(JSON.stringify(requestBody),/practical reminders distinct from discussion questions/);
       assert.match(JSON.stringify(requestBody),/must not restate the reminders/);
+      assert.equal(requestBody.model,'openai/gpt-4.1-mini');
+      assert.equal(requestBody.provider.sort,'latency');
       assert.equal(requestBody.temperature,0.9);
       assert.equal(requestBody.top_p,0.95);
       return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus:selectedFocus})}}]});
@@ -255,7 +257,7 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);selectedFocus=safetyFocusFromOptions(options);
       assert.notEqual(selectedFocus,'fatigue-alertness');
-      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,2000);assert.equal(requestBody.reasoning_effort,'low');
+      assert.equal(requestBody.model,'openai/gpt-4.1-mini');assert.equal(requestBody.provider.sort,'latency');assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1600);assert.equal(requestBody.reasoning_effort,undefined);
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify({...result,focus:selectedFocus})}}]});
