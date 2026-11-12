@@ -6,9 +6,9 @@ This repository contains the Visualisation Hub application and its Netlify Funct
 
 As of 12 November 2026, the branch contains fixes for the AI Review department-membership check, Action Log first-open rendering, and the misleading “Authenticated staging account” login label. The staging Supabase project also has unnecessary anonymous grants removed from the HSQE tables and totals view.
 
-The current source commit is `f9911c29730a8cef2d0c9013775388d38bde5d69`. The Netlify deployment containing these changes has not been verified. The leaked-password protection setting is still pending: Supabase Dashboard sign-in reached an hCaptcha challenge. Production has not been changed.
+The current application source commit is `f9911c29730a8cef2d0c9013775388d38bde5d69`. The Netlify deployment containing these changes has not been verified. The leaked-password protection setting is still pending: Supabase Dashboard sign-in reached an hCaptcha challenge. Production has not been changed.
 
-The staging branch is intentionally isolated from `main`; it is 12 commits ahead and 48 behind. Do not merge the branch wholesale. Review any eventual release as a narrow, explicitly selected change set.
+The staging branch has diverged from `main` and is 48 commits behind. Do not merge the branch wholesale. Review any eventual release as a narrow, explicitly selected change set.
 
 ## Local checks
 
