@@ -20,9 +20,9 @@ function supabaseConfig(){
   const key=process.env.SUPABASE_ANON_KEY||process.env.SUPABASE_PUBLISHABLE_KEY;
   return url&&/^https:\/\/[a-z0-9-]+\.supabase\.co$/.test(url)&&key?{url,key}:null;
 }
-function openRouterConfig(config){
+function openRouterConfig(config,requestedModel){
   const apiKey=process.env.OPENROUTER_API_KEY;
-  const model=process.env.OPENROUTER_MODEL||'openrouter/free';
+  const model=requestedModel||process.env.OPENROUTER_MODEL||'openrouter/free';
   return apiKey&&/^[a-zA-Z0-9_.:/-]{1,100}$/.test(model)?{...config,apiKey,model}:null;
 }
 
@@ -130,7 +130,8 @@ function chooseSafetyFocus(recent){
 async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let response,requestModel=config.model;
   const callModel=model=>{
-    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,messages:[{role:'system',content:system},{role:'user',content:prompt}]};
+    const maxCompletionTokens=model==='openrouter/free'?Math.max(options.max_completion_tokens||0,4000):options.max_completion_tokens;
+    const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:maxCompletionTokens,messages:[{role:'system',content:system},{role:'user',content:prompt}]};
     if(options.structuredMode==='tool'){
       requestBody.tools=[{type:'function',function:{name:schema.name,description:'Return a response matching the supplied report review schema.',parameters:schema.schema}}];
       requestBody.tool_choice={type:'function',function:{name:schema.name}};
@@ -138,8 +139,8 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
       requestBody.provider={require_parameters:true};
       requestBody.response_format={type:'json_object'};
     }else{
-      requestBody.reasoning_effort='low';
-      requestBody.provider={require_parameters:true};
+      if(model==='openrouter/free')requestBody.reasoning_effort='low';
+      requestBody.provider={require_parameters:true,sort:'latency'};
       requestBody.plugins=[{id:'response-healing'}];
       requestBody.response_format={type:'json_schema',json_schema:schema};
     }
@@ -194,7 +195,8 @@ export async function safetyMoment(request){
   let auth;try{auth=await authorize(request,base,null)}catch{return json(502,{error:'Permission service unavailable'})}
   if(auth.response)return auth.response;
   if(!(auth.isAdmin||auth.isHost))return json(403,{error:'Presenter permission required'});
-  const config=openRouterConfig(base);if(!config)return json(503,{error:'OpenRouter configuration incomplete: set OPENROUTER_API_KEY in Netlify environment variables and redeploy; model defaults to openai/gpt-oss-120b (OPENROUTER_MODEL is optional)'});
+  const safetyModel=process.env.OPENROUTER_SAFETY_MOMENT_MODEL||'openai/gpt-4.1-mini';
+  const config=openRouterConfig(base,safetyModel);if(!config)return json(503,{error:'OpenRouter configuration incomplete: set OPENROUTER_API_KEY in Netlify environment variables and redeploy; Safety Moment model defaults to openai/gpt-4.1-mini (OPENROUTER_SAFETY_MOMENT_MODEL is optional)'});
   const recent=(Array.isArray(body.recent)?body.recent:[]).slice(-12).map(item=>({focus:safetyFocusAreas.some(area=>area.id===item?.focus)?item.focus:'',topic:boundedText(item?.topic,180),scenario:boundedText(item?.scenario,1200),points:Array.isArray(item?.points)?item.points.slice(0,3).map(x=>boundedText(x,500)):[]})).filter(item=>item.topic||item.scenario);
   const focus=chooseSafetyFocus(recent);
   const recentExamples=recent.slice(-8).map(item=>({focus:item.focus,topic:item.topic,scenario:item.scenario.slice(0,320)}));
@@ -203,7 +205,7 @@ export async function safetyMoment(request){
   const requirements='Return JSON only, including the exact focus ID supplied. Give a topic, why it matters, a clearly illustrative scenario, exactly three concise practical reminders, exactly two distinct discussion questions that invite reflection rather than repeat a reminder, and one takeaway or agreed action. Stay on the assigned focus lane, choose a specific setting and discussion angle within it, and do not reuse or paraphrase recent examples. Do not invent a procedure or technical control.';
   let data=null;const rejected=[];
   for(let attempt=0;attempt<2;attempt++){
-    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recentExamples,...rejected.slice(-2).map(item=>({focus:item.focus,topic:boundedText(item.topic,180),scenario:boundedText(item.scenario,320)}))].slice(-10)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:2000}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
+    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recentExamples,...rejected.slice(-2).map(item=>({focus:item.focus,topic:boundedText(item.topic,180),scenario:boundedText(item.scenario,320)}))].slice(-10)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:1600}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
     if(result.response){
       if(attempt===0&&result.response.status===502){
         const failure=await result.response.clone().json().catch(()=>null);
