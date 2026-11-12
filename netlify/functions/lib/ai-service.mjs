@@ -130,7 +130,7 @@ function chooseSafetyFocus(recent){
 async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let response,requestModel=config.model;
   const callModel=model=>{
-    const maxCompletionTokens=model==='openrouter/free'?Math.max(options.max_completion_tokens||0,4000):options.max_completion_tokens;
+    const maxCompletionTokens=model==='openrouter/free'?Math.max(options.max_completion_tokens||0,options.freeFallbackMaxCompletionTokens||0):options.max_completion_tokens;
     const requestBody={model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:maxCompletionTokens,messages:[{role:'system',content:system},{role:'user',content:prompt}]};
     if(options.structuredMode==='tool'){
       requestBody.tools=[{type:'function',function:{name:schema.name,description:'Return a response matching the supplied report review schema.',parameters:schema.schema}}];
@@ -205,7 +205,7 @@ export async function safetyMoment(request){
   const requirements='Return JSON only, including the exact focus ID supplied. Give a topic, why it matters, a clearly illustrative scenario, exactly three concise practical reminders, exactly two distinct discussion questions that invite reflection rather than repeat a reminder, and one takeaway or agreed action. Stay on the assigned focus lane, choose a specific setting and discussion angle within it, and do not reuse or paraphrase recent examples. Do not invent a procedure or technical control.';
   let data=null;const rejected=[];
   for(let attempt=0;attempt<2;attempt++){
-    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recentExamples,...rejected.slice(-2).map(item=>({focus:item.focus,topic:boundedText(item.topic,180),scenario:boundedText(item.scenario,320)}))].slice(-10)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:1600}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
+    let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recentExamples,...rejected.slice(-2).map(item=>({focus:item.focus,topic:boundedText(item.topic,180),scenario:boundedText(item.scenario,320)}))].slice(-10)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:1600,freeFallbackMaxCompletionTokens:4000}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
     if(result.response){
       if(attempt===0&&result.response.status===502){
         const failure=await result.response.clone().json().catch(()=>null);
