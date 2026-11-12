@@ -838,7 +838,7 @@
       ]);
       if (!panel.isConnected || panel.dataset.signature !== signature) return;
       const dept = presenterDepartmentForName(identity, context.departmentName);
-      const canEdit = (identity.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role));
+      const canEdit = (identity.roles || []).some(role => ['administrator','meeting_host','executive'].includes(role.role)) || (identity.memberships || []).some(m => m.active && m.department_id === dept?.id && m.membership_role === 'manager');
       const actions = (result.items || []).filter(a => a.department_id === dept?.id && !['completed','cancelled'].includes(a.status));
       const head = panel.querySelector('h2');
       if (head) head.textContent = 'Outstanding actions (' + actions.length + ')';
