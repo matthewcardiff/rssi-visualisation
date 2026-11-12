@@ -83,7 +83,7 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(JSON.parse(options.body).model,'openrouter/free');
       assert.equal(JSON.parse(options.body).stream,false);
       assert.equal(JSON.parse(options.body).temperature,0);
-      assert.equal(JSON.parse(options.body).max_completion_tokens,2200);
+      assert.equal(JSON.parse(options.body).max_completion_tokens,2200);assert.equal(JSON.parse(options.body).reasoning_effort,'none');
       assert.equal(JSON.parse(options.body).provider.require_parameters,true);
       assert.deepEqual(JSON.parse(options.body).response_format.json_schema.schema.required,['assessment','suggestions','questions','draft']);
       assert.equal(JSON.parse(options.body).response_format.json_schema.strict,true);
@@ -224,7 +224,7 @@ test('Safety Moment retries recent duplicates and accepts a different scenario',
     if(url==='https://openrouter.ai/api/v1/chat/completions'){
       providerCalls++;const requestBody=JSON.parse(options.body);seeds.add(requestBody.seed);selectedFocus=safetyFocusFromOptions(options);
       assert.notEqual(selectedFocus,'fatigue-alertness');
-      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1000);
+      assert.equal(requestBody.temperature,0.9);assert.equal(requestBody.top_p,0.95);assert.equal(requestBody.max_completion_tokens,1000);assert.equal(requestBody.reasoning_effort,'none');
       assert.ok(requestBody.messages[1].content.includes('recent_examples'));
       const result=providerCalls<2?safety:varied;
       return Response.json({choices:[{message:{content:JSON.stringify({...result,focus:selectedFocus})}}]});
