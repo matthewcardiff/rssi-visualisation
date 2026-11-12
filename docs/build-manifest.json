@@ -1,13 +1,25 @@
 {
   "build": "052",
-  "baseline": "051 cleaned source",
-  "entry_sha256": "3c6cf44ca8a1a710309219e715cb0322f747bdcd7213ec27723f6779951c0572",
+  "baseline": "Build 050 approved visual and functional baseline",
+  "entry_sha256": "5e9c7426058826b64054204decc493dd63175a0e02501cc4230fd2ee229fabca",
+  "source_branch": "build052-visual-restoration",
+  "source_commit": "f9911c29730a8cef2d0c9013775388d38bde5d69",
   "deploymentPerformed": false,
+  "deploymentVerified": false,
   "publicFiles": [
     "404.html",
     "_headers",
+    "acceptance.css",
+    "acceptance.html",
+    "acceptance.js",
+    "autosave.js",
+    "build052-gate.js",
     "deployment-status.json",
     "index.html",
-    "robots.txt"
+    "pako.LICENSE",
+    "pako_inflate.min.js",
+    "robots.txt",
+    "rssi-logo.png",
+    "vh26-reporting.js"
   ]
 }
