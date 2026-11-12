@@ -52,8 +52,21 @@ async function authorize(request,config,departmentName){
 }
 
 function parseObject(content){
+  if(content&&typeof content==='object'&&!Array.isArray(content))return content;
+  if(Array.isArray(content))content=content.map(part=>typeof part==='string'?part:typeof part?.text==='string'?part.text:'').filter(Boolean).join('\n');
   if(typeof content!=='string'||content.length>12000)return null;
-  try{const value=JSON.parse(content);return value&&typeof value==='object'&&!Array.isArray(value)?value:null}catch{return null}
+  const text=content.trim(),candidates=[text];
+  const fenced=text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if(fenced)candidates.push(fenced[1].trim());
+  const first=text.indexOf('{'),last=text.lastIndexOf('}');
+  if(first>=0&&last>first)candidates.push(text.slice(first,last+1));
+  for(const candidate of candidates){try{const value=JSON.parse(candidate);if(value&&typeof value==='object'&&!Array.isArray(value))return value}catch{}}
+  return null;
+}
+function parseStructuredResponse(body){
+  const message=body?.choices?.[0]?.message;
+  for(const candidate of [message?.parsed,message?.content]){const value=parseObject(candidate);if(value)return value}
+  return null;
 }
 function valueType(value){return Array.isArray(value)?'array':value===null?'null':typeof value}
 function responseShape(value){return value&&typeof value==='object'&&!Array.isArray(value)?Object.entries(value).slice(0,12).map(([key,item])=>key+'='+valueType(item)).join(', '):valueType(value)}
@@ -92,7 +105,7 @@ function similarSafetyMoment(candidate,previous){
 
 async function generate(config,{system,prompt,schema,options={temperature:0}}){
   let response,requestModel=config.model;
-  const callModel=model=>fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+config.apiKey,'content-type':'application/json',accept:'application/json','http-referer':'https://rssi-visualisation.netlify.app','x-title':'RSSI Visualisation Hub'},body:JSON.stringify({model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,provider:{require_parameters:true},response_format:{type:'json_schema',json_schema:schema},messages:[{role:'system',content:system},{role:'user',content:prompt}]}),signal:AbortSignal.timeout(35000)});
+  const callModel=model=>fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{authorization:'Bearer '+config.apiKey,'content-type':'application/json',accept:'application/json','http-referer':'https://rssi-visualisation.netlify.app','x-title':'RSSI Visualisation Hub'},body:JSON.stringify({model,stream:false,temperature:options.temperature,top_p:options.top_p,seed:options.seed,max_completion_tokens:options.max_completion_tokens,provider:{require_parameters:true},plugins:[{id:'response-healing'}],response_format:{type:'json_schema',json_schema:schema},messages:[{role:'system',content:system},{role:'user',content:prompt}]}),signal:AbortSignal.timeout(35000)});
   try{response=await callModel(requestModel);if(response.status===402&&requestModel!=='openrouter/free'){requestModel='openrouter/free';response=await callModel(requestModel)}}
   catch(error){
     const code=error?.cause?.code;
@@ -104,7 +117,7 @@ async function generate(config,{system,prompt,schema,options={temperature:0}}){
   if(response.status===429)return {response:json(429,{error:'Review limit reached. Please try later.'})};
   if(!response.ok)return {response:json(response.status===429?429:502,{error:providerError(response.status,requestModel)})};
   let body;try{body=await response.json()}catch{return {response:json(502,{error:'OpenRouter returned a non-JSON response (HTTP '+response.status+'). Check OpenRouter endpoint access and Netlify outbound connectivity.'})}}
-  const parsed=parseObject(body?.choices?.[0]?.message?.content);
+  const parsed=parseStructuredResponse(body);
   return parsed?{data:parsed}:{response:json(502,{error:'OpenRouter returned an invalid structured response (choices[0].message.content was not a JSON object)'})};
 }
 
