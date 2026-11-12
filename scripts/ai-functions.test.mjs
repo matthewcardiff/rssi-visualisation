@@ -91,8 +91,6 @@ test('AI report review requires department membership and returns the agreed rev
       assert.equal(requestBody.provider.require_parameters,true);
       assert.equal(requestBody.tool_choice,undefined);
       assert.equal(requestBody.tools,undefined);
-      assert.equal(requestBody.tools[0].function.strict,undefined);
-      assert.equal(requestBody.provider,undefined);
       return Response.json({choices:[{finish_reason:'tool_calls',message:{content:null,tool_calls:[{type:'function',function:{name:'visualisation_ai_response',arguments:JSON.stringify(review)}}]}}]});
     }
     if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
