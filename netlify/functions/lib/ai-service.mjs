@@ -173,7 +173,13 @@ export async function safetyMoment(request){
   let data=null;const rejected=[];
   for(let attempt=0;attempt<2;attempt++){
     let result;try{result=await generate(config,{system,prompt:JSON.stringify({category:body.category,focus:{id:focus.id,label:focus.label},requirements,recent_examples:[...recent,...rejected].slice(-15)}),schema,options:{temperature:0.9,top_p:0.95,seed:Math.floor(Math.random()*2147483647),max_completion_tokens:1000}})}catch(error){console.error('Safety Moment runtime failure:',safeRuntimeError(error));return json(502,{error:'Safety Moment generation failed unexpectedly ('+safeRuntimeError(error)+'). Check Netlify function logs and OpenRouter configuration.'})}
-    if(result.response)return result.response;
+    if(result.response){
+      if(attempt===0&&result.response.status===502){
+        const failure=await result.response.clone().json().catch(()=>null);
+        if(/invalid structured response/.test(failure?.error||''))continue;
+      }
+      return result.response;
+    }
     const candidate=result.data;
     const invalid=[];for(const key of ['topic','why','scenario','takeaway'])if(typeof candidate[key]!=='string')invalid.push(key+'='+valueType(candidate[key]));if(!safetyFocusAreas.some(area=>area.id===candidate.focus))invalid.push('focus='+valueType(candidate.focus));if(!Array.isArray(candidate.points)||candidate.points.length!==3||!candidate.points.every(x=>typeof x==='string'))invalid.push('points='+valueType(candidate.points));if(!Array.isArray(candidate.questions)||candidate.questions.length!==2||!candidate.questions.every(x=>typeof x==='string'))invalid.push('questions='+valueType(candidate.questions));if(invalid.length)return json(502,{error:'OpenRouter Safety Moment fields were invalid: '+invalid.join(', ')+'; received '+responseShape(candidate)});
     if(candidate.focus===focus.id&&![...recent,...rejected].some(previous=>similarSafetyMoment(candidate,previous))){data=candidate;break}

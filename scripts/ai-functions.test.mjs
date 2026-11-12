@@ -172,6 +172,29 @@ test('Safety Moment generation is restricted to presenter roles and produces exa
   assert.equal(providerCalls,1);
 }));
 
+test('Safety Moment retries once when OpenRouter returns malformed structured content',async()=>withEnv(async()=>{
+  let providerCalls=0;
+  globalThis.fetch=async(input,options={})=>{
+    const url=String(input);
+    if(url==='https://openrouter.ai/api/v1/chat/completions'){
+      providerCalls++;
+      if(providerCalls===1)return Response.json({choices:[{message:{content:'I could not return the requested JSON.'}}]});
+      const focus=safetyFocusFromOptions(options);
+      return Response.json({choices:[{message:{content:JSON.stringify({...safety,focus})}}]});
+    }
+    if(url.endsWith('/auth/v1/user'))return Response.json({id:userId});
+    if(url.includes('/rest/v1/profiles?'))return Response.json([{id:userId,active:true}]);
+    if(url.includes('/rest/v1/user_roles?'))return Response.json([{role:'meeting_host',organisation_id:organisationId}]);
+    if(url.includes('/rest/v1/departments?'))return Response.json([]);
+    throw new Error('Unexpected fetch URL: '+url);
+  };
+  const response=await safetyMoment(request('safety-moment',{category:'Rail operations'}));
+  assert.equal(response.status,200);
+  const generated=await response.json();assert.ok(generated.focus);delete generated.focus;
+  assert.deepEqual(generated,safety);
+  assert.equal(providerCalls,2);
+}));
+
 test('Safety Moment retries recent duplicates and accepts a different scenario',async()=>withEnv(async()=>{
   let providerCalls=0,selectedFocus='';const seeds=new Set();const varied={...safety,topic:'Changing storage arrangements',scenario:'Illustrative example: a delivery team changes the temporary storage area after a weather update.',points:['Recheck the agreed route with the team.','Keep people clear while the change is reviewed.','Ask a supervisor to confirm the approved arrangement.'],questions:['Who needs the revised information?','What should pause until the arrangement is clear?'],takeaway:'Confirm the revised arrangement before work resumes.'};
   globalThis.fetch=async(input,options={})=>{
